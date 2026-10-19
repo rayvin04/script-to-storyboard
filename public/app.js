@@ -62,7 +62,27 @@ const els = {
   progressValue: document.getElementById("progress-value"),
   progressFill: document.getElementById("progress-fill"),
   message: document.getElementById("message-dialog"),
+  themeToggle: document.getElementById("theme-toggle"),
 };
+
+function setTheme(theme, persist = false) {
+  const selectedTheme = theme === "dark" ? "dark" : "light";
+  const isDark = selectedTheme === "dark";
+  const label = isDark ? "Switch to light mode" : "Switch to dark mode";
+  document.documentElement.dataset.theme = selectedTheme;
+  els.themeToggle.setAttribute("aria-pressed", String(isDark));
+  els.themeToggle.setAttribute("aria-label", label);
+  els.themeToggle.title = label;
+  document.querySelector('meta[name="theme-color"]').content = isDark ? "#1a2230" : "#fff7e8";
+
+  if (persist) {
+    try {
+      localStorage.setItem("storyboardTheme", selectedTheme);
+    } catch {
+      // The current-page toggle still works when browser storage is unavailable.
+    }
+  }
+}
 
 let requestedScenes = 1;
 let currentScenes = DEMO_SCENES.slice(0, requestedScenes).map((scene) => ({ ...scene, source: "demo" }));
@@ -351,6 +371,9 @@ document.getElementById("download-all").addEventListener("click", () => currentS
 document.getElementById("export-plan").addEventListener("click", exportPlan);
 document.getElementById("send-drive").addEventListener("click", () => els.message.showModal());
 document.getElementById("dismiss-notice").addEventListener("click", () => { document.getElementById("notice-bar").hidden = true; });
+els.themeToggle.addEventListener("click", () => {
+  setTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark", true);
+});
 
 els.grid.addEventListener("click", (event) => {
   const ratingButton = event.target.closest("[data-rating]");
@@ -373,6 +396,7 @@ els.grid.addEventListener("click", (event) => {
 });
 
 els.mode.textContent = "N8N WORKFLOW";
+setTheme(document.documentElement.dataset.theme);
 els.script.value = SAMPLE_SCRIPT;
 updateCount();
 renderScenes();
