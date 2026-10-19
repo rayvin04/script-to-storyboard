@@ -15,7 +15,7 @@
   --shadow: 5px 5px 0 var(--shadow-ink);
   --radius-lg: 22px;
   --radius-md: 14px;
-  --font: "Trebuchet MS", "Segoe UI", sans-serif;
+  --font: "Lexend", "Trebuchet MS", "Segoe UI", sans-serif;
 }
 
 * { box-sizing: border-box; }
@@ -50,6 +50,9 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visib
 .topbar-right { display: flex; align-items: center; gap: 13px; }
 .mode-pill { display: inline-flex; align-items: center; gap: 8px; background: #e2f5dd; border: 1px solid #6da168; border-radius: 999px; padding: 8px 12px; color: #2a6037; font-size: 10px; font-weight: 900; letter-spacing: .11em; }
 .live-dot { width: 7px; height: 7px; background: #3a9e5e; border-radius: 50%; box-shadow: 0 0 0 3px rgba(58, 158, 94, .16); }
+.github-link { min-height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0 12px; border: 1.5px solid var(--ink); border-radius: 999px; background: var(--panel); color: var(--ink); font-size: 10px; font-weight: 800; text-decoration: none; box-shadow: 2px 2px 0 var(--shadow-ink); transition: transform .15s, box-shadow .15s; white-space: nowrap; }
+.github-link:hover { transform: translate(1px, 1px); box-shadow: 1px 1px 0 var(--shadow-ink); }
+.github-link svg { display: block; width: 17px; height: 17px; fill: currentColor; }
 .icon-button { border: 1.5px solid var(--line); width: 38px; height: 38px; display: grid; place-items: center; padding: 7px; border-radius: 50%; background: var(--panel); cursor: pointer; box-shadow: 2px 2px 0 var(--shadow-ink); transition: transform .15s, box-shadow .15s; }
 .icon-button:hover { transform: translate(1px, 1px); box-shadow: 1px 1px 0 var(--shadow-ink); }
 .icon-button svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
@@ -89,14 +92,15 @@ h2 { margin: 0; font-size: 19px; letter-spacing: -.025em; }
 .field-label { display: block; margin-bottom: 8px; color: #354154; font-size: 11px; font-weight: 900; }
 #script-input { width: 100%; min-height: 205px; padding: 13px 13px; border: 1.5px solid #aab2bd; border-radius: 12px; resize: vertical; background: #fffefa; color: var(--ink); font-size: 12px; line-height: 1.55; box-shadow: inset 0 2px 4px rgba(32, 42, 59, .035); }
 #script-input::placeholder { color: #99a2ae; }
-.field-meta { display: flex; justify-content: space-between; gap: 8px; margin-top: 7px; color: #7c8796; font-size: 9px; }
+.field-meta { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-top: 7px; color: #7c8796; font-size: 9px; }
+#script-help { font-size: 10px; line-height: 1.45; }
 #script-count { white-space: nowrap; }
 .control-row { display: flex; align-items: center; justify-content: space-between; margin-top: 21px; font-size: 12px; font-weight: 900; }
 .stepper { height: 33px; display: flex; align-items: center; gap: 12px; padding: 0 7px; border: 1.5px solid var(--ink); border-radius: 9px; background: #fff; box-shadow: 2px 2px 0 var(--shadow-ink); }
 .stepper button { width: 22px; height: 25px; border: 0; border-radius: 5px; background: transparent; font-size: 18px; line-height: 1; cursor: pointer; }
 .stepper button:hover { background: #f4ead5; }
 .stepper output { min-width: 13px; text-align: center; font-size: 12px; }
-.control-note { margin: 8px 0 0; color: #778292; font-size: 10px; line-height: 1.4; }
+.control-note { margin: 8px 0 0; color: #778292; font-size: 11px; line-height: 1.5; }
 .style-lock { margin-top: 21px; padding: 13px 12px 12px; border: 1.5px dashed #8793a2; border-radius: 12px; background: #f8f4ff; }
 .style-lock-top { display: flex; align-items: center; gap: 9px; }
 .style-lock-icon { width: 27px; height: 27px; display: grid; place-items: center; flex: 0 0 auto; border-radius: 9px; background: var(--lavender); color: var(--ink); font-size: 15px; }
@@ -321,6 +325,10 @@ dialog::backdrop { background: rgba(32, 42, 59, .42); backdrop-filter: blur(2px)
 @media (max-width: 460px) {
   .page-shell { width: calc(100% - 22px); }
   .brand-copy small { display: none; }
+  .github-link { width: 32px; min-height: 32px; padding: 0; border-radius: 50%; }
+  .github-link span, .mode-pill #mode-label { display: none; }
+  .mode-pill { width: 24px; height: 24px; justify-content: center; padding: 0; }
+  .icon-button { width: 32px; height: 32px; padding: 5px; }
   .avatar { width: 31px; height: 31px; }
   .intro-copy { max-width: 330px; font-size: 12px; line-height: 1.45; }
   .step-chip { gap: 5px; font-size: 9px; }
@@ -338,3 +346,4 @@ dialog::backdrop { background: rgba(32, 42, 59, .42); backdrop-filter: blur(2px)
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
 }
+
