@@ -131,6 +131,9 @@ h2 { margin: 0; font-size: 19px; letter-spacing: -.025em; }
 .notice-mark { color: #d79422; font-size: 14px; }
 .notice-bar strong { color: #4e401e; }
 .notice-bar button { margin-left: auto; border: 0; background: transparent; color: #795e1c; font-size: 19px; cursor: pointer; }
+.notice-bar.is-error { border-color: #d99187; background: #fff0ed; color: #782f29; }
+.notice-bar.is-error .notice-mark { color: #bd5145; }
+.notice-bar.is-error strong { color: #782f29; }
 .progress-wrap { margin-top: 17px; }
 .progress-labels { display: flex; justify-content: space-between; margin-bottom: 6px; color: #687587; font-size: 10px; font-weight: 800; }
 .progress-track { height: 7px; overflow: hidden; border: 1px solid #c3cad1; border-radius: 999px; background: #f0eee9; }
@@ -140,10 +143,16 @@ h2 { margin: 0; font-size: 19px; letter-spacing: -.025em; }
 .frame-topline { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 9px 10px 7px; }
 .scene-tag { color: #697586; font-size: 8px; font-weight: 900; letter-spacing: .11em; text-transform: uppercase; }
 .scene-state { padding: 4px 7px; border-radius: 999px; background: #e9f3e4; color: #4f7750; font-size: 8px; font-weight: 900; white-space: nowrap; }
+.scene-state.is-failed { background: #ffe1dc; color: #963d33; }
 .frame-art { position: relative; aspect-ratio: 16 / 9; margin: 0 8px; overflow: hidden; border: 1.2px solid #293348; border-radius: 8px; background: #d8eafa; }
 .frame-art svg, .frame-art img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.image-failure { display: flex; width: 100%; height: 100%; align-items: center; justify-content: center; flex-direction: column; gap: 6px; background: linear-gradient(135deg, #fff4ec, #f6e8df); color: #6f3932; text-align: center; }
+.image-failure span { display: grid; width: 28px; height: 28px; place-items: center; border: 1.5px solid currentColor; border-radius: 50%; font-size: 17px; font-weight: 900; }
+.image-failure strong { font-size: 11px; }
+.image-failure small { font-size: 8px; }
 .scene-caption { margin: 11px 11px 0; min-height: 38px; font-size: 12px; font-weight: 900; line-height: 1.25; }
 .scene-narration { display: -webkit-box; min-height: 52px; margin: 5px 11px 0; overflow: hidden; color: #697586; font-size: 9px; line-height: 1.5; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
+.scene-error { margin: 7px 11px 0; color: #963d33; font-size: 9px; line-height: 1.45; }
 .scene-meta { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; margin: 8px 11px 0; }
 .meta-pill { padding: 4px 6px; border: 1px solid #d5d8dd; border-radius: 999px; color: #677487; font-size: 8px; }
 .feedback-row { display: flex; align-items: center; gap: 6px; margin: 10px 10px 10px; padding-top: 8px; border-top: 1px dashed #ccd1d8; }
@@ -263,6 +272,12 @@ dialog::backdrop { background: rgba(32, 42, 59, .42); backdrop-filter: blur(2px)
 :root[data-theme="dark"] .outline-button { border-color: var(--ink); }
 :root[data-theme="dark"] .send-button { background: #dcefd3; color: #273c2c; }
 :root[data-theme="dark"] .frame-card { background: #202b3b; }
+:root[data-theme="dark"] .notice-bar.is-error { border-color: #98655f; background: #402c32; color: #ffd5cf; }
+:root[data-theme="dark"] .notice-bar.is-error strong,
+:root[data-theme="dark"] .scene-error,
+:root[data-theme="dark"] .scene-state.is-failed { color: #ffb6aa; }
+:root[data-theme="dark"] .scene-state.is-failed { background: #563a3f; }
+:root[data-theme="dark"] .image-failure { background: linear-gradient(135deg, #392e34, #2c2f40); color: #ffd1c9; }
 :root[data-theme="dark"] .comment-wrap button { border-color: #d8cdb9; background: #3b3546; color: var(--ink); }
 :root[data-theme="dark"] .empty-state { border-color: #77849a; background: #202b3b; }
 :root[data-theme="dark"] .board-footer { border-top-color: #465267; }
@@ -322,4 +337,3 @@ dialog::backdrop { background: rgba(32, 42, 59, .42); backdrop-filter: blur(2px)
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
 }
-

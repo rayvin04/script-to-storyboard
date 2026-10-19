@@ -63,6 +63,8 @@ const els = {
   progressFill: document.getElementById("progress-fill"),
   message: document.getElementById("message-dialog"),
   themeToggle: document.getElementById("theme-toggle"),
+  notice: document.getElementById("notice-bar"),
+  noticeCopy: document.getElementById("notice-copy"),
 };
 
 function setTheme(theme, persist = false) {
@@ -153,9 +155,12 @@ function artSvg(kind, sceneNumber) {
 function frameMarkup(scene, index) {
   const rating = feedback[scene.id] ? feedback[scene.id].rating : "";
   const showComment = rating === "down";
+  const failed = scene.imageStatus === "failed" || (scene.source === "live" && !scene.imageData);
   const imageBlock = scene.imageData
     ? '<img src="' + escapeHtml(scene.imageData) + '" alt="Generated scene ' + (index + 1) + '" />'
-    : artSvg(scene.art || ["phone", "tingle", "eye", "spark"][index % 4], index);
+    : failed
+      ? '<div class="image-failure" role="img" aria-label="Image generation failed"><span aria-hidden="true">!</span><strong>Image not generated</strong><small>See the message above for the next step.</small></div>'
+      : artSvg(scene.art || ["phone", "tingle", "eye", "spark"][index % 4], index);
   const safeTitle = escapeHtml(scene.title || ("Scene " + (index + 1)));
   const safeNarration = escapeHtml(scene.narration || scene.scriptExcerpt || "A visual beat from the supplied narration.");
   const safeTag = escapeHtml(scene.tag || "visual beat");
@@ -163,15 +168,16 @@ function frameMarkup(scene, index) {
   const savedComment = escapeHtml(feedback[scene.id] ? feedback[scene.id].comment : "");
 
   return '<article class="frame-card" data-scene-id="' + sceneId + '">'
-    + '<div class="frame-topline"><span class="scene-tag">SCENE ' + String(index + 1).padStart(2, "0") + '</span><span class="scene-state">' + (scene.source === "live" ? "AI IMAGE" : "STYLE PREVIEW") + '</span></div>'
+    + '<div class="frame-topline"><span class="scene-tag">SCENE ' + String(index + 1).padStart(2, "0") + '</span><span class="scene-state' + (failed ? ' is-failed' : '') + '">' + (failed ? "IMAGE FAILED" : scene.source === "live" ? "AI IMAGE" : "STYLE PREVIEW") + '</span></div>'
     + '<div class="frame-art" data-art-frame>' + imageBlock + '</div>'
     + '<h3 class="scene-caption">' + safeTitle + '</h3>'
     + '<p class="scene-narration">' + safeNarration + '</p>'
+    + (failed ? '<p class="scene-error" role="status">' + escapeHtml(scene.error || "The image provider did not return an image.") + '</p>' : "")
     + '<div class="scene-meta"><span class="meta-pill">16:9 frame</span><span class="meta-pill">' + safeTag + '</span></div>'
-    + '<div class="feedback-row"><span class="feedback-label">Does this beat work?</span>'
+    + (!failed ? '<div class="feedback-row"><span class="feedback-label">Does this beat work?</span>'
     + '<button class="rate-button" type="button" data-rating="up" data-id="' + sceneId + '" aria-label="Like scene ' + (index + 1) + '" aria-pressed="' + (rating === "up") + '">👍</button>'
     + '<button class="rate-button" type="button" data-rating="down" data-id="' + sceneId + '" aria-label="Needs changes for scene ' + (index + 1) + '" aria-pressed="' + (rating === "down") + '">👎</button></div>'
-    + (showComment ? '<div class="comment-wrap"><textarea data-comment="' + sceneId + '" aria-label="What should change?" placeholder="What should change?">' + savedComment + '</textarea><button type="button" data-save-comment="' + sceneId + '">Save note</button></div>' : "")
+    + (showComment ? '<div class="comment-wrap"><textarea data-comment="' + sceneId + '" aria-label="What should change?" placeholder="What should change?">' + savedComment + '</textarea><button type="button" data-save-comment="' + sceneId + '">Save note</button></div>' : "") : "")
     + '</article>';
 }
 
@@ -221,10 +227,14 @@ function normalizeLiveResponse(data) {
   if (result && result.output && typeof result.output === "object") result = result.output;
   let scenes = result && Array.isArray(result.scenes) ? result.scenes : null;
   if (!scenes && result && Array.isArray(result.data)) scenes = result.data;
-  if (!scenes) throw new Error("The webhook response did not include a scenes array.");
+  const topError = typeof result?.error === "string"
+    ? result.error
+    : result?.error?.message || result?.message || "";
+  if (!scenes) throw new Error(topError || "The workflow response did not include a scenes array.");
   return scenes.map((scene, index) => {
     const b64 = scene.imageBase64 || scene.image_base64 || scene.b64_json || "";
     const imageData = scene.imageData || scene.image_data || (b64 ? "data:image/png;base64," + b64 : "") || scene.imageUrl || scene.image_url || "";
+    const imageStatus = scene.imageStatus || scene.image_status || (imageData ? "completed" : "failed");
     return {
       id: scene.id || scene.sceneId || scene.scene_id || ("live-" + index),
       title: scene.title || scene.visualBeat || scene.visual_beat || ("Scene " + (index + 1)),
@@ -232,7 +242,9 @@ function normalizeLiveResponse(data) {
       prompt: scene.imagePrompt || scene.image_prompt || "",
       tag: scene.tag || scene.purpose || "generated frame",
       imageData,
-      source: imageData ? "live" : "demo",
+      imageStatus,
+      error: typeof scene.error === "string" ? scene.error : scene.error?.message || topError,
+      source: "live",
       art: ["phone", "tingle", "eye", "spark"][index % 4],
     };
   });
@@ -256,6 +268,7 @@ async function buildStoryboard() {
   els.progressCopy.textContent = "Sending script to the storyboard workflow…";
   els.progressValue.textContent = "18%";
   els.progressFill.style.width = "18%";
+  els.progressFill.style.background = "";
   els.footer.textContent = "Connecting to the saved n8n workflow";
 
   try {
@@ -269,16 +282,43 @@ async function buildStoryboard() {
         headers: { "Content-Type": "text/plain;charset=UTF-8" },
         body: JSON.stringify({ script, maxScenes: requestedScenes, aspectRatio: "16:9" }),
       });
-      if (!response.ok) throw new Error("n8n responded with status " + response.status + ".");
-      const data = await response.json();
+      const responseText = await response.text();
+      let data;
+      try {
+        data = responseText ? JSON.parse(responseText) : null;
+      } catch {
+        const snippet = responseText.slice(0, 180).replace(/\s+/g, " ").trim();
+        throw new Error("The workflow returned an unreadable response (HTTP " + response.status + "). " + (snippet ? "Response: " + snippet : ""));
+      }
+      if (!response.ok && !Array.isArray(data?.scenes)) {
+        const responseError = typeof data?.error === "string" ? data.error : data?.error?.message;
+        throw new Error(responseError || "n8n responded with status " + response.status + ".");
+      }
       currentScenes = normalizeLiveResponse(data);
-      els.progressCopy.textContent = "Frames returned from n8n";
+      const failedScenes = currentScenes.filter((scene) => scene.imageStatus === "failed");
+      const failureMessage = (typeof data?.error === "string" ? data.error : data?.error?.message)
+        || failedScenes[0]?.error
+        || "One or more images could not be generated.";
       els.progressValue.textContent = "100%";
       els.progressFill.style.width = "100%";
-      els.subtitle.textContent = "Live response from your n8n workflow.";
-      els.mode.textContent = "N8N CONNECTED";
-      els.footer.textContent = currentScenes.length + " scene frames returned · review before sharing";
-      document.getElementById("notice-bar").hidden = true;
+      if (failedScenes.length) {
+        els.progressCopy.textContent = "Storyboard planned; image generation failed";
+        els.progressFill.style.background = "#bd5145";
+        els.subtitle.textContent = "The workflow planned the scenes, but the image provider did not return every frame.";
+        els.mode.textContent = "IMAGE ACCESS NEEDED";
+        els.footer.textContent = failureMessage;
+        els.noticeCopy.innerHTML = "<strong>Image generation failed.</strong> " + escapeHtml(failureMessage);
+        els.notice.classList.add("is-error");
+        els.notice.hidden = false;
+      } else {
+        els.progressCopy.textContent = "Frames returned from n8n";
+        els.progressFill.style.background = "";
+        els.subtitle.textContent = "Live response from your n8n workflow.";
+        els.mode.textContent = "N8N CONNECTED";
+        els.footer.textContent = currentScenes.length + " scene frames returned · review before sharing";
+        els.notice.classList.remove("is-error");
+        els.notice.hidden = true;
+      }
     } else {
       await new Promise((resolve) => setTimeout(resolve, 450));
       els.progressValue.textContent = "62%";
@@ -297,11 +337,17 @@ async function buildStoryboard() {
     document.getElementById("step-2").classList.add("is-done");
     window.setTimeout(() => { els.progress.hidden = true; }, 1300);
   } catch (error) {
-    els.progressCopy.textContent = "Could not reach the workflow";
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    els.progressCopy.textContent = "Workflow request failed";
     els.progressValue.textContent = "!";
     els.progressFill.style.width = "100%";
     els.progressFill.style.background = "#bd5145";
-    els.footer.textContent = error.message || "Connection failed";
+    els.subtitle.textContent = "The workflow could not return a usable storyboard response.";
+    els.mode.textContent = "WORKFLOW ERROR";
+    els.footer.textContent = errorMessage || "Connection failed";
+    els.noticeCopy.innerHTML = "<strong>Workflow error.</strong> " + escapeHtml(errorMessage || "Connection failed.");
+    els.notice.classList.add("is-error");
+    els.notice.hidden = false;
   } finally {
     els.build.disabled = false;
     els.buildLabel.textContent = "Build storyboard";
@@ -400,4 +446,3 @@ setTheme(document.documentElement.dataset.theme);
 els.script.value = SAMPLE_SCRIPT;
 updateCount();
 renderScenes();
-
