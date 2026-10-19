@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#fff7e8" />
+    <meta
+      name="description"
+      content="A friendly storyboard workspace for turning scripts into scene plans and image frames."
+    />
+    <title>Fred's Storyboard Lab</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="topbar">
+        <a class="brand" href="#top" aria-label="Fred's Storyboard Lab home">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 40 40" role="img">
+              <path d="M7 9.5 32 6l2 25-24 3Z" fill="#ffd166" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round" />
+              <path d="m16 15 10 5.2-9 6Z" fill="#ef674d" stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
+              <path d="M7 12 4 13M34 9l3-1M31 34l2 2" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" />
+            </svg>
+          </span>
+          <span class="brand-copy">
+            <strong>STORYBOARD LAB</strong>
+            <small>for Fred's team</small>
+          </span>
+        </a>
+        <div class="topbar-right">
+          <span class="mode-pill"><span class="live-dot"></span><span id="mode-label">LOCAL DEMO</span></span>
+          <button class="icon-button settings-button" id="open-settings" type="button" aria-label="Open connection settings" title="Connection settings">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z" />
+              <path d="m19.4 15 .1.1 1.4 1.1-1.4 2.4-1.7-.6a8 8 0 0 1-1.3.8l-.3 1.8h-2.8l-.3-1.8a8 8 0 0 1-1.3-.8l-1.7.6-1.4-2.4 1.4-1.1a7 7 0 0 1 0-1.6l-1.4-1.1 1.4-2.4 1.7.6a8 8 0 0 1 1.3-.8l.3-1.8h2.8l.3 1.8a8 8 0 0 1 1.3.8l1.7-.6 1.4 2.4-1.4 1.1a7 7 0 0 1 0 1.6Z" />
+            </svg>
+          </button>
+          <div class="avatar" aria-label="Storyboard editor">R</div>
+        </div>
+      </header>
+
+      <main id="top">
+        <section class="intro-row" aria-labelledby="page-title">
+          <div>
+            <p class="eyebrow"><span class="eyebrow-star">✦</span> SCRIPT TO SCENE WORKSPACE <span class="eyebrow-divider"></span> DEMO 01</p>
+            <h1 id="page-title">Turn a script into a <span>storyboard.</span></h1>
+            <p class="intro-copy">Shape the beats first. Then build a consistent frame for every scene.</p>
+          </div>
+          <div class="step-strip" aria-label="Workflow steps">
+            <div class="step-chip is-done"><span class="step-number">01</span><span>Script</span></div>
+            <span class="step-line" aria-hidden="true"></span>
+            <div class="step-chip is-current" id="step-2"><span class="step-number">02</span><span>Storyboard</span></div>
+            <span class="step-line" aria-hidden="true"></span>
+            <div class="step-chip" id="step-3"><span class="step-number">03</span><span>Review</span></div>
+          </div>
+        </section>
+
+        <div class="workspace-grid">
+          <aside class="script-panel panel" aria-labelledby="script-title">
+            <div class="panel-heading">
+              <div class="heading-title">
+                <span class="heading-icon icon-sun" aria-hidden="true">✎</span>
+                <div>
+                  <p class="section-kicker">START WITH THE WORDS</p>
+                  <h2 id="script-title">Your script</h2>
+                </div>
+              </div>
+              <button class="text-button" id="load-sample" type="button">Load Fred's sample</button>
+            </div>
+
+            <label class="field-label" for="script-input">Paste script or narration</label>
+            <textarea id="script-input" maxlength="40000" spellcheck="true" aria-describedby="script-help script-count" placeholder="Paste a script here. The planner will group it into clear visual beats."></textarea>
+            <div class="field-meta">
+              <span id="script-help">Tip: keep the narration; scene beats can be edited after.</span>
+              <span id="script-count">0 / 40,000</span>
+            </div>
+
+            <div class="control-row">
+              <label for="scene-count">Preview scenes</label>
+              <div class="stepper">
+                <button id="scene-minus" type="button" aria-label="Show fewer scenes">−</button>
+                <output id="scene-count" for="scene-minus scene-plus">3</output>
+                <button id="scene-plus" type="button" aria-label="Show more scenes">+</button>
+              </div>
+            </div>
+            <p class="control-note">Small batches keep the first review quick and the image spend predictable.</p>
+
+            <div class="style-lock">
+              <div class="style-lock-top">
+                <span class="style-lock-icon" aria-hidden="true">✦</span>
+                <div>
+                  <p class="section-kicker">STYLE GUIDE</p>
+                  <strong>Professor cartoon look</strong>
+                </div>
+                <span class="lock-label">LOCKED</span>
+              </div>
+              <div class="style-tags">
+                <span>flat 2D</span><span>bold ink</span><span>simple faces</span>
+              </div>
+              <p class="style-description">Bright solid colors, loose black outlines, clear single-action compositions, and no baked-in lettering.</p>
+            </div>
+
+            <button class="primary-button" id="build-button" type="button">
+              <span id="build-button-label">Build storyboard</span>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6" /></svg>
+            </button>
+            <p class="privacy-note"><span aria-hidden="true">◉</span> The local preview runs in this browser. Configure an n8n webhook to use live AI.</p>
+          </aside>
+
+          <section class="board-panel panel" aria-labelledby="board-title">
+            <div class="board-header">
+              <div>
+                <div class="board-title-row">
+                  <span class="heading-icon icon-film" aria-hidden="true">
+                    <svg viewBox="0 0 24 24"><path d="M4 5.5h16v13H4zM4 9h3M4 15h3M17 9h3M17 15h3M9 5.5v3M15 5.5v3M9 15.5v3M15 15.5v3" /></svg>
+                  </span>
+                  <h2 id="board-title">Storyboard</h2>
+                  <span class="board-count" id="board-count">3 frames</span>
+                </div>
+                <p class="board-subtitle" id="board-subtitle">A first pass at the visual rhythm.</p>
+              </div>
+              <div class="board-actions">
+                <button class="outline-button" id="download-all" type="button" title="Download each preview frame as an SVG">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v11m0 0 4-4m-4 4-4-4M4 16v4h16v-4" /></svg>
+                  Download all
+                </button>
+                <button class="send-button" id="send-drive" type="button" title="Drive export is planned for a later phase">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7.5h6l2 2h8v9H4zM4 7.5V5h6l2 2.5" /></svg>
+                  Send to Drive <span class="later-tag">LATER</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="progress-wrap" id="progress-wrap" hidden>
+              <div class="progress-labels"><span id="progress-copy">Planning scenes…</span><span id="progress-value">0%</span></div>
+              <div class="progress-track"><span id="progress-fill"></span></div>
+            </div>
+
+            <div class="notice-bar" id="notice-bar" role="status">
+              <span class="notice-mark" aria-hidden="true">✦</span>
+              <span><strong>Style preview.</strong> These sample panels are illustrative SVGs; no image model has run yet.</span>
+              <button id="dismiss-notice" type="button" aria-label="Dismiss note">×</button>
+            </div>
+
+            <div class="frame-grid" id="frame-grid" aria-live="polite"></div>
+
+            <div class="board-footer">
+              <div class="footer-status"><span class="status-dot"></span><span id="footer-status-copy">Preview ready · feedback stays in this browser</span></div>
+              <button class="export-button" id="export-plan" type="button">
+                Export scene plan
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v11m0 0 4-4m-4 4-4-4M4 16v4h16v-4" /></svg>
+              </button>
+            </div>
+          </section>
+        </div>
+
+        <section class="bottom-strip" aria-label="Prototype notes">
+          <div class="bottom-note"><span class="note-icon note-orange">1</span><div><strong>Scene planning first</strong><small>Review the beats before paying for a batch.</small></div></div>
+          <div class="bottom-note"><span class="note-icon note-blue">2</span><div><strong>One visual language</strong><small>Keep character and outline rules consistent.</small></div></div>
+          <div class="bottom-note"><span class="note-icon note-green">3</span><div><strong>Human feedback loop</strong><small>Ratings guide later prompts; they don't retrain the model.</small></div></div>
+        </section>
+      </main>
+
+      <footer class="page-footer">
+        <span>STORYBOARD LAB <span class="footer-spark">✦</span> A working demo for Fred's YouTube team</span>
+        <span>Prototype 01 · Visual style based on the supplied reference pack</span>
+      </footer>
+    </div>
+
+    <dialog class="settings-dialog" id="settings-dialog" aria-labelledby="settings-title">
+      <form method="dialog" class="dialog-close-form"><button class="icon-button" value="cancel" aria-label="Close settings">×</button></form>
+      <p class="section-kicker">OPTIONAL CONNECTION</p>
+      <h2 id="settings-title">Connect the n8n webhook</h2>
+      <p class="dialog-copy">The local storyboard preview works without a live model. Add an n8n test or production webhook URL to send the script to your workflow.</p>
+      <label class="field-label" for="webhook-url">Storyboard webhook URL</label>
+      <input class="dialog-input" id="webhook-url" type="url" placeholder="https://your-n8n-host/webhook/storyboard-demo" autocomplete="off" />
+      <div class="dialog-options">
+        <button class="outline-button" id="clear-webhook" type="button">Clear saved URL</button>
+        <button class="primary-button dialog-save" id="save-settings" type="button">Save connection</button>
+      </div>
+      <p class="dialog-footnote">This URL is stored in this browser only. Do not put an API key or other secret in this field.</p>
+    </dialog>
+
+    <dialog class="message-dialog" id="message-dialog" aria-labelledby="message-title">
+      <form method="dialog" class="dialog-close-form"><button class="icon-button" value="cancel" aria-label="Close message">×</button></form>
+      <span class="message-icon" aria-hidden="true">✦</span>
+      <h2 id="message-title">Drive export is next</h2>
+      <p id="message-copy">This first prototype keeps feedback and previews in your browser. The next phase can add Google Drive delivery for the editing team.</p>
+      <form method="dialog"><button class="primary-button dialog-save" value="ok">Got it</button></form>
+    </dialog>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
