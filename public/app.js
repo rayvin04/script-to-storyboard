@@ -9,6 +9,8 @@ const SAMPLE_SCRIPT = [
   "A small eyelid flutter is commonly linked to tiredness, stress, caffeine, or eye strain. The tiny muscle is usually just being over-responsive; it often fades with rest.",
 ].join("\n");
 
+const N8N_TEST_WEBHOOK_URL = "https://n8n-rayv-742595626609.herokuapp.com/webhook-test/script-to-storyboard";
+
 const DEMO_SCENES = [
   {
     id: "scene-01",
@@ -64,9 +66,10 @@ const els = {
   message: document.getElementById("message-dialog"),
 };
 
-let requestedScenes = 3;
+let requestedScenes = 1;
 let currentScenes = DEMO_SCENES.slice(0, requestedScenes).map((scene) => ({ ...scene, source: "demo" }));
-let liveWebhook = localStorage.getItem("storyboardWebhookUrl") || "";
+const savedWebhook = localStorage.getItem("storyboardWebhookUrl");
+let liveWebhook = savedWebhook === null ? N8N_TEST_WEBHOOK_URL : savedWebhook;
 let feedback = readStoredFeedback();
 
 function readStoredFeedback() {
@@ -80,6 +83,11 @@ function readStoredFeedback() {
 function saveFeedback() {
   localStorage.setItem("storyboardFeedback", JSON.stringify(feedback));
   els.footer.textContent = "Feedback saved in this browser";
+}
+
+function webhookModeLabel(url) {
+  if (!url) return "LOCAL DEMO";
+  return url.includes("/webhook-test/") ? "N8N TEST URL" : "N8N URL SAVED";
 }
 
 function escapeHtml(value) {
@@ -341,7 +349,7 @@ document.getElementById("scene-minus").addEventListener("click", () => {
   els.sceneCount.textContent = requestedScenes;
 });
 document.getElementById("scene-plus").addEventListener("click", () => {
-  requestedScenes = Math.min(4, requestedScenes + 1);
+  requestedScenes = Math.min(3, requestedScenes + 1);
   els.sceneCount.textContent = requestedScenes;
 });
 els.build.addEventListener("click", buildStoryboard);
@@ -376,21 +384,22 @@ document.getElementById("open-settings").addEventListener("click", () => {
 });
 document.getElementById("save-settings").addEventListener("click", () => {
   liveWebhook = els.webhook.value.trim();
-  if (liveWebhook) localStorage.setItem("storyboardWebhookUrl", liveWebhook);
-  else localStorage.removeItem("storyboardWebhookUrl");
-  els.mode.textContent = liveWebhook ? "N8N CONNECTED" : "LOCAL DEMO";
+  localStorage.setItem("storyboardWebhookUrl", liveWebhook);
+  els.mode.textContent = webhookModeLabel(liveWebhook);
   els.settings.close();
-  els.footer.textContent = liveWebhook ? "n8n URL saved in this browser" : "Local demo mode · no model call or image charge";
+  els.footer.textContent = liveWebhook
+    ? (liveWebhook.includes("/webhook-test/") ? "n8n test URL saved in this browser" : "n8n URL saved in this browser")
+    : "Local demo mode · no model call or image charge";
 });
 document.getElementById("clear-webhook").addEventListener("click", () => {
   liveWebhook = "";
-  localStorage.removeItem("storyboardWebhookUrl");
+  localStorage.setItem("storyboardWebhookUrl", "");
   els.webhook.value = "";
   els.mode.textContent = "LOCAL DEMO";
   els.footer.textContent = "Saved n8n URL cleared from this browser";
 });
 
-if (liveWebhook) els.mode.textContent = "N8N CONNECTED";
+els.mode.textContent = webhookModeLabel(liveWebhook);
 els.script.value = SAMPLE_SCRIPT;
 updateCount();
 renderScenes();

@@ -79,7 +79,7 @@
               <label for="scene-count">Preview scenes</label>
               <div class="stepper">
                 <button id="scene-minus" type="button" aria-label="Show fewer scenes">−</button>
-                <output id="scene-count" for="scene-minus scene-plus">3</output>
+                <output id="scene-count" for="scene-minus scene-plus">1</output>
                 <button id="scene-plus" type="button" aria-label="Show more scenes">+</button>
               </div>
             </div>
@@ -104,7 +104,7 @@
               <span id="build-button-label">Build storyboard</span>
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6" /></svg>
             </button>
-            <p class="privacy-note"><span aria-hidden="true">◉</span> The local preview runs in this browser. Configure an n8n webhook to use live AI.</p>
+            <p class="privacy-note"><span aria-hidden="true">◉</span> Live generation uses Vercel credits. Keep the first test to one scene.</p>
           </aside>
 
           <section class="board-panel panel" aria-labelledby="board-title">
@@ -171,14 +171,14 @@
       <form method="dialog" class="dialog-close-form"><button class="icon-button" value="cancel" aria-label="Close settings">×</button></form>
       <p class="section-kicker">OPTIONAL CONNECTION</p>
       <h2 id="settings-title">Connect the n8n webhook</h2>
-      <p class="dialog-copy">The local storyboard preview works without a live model. Add an n8n test or production webhook URL to send the script to your workflow.</p>
+      <p class="dialog-copy">The test webhook is prefilled. In n8n, start “Listen for test event” before generating. Each live scene makes an image request and can use Vercel credits.</p>
       <label class="field-label" for="webhook-url">Storyboard webhook URL</label>
-      <input class="dialog-input" id="webhook-url" type="url" placeholder="https://your-n8n-host/webhook/storyboard-demo" autocomplete="off" />
+      <input class="dialog-input" id="webhook-url" type="url" placeholder="https://your-n8n-host/webhook-test/script-to-storyboard" autocomplete="off" />
       <div class="dialog-options">
         <button class="outline-button" id="clear-webhook" type="button">Clear saved URL</button>
         <button class="primary-button dialog-save" id="save-settings" type="button">Save connection</button>
       </div>
-      <p class="dialog-footnote">This URL is stored in this browser only. Do not put an API key or other secret in this field.</p>
+      <p class="dialog-footnote">The test URL works only while n8n is listening. This browser-to-webhook setup is for testing; secure the webhook before using a public production UI.</p>
     </dialog>
 
     <dialog class="message-dialog" id="message-dialog" aria-labelledby="message-title">

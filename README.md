@@ -5,12 +5,12 @@ A static, cartoon-inspired storyboard UI prototype for Fred's YouTube production
 ## Current prototype status
 
 - The default experience is a local preview. Its sample panels are illustrative SVGs, not generated images.
-- An optional n8n webhook can be entered in the UI settings. The browser posts `{ "script": "...", "maxScenes": 3, "aspectRatio": "16:9" }` and expects a JSON response with a `scenes` array.
-- The UI is not connected to n8n by default. The workflow URL can be entered in the settings dialog, but the current n8n workflow is inactive, so it will not accept live requests yet.
+- The UI is preconfigured with n8n's temporary test webhook and defaults to one scene. Start **Listen for test event** in n8n, then submit a script from the UI. Each scene triggers a paid image request. The test webhook only works while n8n is listening.
+- The browser posts `{ "script": "...", "maxScenes": 1, "aspectRatio": "16:9" }` and expects a JSON response with a `scenes` array. A saved webhook URL in browser localStorage overrides the default; the settings dialog can change or clear it.
 - An inactive n8n draft is available as **Script to Image Paid Demo**: [open workflow](https://n8n-rayv-742595626609.herokuapp.com/workflow/rV2JjknCieGGXRNL). It plans up to three scenes with `openai/gpt-5.6-luna`, then sends one request per scene to `openai/gpt-image-2.5-flare` through the Vercel AI Gateway image endpoint.
 - The n8n export is stored separately in [`workflows/script-to-storyboard/`](workflows/script-to-storyboard/).
 - The workflow uses the saved Vercel Gateway credential in n8n. No API key is stored in this repository or frontend. It has not been run against the paid image endpoint, and remains inactive.
-- Before connecting a public Vercel deployment, add webhook authentication and restrict CORS to the deployed UI origin. The current draft allows wildcard origins and does not authenticate callers.
+- The workflow is not activated for production. Before exposing an active webhook to a public Vercel deployment, add authentication and restrict CORS to the deployed UI origin. The current draft allows wildcard origins and does not authenticate callers.
 - The first draft returns individual scene success/failure states. Shared feedback storage, Google Drive delivery, notifications, and retrieval over previous feedback are later phases.
 - Ratings and the webhook URL are stored in that browser's local storage. They are not shared with a team database.
 - Google Drive delivery is a later-phase placeholder.

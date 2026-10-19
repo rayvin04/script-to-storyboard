@@ -18,4 +18,4 @@ In n8n, choose **Import from File** and select `workflow.json`. The export is in
 - The workflow is inactive and has not been run against the paid image endpoint.
 - The image request uses 1536×1024 (3:2) output while the planner prompt asks for 16:9 composition.
 - The webhook has wildcard CORS and no caller authentication. Add authentication and restrict allowed origins before exposing an active webhook to the public Vercel UI.
-- The UI is not connected automatically. Add the webhook URL in the UI settings only after the workflow is safe to activate.
+- The UI defaults to the temporary test webhook. Start **Listen for test event** in n8n and submit one scene from the UI. For production, use an authenticated server-side proxy and the production webhook only after security controls are in place.
