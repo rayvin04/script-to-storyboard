@@ -124,6 +124,7 @@ h2 { margin: 0; font-size: 19px; letter-spacing: -.025em; }
 .board-actions { display: flex; align-items: center; gap: 8px; }
 .outline-button, .send-button { min-height: 36px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 0 11px; border: 1.5px solid var(--ink); border-radius: 9px; background: #fff; color: var(--ink); font-size: 10px; font-weight: 900; box-shadow: 2px 2px 0 var(--ink); cursor: pointer; transition: transform .15s, box-shadow .15s; white-space: nowrap; }
 .outline-button:hover, .send-button:hover { transform: translate(1px, 1px); box-shadow: 1px 1px 0 var(--ink); }
+.outline-button:disabled { cursor: not-allowed; opacity: .5; box-shadow: none; transform: none; }
 .outline-button svg, .send-button svg, .export-button svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .send-button { background: #eff8ea; }
 .later-tag { padding: 3px 5px; border-radius: 4px; background: #dcefd3; color: #456b3f; font-size: 7px; letter-spacing: .08em; }

@@ -52,6 +52,7 @@ const els = {
   sceneCount: document.getElementById("scene-count"),
   grid: document.getElementById("frame-grid"),
   boardCount: document.getElementById("board-count"),
+  downloadAll: document.getElementById("download-all"),
   subtitle: document.getElementById("board-subtitle"),
   footer: document.getElementById("footer-status-copy"),
   mode: document.getElementById("mode-label"),
@@ -188,6 +189,9 @@ function renderScenes() {
     els.grid.innerHTML = currentScenes.map(frameMarkup).join("");
   }
   els.boardCount.textContent = currentScenes.length + (currentScenes.length === 1 ? " frame" : " frames");
+  const canDownload = currentScenes.some((scene) => scene.imageStatus !== "failed" && (scene.imageData || scene.source !== "live"));
+  els.downloadAll.disabled = !canDownload;
+  els.downloadAll.title = canDownload ? "Download available storyboard frames" : "No generated images are available to download";
 }
 
 function updateCount() {
@@ -338,6 +342,15 @@ async function buildStoryboard() {
     window.setTimeout(() => { els.progress.hidden = true; }, 1300);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
+    currentScenes = [{
+      id: "workflow-error",
+      title: "Storyboard unavailable",
+      narration: script.slice(0, 190),
+      imageStatus: "failed",
+      error: errorMessage || "The workflow request failed.",
+      source: "live",
+    }];
+    renderScenes();
     els.progressCopy.textContent = "Workflow request failed";
     els.progressValue.textContent = "!";
     els.progressFill.style.width = "100%";
@@ -366,6 +379,7 @@ function downloadBlob(blob, filename) {
 }
 
 function downloadFrame(scene, index) {
+  if (scene.imageStatus === "failed" || (scene.source === "live" && !scene.imageData)) return;
   if (scene.imageData) {
     const link = document.createElement("a");
     link.href = scene.imageData;
