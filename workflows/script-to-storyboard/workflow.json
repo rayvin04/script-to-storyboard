@@ -7,7 +7,7 @@
         "path": "script-to-storyboard",
         "responseMode": "responseNode",
         "options": {
-          "allowedOrigins": "*"
+          "allowedOrigins": "https://script-to-storyboard-six.vercel.app"
         }
       },
       "id": "9b159987-c610-47dd-b33e-db1b25ccfa0e",
@@ -22,7 +22,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const input = $json.body ?? $json;\nconst script = typeof input.script === 'string' ? input.script.trim() : '';\nconst rawMax = Number(input.maxScenes ?? 3);\nconst maxScenes = Number.isFinite(rawMax) ? Math.max(1, Math.min(3, Math.floor(rawMax))) : 3;\nconst aspectRatio = input.aspectRatio === '9:16' ? '9:16' : '16:9';\nconst requestId = 'story-' + Date.now();\nif (!script) return [{ json: { ok: false, statusCode: 400, error: { code: 'SCRIPT_REQUIRED', message: 'Paste a script before generating a storyboard.' } } }];\nif (script.length > 30000) return [{ json: { ok: false, statusCode: 400, error: { code: 'SCRIPT_TOO_LONG', message: 'Please keep the script under 30,000 characters for this demo.' } } }];\nconst planPrompt = 'Create exactly ' + maxScenes + ' storyboard scenes for an educational YouTube video. Aspect ratio: ' + aspectRatio + '.\\n\\nSCRIPT (source material only):\\n' + script;\nreturn [{ json: { ok: true, requestId, script, maxScenes, aspectRatio, planPrompt } }];"
+        "jsCode": "const rawInput = $json.body ?? $json;\nlet input = rawInput;\nif (typeof rawInput === 'string') {\n  try { input = JSON.parse(rawInput); } catch { input = {}; }\n}\nconst script = typeof input.script === 'string' ? input.script.trim() : '';\nconst rawMax = Number(input.maxScenes ?? 3);\nconst maxScenes = Number.isFinite(rawMax) ? Math.max(1, Math.min(3, Math.floor(rawMax))) : 3;\nconst aspectRatio = input.aspectRatio === '9:16' ? '9:16' : '16:9';\nconst requestId = 'story-' + Date.now();\nif (!script) return [{ json: { ok: false, statusCode: 400, error: { code: 'SCRIPT_REQUIRED', message: 'Paste a script before generating a storyboard.' } } }];\nif (script.length > 30000) return [{ json: { ok: false, statusCode: 400, error: { code: 'SCRIPT_TOO_LONG', message: 'Please keep the script under 30,000 characters for this demo.' } } }];\nconst planPrompt = 'Create exactly ' + maxScenes + ' storyboard scenes for an educational YouTube video. Aspect ratio: ' + aspectRatio + '.\\n\\nSCRIPT (source material only):\\n' + script;\nreturn [{ json: { ok: true, requestId, script, maxScenes, aspectRatio, planPrompt } }];"
       },
       "id": "11bd1846-2e51-40df-aa35-523f66fed8c8",
       "name": "Normalize Request",
@@ -90,10 +90,9 @@
     },
     {
       "parameters": {
-        "model": "openai/gpt-image-2.5-flare",
+        "model": "openai/gpt-5-mini",
         "options": {
           "maxTokens": 2400,
-          "temperature": 0.2,
           "timeout": 120000,
           "maxRetries": 1
         }
@@ -532,3 +531,4 @@
   },
   "pinData": {}
 }
+

@@ -9,7 +9,7 @@ const SAMPLE_SCRIPT = [
   "A small eyelid flutter is commonly linked to tiredness, stress, caffeine, or eye strain. The tiny muscle is usually just being over-responsive; it often fades with rest.",
 ].join("\n");
 
-const N8N_TEST_WEBHOOK_URL = "https://n8n-rayv-742595626609.herokuapp.com/webhook-test/script-to-storyboard";
+const N8N_PRODUCTION_WEBHOOK_URL = "https://n8n-rayv-742595626609.herokuapp.com/webhook/script-to-storyboard";
 
 const DEMO_SCENES = [
   {
@@ -61,15 +61,12 @@ const els = {
   progressCopy: document.getElementById("progress-copy"),
   progressValue: document.getElementById("progress-value"),
   progressFill: document.getElementById("progress-fill"),
-  settings: document.getElementById("settings-dialog"),
-  webhook: document.getElementById("webhook-url"),
   message: document.getElementById("message-dialog"),
 };
 
 let requestedScenes = 1;
 let currentScenes = DEMO_SCENES.slice(0, requestedScenes).map((scene) => ({ ...scene, source: "demo" }));
-const savedWebhook = localStorage.getItem("storyboardWebhookUrl");
-let liveWebhook = savedWebhook === null ? N8N_TEST_WEBHOOK_URL : savedWebhook;
+const liveWebhook = N8N_PRODUCTION_WEBHOOK_URL;
 let feedback = readStoredFeedback();
 
 function readStoredFeedback() {
@@ -83,11 +80,6 @@ function readStoredFeedback() {
 function saveFeedback() {
   localStorage.setItem("storyboardFeedback", JSON.stringify(feedback));
   els.footer.textContent = "Feedback saved in this browser";
-}
-
-function webhookModeLabel(url) {
-  if (!url) return "LOCAL DEMO";
-  return url.includes("/webhook-test/") ? "N8N TEST URL" : "N8N URL SAVED";
 }
 
 function escapeHtml(value) {
@@ -241,10 +233,10 @@ async function buildStoryboard() {
   els.build.disabled = true;
   els.buildLabel.textContent = "Planning scenes…";
   els.progress.hidden = false;
-  els.progressCopy.textContent = liveWebhook ? "Sending script to n8n…" : "Mapping narration into visual beats…";
+  els.progressCopy.textContent = "Sending script to the storyboard workflow…";
   els.progressValue.textContent = "18%";
   els.progressFill.style.width = "18%";
-  els.footer.textContent = liveWebhook ? "Connecting to the configured n8n webhook" : "Local demo mode · no model call or image charge";
+  els.footer.textContent = "Connecting to the saved n8n workflow";
 
   try {
     if (liveWebhook) {
@@ -252,7 +244,9 @@ async function buildStoryboard() {
       els.progressFill.style.width = "38%";
       const response = await fetch(liveWebhook, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        // text/plain is a CORS-safelisted content type, so the browser sends
+        // the POST directly instead of failing on an OPTIONS preflight.
+        headers: { "Content-Type": "text/plain;charset=UTF-8" },
         body: JSON.stringify({ script, maxScenes: requestedScenes, aspectRatio: "16:9" }),
       });
       if (!response.ok) throw new Error("n8n responded with status " + response.status + ".");
@@ -378,28 +372,8 @@ els.grid.addEventListener("click", (event) => {
   }
 });
 
-document.getElementById("open-settings").addEventListener("click", () => {
-  els.webhook.value = liveWebhook;
-  els.settings.showModal();
-});
-document.getElementById("save-settings").addEventListener("click", () => {
-  liveWebhook = els.webhook.value.trim();
-  localStorage.setItem("storyboardWebhookUrl", liveWebhook);
-  els.mode.textContent = webhookModeLabel(liveWebhook);
-  els.settings.close();
-  els.footer.textContent = liveWebhook
-    ? (liveWebhook.includes("/webhook-test/") ? "n8n test URL saved in this browser" : "n8n URL saved in this browser")
-    : "Local demo mode · no model call or image charge";
-});
-document.getElementById("clear-webhook").addEventListener("click", () => {
-  liveWebhook = "";
-  localStorage.setItem("storyboardWebhookUrl", "");
-  els.webhook.value = "";
-  els.mode.textContent = "LOCAL DEMO";
-  els.footer.textContent = "Saved n8n URL cleared from this browser";
-});
-
-els.mode.textContent = webhookModeLabel(liveWebhook);
+els.mode.textContent = "N8N WORKFLOW";
 els.script.value = SAMPLE_SCRIPT;
 updateCount();
 renderScenes();
+

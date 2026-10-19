@@ -4,15 +4,15 @@ A static, cartoon-inspired storyboard UI prototype for Fred's YouTube production
 
 ## Current prototype status
 
-- The default experience is a local preview. Its sample panels are illustrative SVGs, not generated images.
-- The UI is preconfigured with n8n's temporary test webhook and defaults to one scene. Start **Listen for test event** in n8n, then submit a script from the UI. Each scene triggers a paid image request. The test webhook only works while n8n is listening.
-- The browser posts `{ "script": "...", "maxScenes": 1, "aspectRatio": "16:9" }` and expects a JSON response with a `scenes` array. A saved webhook URL in browser localStorage overrides the default; the settings dialog can change or clear it.
-- An inactive n8n draft is available as **Script to Image Paid Demo**: [open workflow](https://n8n-rayv-742595626609.herokuapp.com/workflow/rV2JjknCieGGXRNL). It plans up to three scenes with `openai/gpt-5.6-luna`, then sends one request per scene to `openai/gpt-image-2.5-flare` through the Vercel AI Gateway image endpoint.
-- The n8n export is stored separately in [`workflows/script-to-storyboard/`](workflows/script-to-storyboard/).
-- The workflow uses the saved Vercel Gateway credential in n8n. No API key is stored in this repository or frontend. It has not been run against the paid image endpoint, and remains inactive.
-- The workflow is not activated for production. Before exposing an active webhook to a public Vercel deployment, add authentication and restrict CORS to the deployed UI origin. The current draft allows wildcard origins and does not authenticate callers.
-- The first draft returns individual scene success/failure states. Shared feedback storage, Google Drive delivery, notifications, and retrieval over previous feedback are later phases.
-- Ratings and the webhook URL are stored in that browser's local storage. They are not shared with a team database.
+- The UI is wired to one persistent n8n production webhook in `public/app.js`. The webhook URL is part of the code, so users do not need to paste or save it in the browser.
+- Use the stable Vercel URL [`https://script-to-storyboard-six.vercel.app`](https://script-to-storyboard-six.vercel.app). The project-specific deployment preview URL may require Vercel sign-in.
+- The browser sends `{ "script": "...", "maxScenes": 1, "aspectRatio": "16:9" }` to the production webhook. It uses a CORS-safelisted `text/plain` request body; the n8n workflow parses the JSON body and responds with a `scenes` array.
+- The n8n workflow is **Script to Image Paid Demo**: [open workflow](https://n8n-rayv-742595626609.herokuapp.com/workflow/rV2JjknCieGGXRNL). It plans scenes with the text model `openai/gpt-5-mini`, then sends one request per scene to the image model `openai/gpt-image-2.5-flare` through the Vercel AI Gateway image endpoint.
+- The n8n export is stored separately in [`workflows/script-to-storyboard/`](workflows/script-to-storyboard/). The export stays inactive when imported; the connected n8n instance uses its published production version.
+- Provider credentials stay in n8n. No API key is stored in this repository or frontend. We have not run a paid end-to-end generation in this session.
+- The production webhook accepts requests from the stable Vercel app origin. CORS only limits browser origins; it is not caller authentication. Before wider public use, add a server-side proxy with authentication and rate limits to protect the image-generation budget.
+- The workflow returns per-scene success/failure states. Shared feedback storage, Google Drive delivery, notifications, and retrieval over previous feedback are later phases.
+- Ratings remain in that browser's local storage; they are not shared with a team database.
 - Google Drive delivery is a later-phase placeholder.
 
 ## Run locally
@@ -36,7 +36,7 @@ Import this repository in Vercel and use these project settings:
 
 The app is plain HTML, CSS, and JavaScript, so it does not need a build step. The `docs/` and `scripts/` folders stay outside the deployed output; only `public/` is served. See [Vercel's static build guidance](https://vercel.com/docs/builds/configure-a-build).
 
-After deployment, add the production webhook URL in the UI settings only after adding authentication and replacing wildcard CORS with the deployed site's origin. Keep provider credentials in n8n, never in frontend files. The first workflow uses synchronous image generation, so the UI request remains open until the scene batch completes.
+After deployment, the UI already targets the production webhook. Keep provider credentials in n8n, never in frontend files. The first workflow uses synchronous image generation, so the UI request remains open until the scene batch completes.
 
 ## Project files
 
@@ -44,3 +44,4 @@ After deployment, add the production webhook URL in the UI settings only after a
 - `docs/Freds_Storyboard_Analysis.docx` — human-readable source and architecture analysis.
 - `docs/fred-agent-context.md` — compact project context for an AI agent.
 - `scripts/build_report.py` — source used to generate the DOCX report.
+
