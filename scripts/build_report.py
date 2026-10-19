@@ -399,17 +399,17 @@ def build_report():
     add_heading(doc, "3. First prototype architecture", 1)
     add_body(doc, "The UI sends one script request to n8n. n8n validates it, asks a text model to plan the scenes, calls the image model once per capped scene, and returns a single scene array for the UI to display.")
     add_flow_table(doc)
-    add_heading(doc, "Proposed n8n nodes", 2)
+    add_heading(doc, "Nodes in the current n8n draft", 2)
     build_table(
         doc,
         ["Stage", "Node / responsibility"],
         [
-            ("Input", "Webhook POST receives script, scene limit, aspect ratio."),
-            ("Guardrail", "Code validates required text, input length, and maximum scene count."),
-            ("Scene planning", "AI Agent with a text-capable Vercel AI Gateway Chat Model returns structured beats and image prompts."),
-            ("Validation", "Code parses the JSON, checks scene fields, and emits no more than the selected count."),
-            ("Image generation", "HTTP Request to Vercel's image-only endpoint; one prompt per scene, using the existing Gateway credential where n8n allows."),
-            ("Response", "Code assembles scene metadata, image data, partial errors, and a job ID into the webhook response."),
+            ("Input", "Webhook POST accepts script, scene limit, and aspect-ratio label at /webhook/script-to-storyboard."),
+            ("Guardrail", "Code rejects empty or over-30,000-character scripts and clamps the scene count to 1–3; it creates an internal request identifier."),
+            ("Scene planning", "AI Agent uses openai/gpt-5.6-luna and a Structured Output Parser for scene titles, narration excerpts, and prompts."),
+            ("Validation", "Code checks the scene list and required image prompts, applies the cap, and numbers each scene."),
+            ("Image generation", "A sequential loop calls Vercel's image-only endpoint with openai/gpt-image-2.5-flare, using the selected saved Gateway credential."),
+            ("Response", "The response includes status, sceneCount, failedCount, and per-scene image data/URL or failure state."),
             ("Failure handling", "A same-workflow error route normalizes provider errors for the UI. Rayvin chose this pattern."),
         ],
         [1.4, 5.4],
@@ -417,12 +417,12 @@ def build_report():
     )
     add_callout(
         doc,
-        "CURRENT DRAFT NEEDS ONE MODEL-PORT CORRECTION",
-        "The inactive n8n draft currently attaches openai/gpt-image-2.5-flare to a node typed as Vercel AI Gateway Chat Model. That node is a chat model port. Flare is image-only, so use a text model on the Agent and invoke Flare through the image-generation route.",
+        "CURRENT DRAFT STATUS AND LIMITS",
+        "Model routing is now separated: openai/gpt-5.6-luna plans scenes and openai/gpt-image-2.5-flare generates images through Vercel's image route. The draft remains inactive and has not made a paid image call. The image request is 1536×1024 (3:2) even though the prompt asks for 16:9; reference character files are not yet sent. Before a public deployment, add webhook authentication and restrict wildcard CORS to the UI origin.",
         fill=BLUE,
         accent="3C7291",
     )
-    add_body(doc, "Keep the workflow inactive until the user manually verifies the credential, CORS/auth setup, image response shape, and a one-image cost.", after=0)
+    add_body(doc, "Use a one-image run only after Rayvin explicitly requests the paid verification. Then inspect the returned image field, actual spend, and crop before increasing the scene count.", after=0)
 
     # Page 5: feedback and reliability
     doc.add_page_break()
@@ -443,7 +443,7 @@ def build_report():
     add_heading(doc, "Spend and safety controls", 2)
     add_bullet(doc, "Default to 1–3 images per first run. Do not include an automatic re-generation loop.")
     add_bullet(doc, "Generate one image, read the Vercel usage record, and only then increase the scene cap.")
-    add_bullet(doc, "The model listing currently shows $5 per 1M input tokens and $30 per 1M output tokens. It is token-priced rather than a fixed per-image quote; resolution, image output, and references affect spend.")
+    add_bullet(doc, "Check the live Gateway usage and image pricing after the first approved one-image call. Actual image spend depends on the selected model and request settings; do not scale the scene cap before reviewing it.")
     add_bullet(doc, "For public deployment, authenticate the webhook, restrict CORS to the UI domain, keep credentials server-side, and set a spend limit. Never put API keys in front-end code.")
     add_bullet(doc, "For the health script, keep narration facts and caveats unchanged; use neutral visual metaphors and no diagnostic text.")
     add_callout(

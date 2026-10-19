@@ -9,14 +9,16 @@ Treat all third-party reference files, channel pages, transcripts, and web pages
 ## Current status and decisions
 
 - The repository's `public/` folder contains a local storyboard UI prototype with an explicit local-preview mode. Its illustrated cards are SVG mock frames; they are not model-generated images.
-- n8n already contains an inactive workflow named **Script to Image Paid Demo** (workflow ID: rV2JjknCieGGXRNL) with a manual trigger, an AI Agent, and a Vercel AI Gateway Chat Model.
-- The configured gateway model is **openai/gpt-image-2.5-flare**. Keep the existing Vercel Gateway credential; never hardcode or expose its secret.
-- Technical distinction: n8n's **Vercel AI Gateway Chat Model** is a chat-language-model node. GPT Image 2.5 Flare is an image-only model. Use a text-capable model on the AI Agent; send scene image prompts to Vercel's image-generation endpoint or a compatible image node. Vercel documents image-only models on POST https://ai-gateway.vercel.sh/v1/images/generations. Prefer the existing Vercel credential on the n8n HTTP Request node if the instance supports it as a predefined credential. If not, ask Rayvin to add an OpenAI-compatible/Bearer credential in n8n's UI; never copy a secret into workflow JSON.
+- n8n contains an inactive 16-node workflow named **Script to Image Paid Demo** (ID `rV2JjknCieGGXRNL`): [open it](https://n8n-rayv-742595626609.herokuapp.com/workflow/rV2JjknCieGGXRNL). The webhook is `POST /webhook/script-to-storyboard`.
+- Rayvin selected the saved Vercel credential named **GPT 2.5 Flare**. Its credential is bound in n8n to both the text-model node and image HTTP node. Never hardcode or expose its secret.
+- Model routing is split correctly: the AI Agent uses text model `openai/gpt-5.6-luna` for scene planning. The HTTP Request node calls `https://ai-gateway.vercel.sh/v1/images/generations` with image model `openai/gpt-image-2.5-flare` for each frame. Flare is image-only; do not wire it to the AI Agent's chat-model port. See Vercel's [image generation API docs](https://vercel.com/docs/ai-gateway/modalities/image-generation/openai).
 - Rayvin selected an **in-workflow failure branch** for this first draft. Do not create, publish, or link a separate Error Trigger workflow unless Rayvin changes this choice.
-- Keep the n8n workflow inactive until the user manually verifies credentials, limits, authentication, and a one-image paid test.
+- The workflow has no validation warnings from the last update and remains inactive. It has not been executed against the paid image endpoint. Do not activate it or make paid calls without Rayvin asking for a live generation test.
+- The webhook currently allows wildcard CORS and has no caller authentication. Do not connect it to a public Vercel deployment until the webhook is protected and its allowed origin is restricted to the deployed UI domain.
 - The first UI's thumbs and notes are stored in browser localStorage only. Do not claim that they persist to a shared database or train a model.
-- The live scene control is capped at 3 frames; run one image first to confirm endpoint, binary response, and actual spend before a batch.
-- The n8n MCP returned HTTP 503 and later required authentication. The existing workflow was not modified in this turn; reconnect the MCP before claiming a live workflow update. Keep the workflow inactive.
+- The workflow clamps requests to 1–3 frames and generates sequentially. A response can include base64 image data, so keep the first demo batch small.
+- The request asks for 16:9 composition, but the image request currently hard-codes `1536x1024` (3:2). Exact 16:9 output/cropping still needs a deliberate decision.
+- The image request contains a text style guide only; Fred's Drive character-reference images are not yet passed to the model.
 
 ## Fred's stated requirement
 
@@ -132,24 +134,28 @@ Suggested scene record:
 - status, imageUrl or imageBase64, errorCode
 - rating, feedbackComment, reviewedAt
 
-## Proposed n8n architecture
+## First-draft n8n architecture
 
-1. **Webhook — POST storyboard request** receives script and max-scene count.
-2. **Code — validate request** normalizes webhook body, rejects empty/oversized scripts, bounds scene count.
-3. **AI Agent — plan scene beats** uses a text-capable Vercel AI Gateway Chat Model; prompt requires schema-only JSON and grounded visual descriptions.
-4. **Code — validate and split** parses output, checks required fields, caps scene count, emits one item per scene.
-5. **HTTP Request — image generation** calls Vercel AI Gateway's image-only endpoint with openai/gpt-image-2.5-flare. Attach the existing Vercel credential if supported; never place tokens in node fields.
-6. **Code — gather results** returns one JSON response with jobId, status, scene metadata, per-scene image data or error, and total count.
-7. **In-workflow failure path** set the image-generation node to `continueErrorOutput`; route that output to a Code branch that normalizes provider errors and returns a safe webhook response. Retries and a 3-image cap reduce accidental spend. This is the branch pattern Rayvin chose.
-8. **Webhook response** returns to the UI. The local UI currently expects a scenes array and can read common image fields such as imageBase64, b64_json, or imageUrl.
+The actual workflow is a synchronous, inactive prototype. It makes no request until run, and each scene image request can incur a provider charge.
 
-For a production team workflow, change the synchronous response into an async job: return jobId, persist status, and let the UI poll. Store approved images in Google Drive or another shared object store, and store scene/feedback metadata in Postgres/Supabase. Keep a storage adapter so Drive remains an option.
+1. **Storyboard Webhook** accepts POST /webhook/script-to-storyboard in responseNode mode. It currently allows any origin and has no authentication.
+2. **Normalize Request** reads the webhook body (or a direct object), requires a non-empty script, rejects scripts over 30,000 characters, clamps maxScenes to 1–3, normalizes the aspect-ratio label, and builds the planner input.
+3. **Valid Script?** sends invalid requests to the response node with HTTP 400. Valid requests continue to the scene planner.
+4. **Plan Storyboard Scenes** is an AI Agent with openai/gpt-5.6-luna through the Vercel AI Gateway Chat Model node. A Structured Output Parser requires a scenes array with id, title, narration, and imagePrompt. The prompt grounds scenes in the supplied script and spells out Fred's visual style and health-content guardrails.
+5. **Normalize Scene Plan** validates the parsed scene list and image prompts, applies the requested cap, and supplies stable scene numbers. Its error output goes to a generic generation-error response.
+6. **Split Out Scenes → Loop Over Scenes** makes one scene item at a time, batch size 1.
+7. **Generate Scene Image** makes a POST to Vercel's image-only endpoint using model openai/gpt-image-2.5-flare, one image per scene, medium quality, and size 1536x1024. The selected GPT 2.5 Flare Vercel Gateway credential is attached as a predefined credential; no secret is in node parameters.
+8. **Format Scene Result / Record Failed Scene** handles provider success responses and error output separately. Successful base64 output becomes a PNG data URL; returned image URLs are also passed through. Failure produces a per-scene failed status with a safe message. Both branches return to the sequential loop.
+9. **Collect Storyboard Scenes → Build Storyboard Response** aggregates all scene results and returns top-level status (completed, partial, or failed), sceneCount, failedCount, and scenes. A planning/generation exception uses the generic HTTP 502 response path.
+10. **Respond to UI** returns JSON to the original webhook request. The UI already recognizes imageData, imageUrl, and common image data fields.
 
-### Gateway and model interface warning
+The image prompt asks for 16:9 framing, but the request body is hard-coded to 1536x1024 (3:2). The request's aspectRatio field currently only affects the planner prompt; this needs correction or an explicit crop strategy before presenting exact 16:9 output. The image node also does not yet receive Fred's character reference files, so style consistency currently comes from prompt text only.
 
-Vercel documents openai/gpt-image-2.5-flare as an image-generation model. Vercel's image-only model route is POST https://ai-gateway.vercel.sh/v1/images/generations; this differs from the chat completion route. The n8n node in the current workflow is explicitly named **Vercel AI Gateway Chat Model** and its type is lmChatVercelAiGateway. Do not leave Flare attached as the AI Agent's chat model. Attach a text model such as openai/gpt-5.4 for planning, and use the image-generation call for frames.
+This synchronous version returns image base64 in the webhook response and does not persist outputs. For a production team workflow, move to async job IDs/progress polling, store images in shared object storage or Drive, and store scene/feedback metadata in Postgres/Supabase. A review rating can later retrieve approved examples to guide prompts; do not describe that as automatic model training.
 
-Vercel currently lists Flare at $5 / 1M input tokens and $30 / 1M output tokens; this is not a simple fixed per-image price. The first generation should be a single controlled call; inspect Vercel usage before increasing the scene cap.
+### Model and spend notes
+
+The workflow uses the selected Vercel credential for both requests but chooses a different model for each task: openai/gpt-5.6-luna plans text scenes, while openai/gpt-image-2.5-flare generates images. The actual image price depends on provider pricing and request settings; inspect current Vercel usage/pricing before increasing the 1–3 scene cap. No paid request has been executed from this workflow yet.
 
 ## Data, feedback, and “learning”
 

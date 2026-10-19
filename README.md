@@ -6,7 +6,10 @@ A static, cartoon-inspired storyboard UI prototype for Fred's YouTube production
 
 - The default experience is a local preview. Its sample panels are illustrative SVGs, not generated images.
 - An optional n8n webhook can be entered in the UI settings. The browser posts `{ "script": "...", "maxScenes": 3, "aspectRatio": "16:9" }` and expects a JSON response with a `scenes` array.
-- The live n8n workflow is not connected yet. No API key is stored in this repository or frontend.
+- An inactive n8n draft is available as **Script to Image Paid Demo**: [open workflow](https://n8n-rayv-742595626609.herokuapp.com/workflow/rV2JjknCieGGXRNL). It plans up to three scenes with `openai/gpt-5.6-luna`, then sends one request per scene to `openai/gpt-image-2.5-flare` through the Vercel AI Gateway image endpoint.
+- The workflow uses the saved Vercel Gateway credential in n8n. No API key is stored in this repository or frontend. It has not been run against the paid image endpoint, and remains inactive.
+- Before connecting a public Vercel deployment, add webhook authentication and restrict CORS to the deployed UI origin. The current draft allows wildcard origins and does not authenticate callers.
+- The first draft returns individual scene success/failure states. Shared feedback storage, Google Drive delivery, notifications, and retrieval over previous feedback are later phases.
 - Ratings and the webhook URL are stored in that browser's local storage. They are not shared with a team database.
 - Google Drive delivery is a later-phase placeholder.
 
@@ -31,7 +34,7 @@ Import this repository in Vercel and use these project settings:
 
 The app is plain HTML, CSS, and JavaScript, so it does not need a build step. The `docs/` and `scripts/` folders stay outside the deployed output; only `public/` is served. See [Vercel's static build guidance](https://vercel.com/docs/builds/configure-a-build).
 
-After deploying, add the n8n webhook URL from the UI settings when the workflow is available. Configure n8n to allow requests from the deployed site and keep provider credentials in n8n, never in frontend files.
+After deployment, add the production webhook URL in the UI settings only after adding authentication and replacing wildcard CORS with the deployed site's origin. Keep provider credentials in n8n, never in frontend files. The first workflow uses synchronous image generation, so the UI request remains open until the scene batch completes.
 
 ## Project files
 
@@ -39,4 +42,3 @@ After deploying, add the n8n webhook URL from the UI settings when the workflow 
 - `docs/Freds_Storyboard_Analysis.docx` — human-readable source and architecture analysis.
 - `docs/fred-agent-context.md` — compact project context for an AI agent.
 - `scripts/build_report.py` — source used to generate the DOCX report.
-
