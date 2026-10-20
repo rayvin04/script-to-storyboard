@@ -46,7 +46,7 @@
           <div>
             <p class="eyebrow"><span class="eyebrow-star">✦</span> ONE SCRIPT · SCENE-AWARE ART</p>
             <h1 id="page-title">Script in.<br /><span>Backgrounds out.</span></h1>
-            <p class="intro-copy">One script becomes a complete animator-style storyboard, then GPT Image creates up to 3 matching background plates from scenes across the script.</p>
+            <p class="intro-copy">One script becomes a complete animator-style storyboard, then GPT Image creates up to 10 matching background plates from scenes across the script.</p>
           </div>
         </section>
 
@@ -69,13 +69,13 @@
             <button class="primary-button" id="generate-button" type="submit" disabled>
               <span id="generate-button-label">Create storyboard &amp; backgrounds</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6"/></svg>
             </button>
-            <p class="privacy-note"><span aria-hidden="true">◉</span> One submission sends the complete script once. The workflow plans every scene, then generates up to 3 selected backgrounds sequentially.</p>
+            <p class="privacy-note"><span aria-hidden="true">◉</span> One submission sends the complete script once. The workflow plans every scene, then generates up to 10 selected backgrounds sequentially.</p>
           </form>
 
           <section class="board-panel panel image-only-results" aria-labelledby="results-title">
             <div class="board-header">
               <div>
-                <div class="board-title-row"><span class="heading-icon icon-film" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5.5h16v13H4zM4 9h3M4 15h3M17 9h3M17 15h3M9 5.5v3M15 5.5v3M9 15.5v3M15 15.5v3"/></svg></span><h2 id="results-title">Storyboard &amp; backgrounds</h2><span class="board-count" id="result-count">0 / 3</span></div>
+                <div class="board-title-row"><span class="heading-icon icon-film" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5.5h16v13H4zM4 9h3M4 15h3M17 9h3M17 15h3M9 5.5v3M15 5.5v3M9 15.5v3M15 15.5v3"/></svg></span><h2 id="results-title">Storyboard &amp; backgrounds</h2><span class="board-count" id="result-count">0 / 10</span></div>
                 <p class="board-subtitle" id="result-summary">The storyboard and its scene-specific background images will appear here.</p>
               </div>
             </div>
@@ -96,14 +96,14 @@
             <div class="image-grid" id="image-grid" aria-live="polite">
               <div class="image-empty" id="empty-state">
                 <div class="empty-illustration" aria-hidden="true"><svg viewBox="0 0 48 40"><rect x="3" y="3" width="42" height="34" rx="6" fill="#fffdf7" stroke="currentColor" stroke-width="2.5"/><path d="m9 29 10-10 7 7 5-5 8 8" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="15" cy="12" r="3" fill="#ef674d" stroke="currentColor" stroke-width="2"/></svg></div>
-                <div><h3>Storyboard and backgrounds will show up here</h3><p>Paste one full script to plan every scene, then generate up to 3 custom-fit background plates.</p></div>
+                <div><h3>Storyboard and backgrounds will show up here</h3><p>Paste one full script to plan every scene, then generate up to 10 custom-fit background plates.</p></div>
               </div>
             </div>
             <div class="deferred-callout image-deferred-callout" id="deferred-note" hidden><span class="callout-icon">↗</span><div><strong>More backgrounds remain.</strong><p id="deferred-copy">The storyboard includes additional distinct settings.</p></div></div>
           </section>
         </div>
       </main>
-      <footer class="page-footer"><span>BACKGROUND LAB <span class="footer-spark">✦</span> A working demo for Fred's YouTube team</span><span>One full script · Full storyboard · Up to 3 backgrounds</span></footer>
+      <footer class="page-footer"><span>BACKGROUND LAB <span class="footer-spark">✦</span> A working demo for Fred's YouTube team</span><span>One full script · Full storyboard · Up to 10 backgrounds</span></footer>
     </div>
     <script src="./workflow-api.js" defer></script>
     <script src="./app.js" defer></script>

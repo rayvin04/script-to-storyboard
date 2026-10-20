@@ -4,7 +4,7 @@ const SAMPLE_SCRIPT = [
   "The fix is to give your attention a break. The more you expect a notification, the more likely your brain is to invent one."
 ].join("\n\n");
 const MAX_SCRIPT_LENGTH = 30000;
-const MAX_BACKGROUND_IMAGES = 3;
+const MAX_BACKGROUND_IMAGES = 10;
 const $ = id => document.getElementById(id);
 const els = {
   form: $("generate-form"),
@@ -230,7 +230,7 @@ async function generateFromScript(event) {
   clearResults();
   setNotice("", false);
   setBusy(true);
-  setProgress("Creating the complete storyboard, then up to three backgrounds…", 8, "WORKING", true);
+  setProgress("Creating the complete storyboard, then up to ten backgrounds…", 8, "WORKING", true);
   try {
     const title = script.split(/\r?\n/).map(line => line.trim()).find(Boolean) || "Untitled storyboard";
     const response = validateResponse(await window.storyboardWorkflow.generate(title, script));

@@ -1,6 +1,6 @@
 # Fred’s Script-to-Backgrounds Demo
 
-The demo takes **one complete voiceover script** in one submission. A text model plans the full script into Fred-style scenes, then the workflow generates up to three distinct environment plates from the storyboard’s `Background` descriptions. The complete storyboard and its CSV remain available even when the MVP image limit is reached; the broader target is up to ten plates.
+The demo takes **one complete voiceover script** in one submission. A text model plans the full script into Fred-style scenes, then the workflow generates up to ten distinct environment plates from the storyboard’s `Background` descriptions. The complete storyboard and its CSV remain available when additional unique backgrounds are deferred.
 
 Only backgrounds are generated. Animators add all characters, props, labels, diagrams, and movement by hand. Fred’s art treatment stays consistent across settings, while each background changes to fit its scene.
 

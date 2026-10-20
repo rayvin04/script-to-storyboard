@@ -2,7 +2,7 @@
   const base = "https://n8n.47-131-239-128.sslip.io/webhook";
   const route = base + "/fred-image-generation-stage-1";
   // Keep the UI request bounded and avoid duplicate image charges on retries.
-  const REQUEST_TIMEOUT_MS = 300000;
+  const REQUEST_TIMEOUT_MS = 900000;
 
   async function postJson(body) {
     const controller = new AbortController();
@@ -38,7 +38,7 @@
       return data;
     } catch (error) {
       if (error && error.name === "AbortError") {
-        const timeoutError = new Error("The webhook did not return within five minutes. No automatic retry was sent, to avoid duplicate image charges. Check the n8n execution before retrying.");
+        const timeoutError = new Error("The webhook did not return within fifteen minutes. No automatic retry was sent, to avoid duplicate image charges. Check the n8n execution before retrying.");
         timeoutError.stopBatch = true;
         throw timeoutError;
       }

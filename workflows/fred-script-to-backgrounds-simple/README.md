@@ -6,7 +6,7 @@ Production endpoint: `POST /webhook/fred-image-generation-stage-1`
 
 ## One request, one result
 
-The frontend sends the title and complete narration script once. This workflow first plans the entire storyboard, validates that every narration word is preserved in order, and packages the full CSV. Only after storyboard validation succeeds does it choose up to three distinct background settings and generate images sequentially.
+The frontend sends the title and complete narration script once. This workflow first plans the entire storyboard, validates that every narration word is preserved in order, and packages the full CSV. Only after storyboard validation succeeds does it choose up to ten distinct background settings and generate images sequentially.
 
 The browser makes one webhook request. It does not send separate planning/image calls, poll for status, or retry automatically.
 
@@ -17,7 +17,7 @@ The browser makes one webhook request. It does not send separate planning/image 
 3. Read Fred’s style rules and storyboard examples from the existing Google Sheets reference workbook.
 4. Use the existing text model and structured output parser to create all storyboard scenes.
 5. Validate full narration coverage and generate the complete CSV.
-6. Select up to three distinct backgrounds spaced across the full storyboard.
+6. Select up to ten distinct backgrounds spaced across the full storyboard.
 7. For each selected background, in a batch-size-one loop, load the approved Drive style reference and call OpenRouter `openai/gpt-image-2.5-flare`.
 8. Aggregate images with their background IDs and scene numbers and return one JSON response.
 
@@ -31,7 +31,7 @@ It contains every planned scene. Timestamps stay blank when the input does not p
 
 ## Image selection and style
 
-- Maximum: three images per request, generated one at a time.
+- Maximum: ten images per request, generated one at a time.
 - The selected settings are sampled from across the complete scene sequence, not simply the first three scenes.
 - Each image is tied to a `backgroundId` and its storyboard `sceneNumbers`.
 - Fred’s Drive reference controls drawing style only: hand-drawn 2D cartoon, bold slightly irregular black ink outlines, simplified shapes, flat color, and minimal shading.
