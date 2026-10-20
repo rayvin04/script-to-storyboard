@@ -47,7 +47,7 @@ The published graph is authoritative. Import snapshots should be inactive to avo
 
 - The current published graph is active as version `6d6ac00c-1875-43c6-856e-6c08f2a63b68` with 24 nodes.
 - Image execution `2557` succeeded: it downloaded the approved Drive style reference, called OpenRouter `openai/gpt-image-2.5-flare`, and returned `imageData` for the UI.
-- Planner execution `2563` crashed before a workflow node ran. Heroku recorded R14 at roughly 601 MB against the 512 MB dyno. A follow-up plan execution `2564` started, then the host returned HTTP 503 before its status could be read.
+- Planner executions `2563` and `2564` crashed before any node after the webhook ran. Heroku recorded R14 at roughly 601 MB and 597 MB, respectively, against the 512 MB dyno; the host returned HTTP 503.
 - The full plan-to-image journey has not passed end-to-end yet. The image branch is verified; the planner is blocked by Heroku memory pressure. The user-approved hosting cap is `$13/month`; do not raise the plan because the next Heroku dyno with 1 GB RAM is listed at `$50/month`.
 
 ## UI Connection and Timeouts
