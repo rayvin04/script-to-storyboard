@@ -205,11 +205,12 @@ def build_table(doc, headers, rows, widths, header_fill=INK, font_size=9.2):
 
 def add_flow_table(doc):
     rows = [
-        ("01  UI", "Paste script, choose 1–3 scenes, review returned frames."),
-        ("02  WEBHOOK", "Receive request, validate size, create a job identifier."),
-        ("03  SCENE PLANNER", "AI Agent + text model return structured beats and image prompts."),
-        ("04  IMAGE PASS", "One Vercel Gateway image call per approved scene; return image data."),
-        ("05  REVIEW", "Show progress, download frames, save local or shared feedback."),
+        ("01  UI", "Paste a script, select a small scene batch, and review the storyboard."),
+        ("02  JOB START", "Validate, create a job ID, save processing state, return a quick acknowledgement."),
+        ("03  PLAN + RETRIEVE", "Vercel text model plans beats; style brief and matching references are retrieved per scene."),
+        ("04  IMAGE PASS", "OpenRouter GPT Image 2.5 Flare generates one image per scene from text plus selected reference images."),
+        ("05  STATUS + REVIEW", "UI polls the same n8n workflow, previews images, captures ratings and comments."),
+        ("06  DELIVERY", "Upload the completed batch to Drive, then send one Slack notice to the editing team."),
     ]
     table = doc.add_table(rows=len(rows), cols=2)
     table.autofit = False
@@ -221,7 +222,7 @@ def add_flow_table(doc):
         right.width = Inches(5.28)
         set_cell_margins(left, top=88, start=115, bottom=88, end=115)
         set_cell_margins(right, top=88, start=125, bottom=88, end=125)
-        set_cell_shading(left, [YELLOW, BLUE, PALE, GREEN, "F1EAFB"][i])
+        set_cell_shading(left, [YELLOW, BLUE, PALE, GREEN, "F1EAFB", YELLOW][i])
         set_cell_shading(right, WHITE if i % 2 == 0 else LIGHT)
         p = left.paragraphs[0]
         p.paragraph_format.space_after = Pt(0)
@@ -278,7 +279,7 @@ def configure(doc):
     add_text(header, "FRED  /  SCRIPT → STORYBOARD", size=8, color=MUTED, bold=True)
     footer = section.footer.paragraphs[0]
     footer.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    add_text(footer, "REFERENCE ANALYSIS  •  19 OCT 2026     |     ", size=8, color=MUTED)
+    add_text(footer, "REFERENCE ANALYSIS  •  20 OCT 2026     |     ", size=8, color=MUTED)
     add_page_field(footer)
 
 
@@ -301,27 +302,27 @@ def build_report():
     add_callout(
         doc,
         "THE FIRST USEFUL RESULT",
-        "A user pastes a script, reviews a small storyboard plan, generates up to three consistent image frames, and downloads the results. The first provider call should generate one frame so we can confirm the Vercel route and actual spend before a batch.",
+        "A user pastes a script, receives storyboard rows in Fred's CSV format, and gets one complete still frame for each selected beat. The user reviews and downloads the small batch; timing, overlay text, and edit cues remain attached as scene metadata.",
         fill=PALE,
     )
     add_heading(doc, "What Fred is asking for", 1)
     add_body(
         doc,
-        "Fred wants a practical script-to-image automation: the script is split into scene beats, and the system generates a matching background image for each beat in a consistent art style. The aim is to make YouTube production faster by reducing repeated manual visual planning.",
+        "Fred wants a practical script-to-storyboard automation: the script is segmented into rows that describe narration, action, background, drawn characters/props, optional on-screen text, and transitions/motion. The image model then creates a matching full scene frame for each selected row in a consistent art style. The aim is to reduce repeated manual visual planning.",
     )
     add_heading(doc, "Recommendation", 2)
-    add_bullet(doc, "Build the reviewer-facing UI and the n8n pipeline together, with the UI clearly marked as local preview until a live webhook is configured.")
-    add_bullet(doc, "Treat the asteroid sample video as a pacing/style reference. Use the supplied body-glitch script and character folder for the first content test.")
+    add_bullet(doc, "Keep a single n8n workflow behind the reviewer-facing UI; expose fixed start, status, feedback, and delivery routes in the UI code.")
+    add_bullet(doc, "Use the two new body videos, their matching scripts, and the supplied storyboard CSVs as the direct format/content references. Keep the older asteroid sample as broader pacing context only.")
     add_bullet(doc, "Keep the first run small: 1–3 scenes, one image per scene, manual approval before full-script batches.")
 
     add_callout(
         doc,
-        "REFERENCE MISMATCH TO KEEP VISIBLE",
-        "The supplied video is about an asteroid and the extinction of the dinosaurs. The supplied script and voiceover folder are about everyday body sensations. I interpret the video as a visual grammar/pacing reference, not the script to illustrate.",
+        "REFERENCE PRIORITY",
+        "The new Every Weird Body Glitch and Strangest Things Your Body Does to Keep You Alive videos match the two script/CSV references. Follow the CSV row structure for image planning. The earlier asteroid sample has a different topic and is useful only for broader pacing/style context.",
         fill=BLUE,
         accent="3C7291",
     )
-    add_body(doc, "Prepared for Rayvin to use as a build reference and to brief Fred. Source pages checked 19 October 2026.", after=0)
+    add_body(doc, "Prepared for Rayvin to use as a build reference and to brief Fred. New script and CSV references reviewed 20 October 2026.", after=0)
 
     # Page 2: editorial and script references
     doc.add_page_break()
@@ -360,19 +361,72 @@ def build_report():
     )
     add_body(doc, "An MP3 named audio_159655.mp3 is present in the script folder. I have not verified its timecodes or produced a transcript, so the first storyboard should segment from the supplied text only.", after=0)
 
-    # Page 3: visual style
+    # Page 3: storyboard CSV contract
     doc.add_page_break()
-    add_heading(doc, "2. Visual language and assets", 1)
-    add_body(doc, "The character folder supports a deliberately simple illustrated style. Its strongest consistency cues are shape and outline, not tiny surface detail.")
+    add_heading(doc, "2. How the storyboard rows work", 1)
+    add_body(doc, "The CSV is the planner's scene format. It ties a narration excerpt to a visual action, setting, drawn subjects/props, optional overlay text, and editor cues. The image request uses the content fields to create one complete frame; it does not render the editing metadata.")
+    build_table(
+        doc,
+        ["CSV column", "Scene field", "How the planner uses it"],
+        [
+            ("Scene", "sceneNumber / id", "Preserve order and a stable scene identifier."),
+            ("Timestamp", "timestamp", "Copy exact mm:ss-mm:ss values; leave blank when only a script is supplied."),
+            ("Voiceover", "narration", "Keep an exact concise excerpt from the script."),
+            ("What's happening", "whatHappening", "Choose one clear still moment; split multi-cut rows when needed."),
+            ("Background", "background", "Describe the setting or diagram canvas."),
+            ("Hand-drawn characters & props", "handDrawnElements", "List the visible characters, anatomy, and props."),
+            ("On-screen text", "onScreenText", "Preserve exact overlay text as metadata; do not draw it."),
+            ("Transitions/Motion", "transitionsMotion", "Keep editor cues as metadata; freeze any depicted action."),
+        ],
+        [1.85, 1.55, 3.4],
+        font_size=8.1,
+    )
+    build_table(
+        doc,
+        ["Workbook", "Rows / timeline", "Timing notes"],
+        [
+            ("Every Weird Body Glitch", "81 rows; ends at 17:14", "Median 11s; mean 12.7s; max 39s; one zero-duration row and five gaps; no overlaps."),
+            ("Strangest Things Your Body Does", "166 rows; ends at 15:18", "Median 5s; max 14s; no zero-duration rows, gaps, or overlaps."),
+        ],
+        [1.8, 1.55, 3.45],
+        font_size=8.1,
+    )
+    add_heading(doc, "Recurring visual families", 2)
+    build_table(
+        doc,
+        ["Family", "CSV examples / image treatment"],
+        [
+            ("topic_menu", "White field, circular topic icons; reserve space for final title/labels."),
+            ("character_environment", "Green-shirt protagonist in the yellow-wall / green-couch living room; build the specified place and props."),
+            ("host_lecture", "Professor explaining one idea beside a chalkboard or yellow teaching field."),
+            ("single_action_vignette", "One pose, such as reaching into a pocket, pulling a hand from a stove, sneezing, or fainting."),
+            ("anatomy_insert", "Clear, simplified, non-graphic body or organ detail."),
+            ("concept_metaphor", "One concrete analogy, such as a brain running on a hamster wheel."),
+            ("diagram_comparison", "Split screen, body mechanism, cutaway, or selected arrows; labels remain overlay metadata."),
+        ],
+        [1.8, 5.0],
+        font_size=8.0,
+    )
+    add_callout(
+        doc,
+        "ONE IMAGE PER VISUAL BEAT",
+        "Some CSV rows contain several cuts or actions, especially the 31-second and 37-second examples. Split them into one frozen action per image when the scene budget allows. Each generated image includes the described background plus the listed characters/props; it is not an empty background plate. If the user pasted only script text, do not guess timestamps, overlay labels, or transitions.",
+        fill=PALE,
+    )
+
+    # Page 4: visual style
+    doc.add_page_break()
+    add_heading(doc, "3. Visual language and assets", 1)
+    add_body(doc, "The supplied references show several connected scene families that share heavy, hand-drawn outlines. The two CSVs alternate topic menus, character vignettes, professor-led explanations, analogies, diagrams, and anatomy inserts. Retrieve the family that matches each scene instead of averaging them into one generic cartoon.")
     build_table(
         doc,
         ["Cue", "Observed reference trait", "Prompting implication"],
         [
             ("Characters", "Rounded heads, minimal eyes and mouths, stick-like limbs, familiar outfits.", "Use one approved character anchor repeatedly."),
-            ("Linework", "Thick, slightly irregular black contour.", "Ask for hand-drawn outlines; avoid clean glossy vector polish."),
-            ("Color", "Large, solid clothing and background fills.", "Use a small warm palette with a single focal accent."),
-            ("Composition", "Front-facing, uncluttered poses; a few simple room or landscape props.", "One visual metaphor and one action per frame."),
-            ("Format", "Sample video is 16:9 with frequent explanatory scenes.", "Generate 16:9 frames; keep captions out of the image."),
+            ("Linework", "Heavy, slightly irregular black outlines, especially on the host and anatomy.", "Preserve bold hand-drawn contours; avoid thin corporate vector strokes."),
+            ("Color", "Cream faces; warm amber, ochre, brown and charcoal settings; coral/orange organs; occasional blue daylight.", "Keep a warm palette and use lighting to separate the focal subject."),
+            ("Composition", "Simple host against layered rooms; wide, medium and oversized close-up shots; isolated organ inserts.", "Select character/environment or anatomy references based on the beat."),
+            ("Format", "Sample video is 16:9 and includes editorial overlays.", "Generate clean 16:9 art without titles, captions, logos, or UI."),
         ],
         [1.05, 2.85, 2.9],
         font_size=8.8,
@@ -381,36 +435,39 @@ def build_report():
     add_callout(
         doc,
         "LOCKED STYLE FOUNDATION",
-        "Simple hand-drawn 2D explainer cartoon; bold irregular black outlines; flat warm solid colors; minimal expressive faces; clear silhouette; one visual metaphor per frame; uncluttered 16:9 composition; no lettering, captions, logos, photorealism, gradients, or excessive detail.",
+        "Match the approved Fred references: bold irregular black ink, a pale cream oval host head with sparse facial marks and the same glasses/clothing silhouette where applicable, warm amber-brown environments with layered props and controlled shadows, and simplified coral-orange anatomy inserts with clear dark contours. Choose the matching visual family for each beat. Create one 16:9 educational frame with one focal action. No captions, labels, channel marks, watermarks, UI, photorealism, glossy 3D, anime, or unrelated clip-art.",
         fill=PALE,
     )
     add_heading(doc, "Asset handling", 2)
     add_bullet(doc, "The shared folder contains 18 PNGs, including alternate women, a soldier, lifeguard, handyman, agents, businessmen, a professor, and a living-room scene.")
-    add_bullet(doc, "Some thumbnails appear to use transparency or checkerboard preview backgrounds. Check alpha/crop before passing them into the image model.")
-    add_bullet(doc, "Choose a single character/reference image per scene family; use the same reference in every generation where continuity matters.")
+    add_bullet(doc, "Six added screenshots show distinct character/environment and anatomy examples. Curate separate reference groups; do not average cafe, living-room, bar, and organ-close-up frames into one scene template.")
+    add_bullet(doc, "Choose one approved host anchor plus one or two matching scene references. Send the actual image references to the image model when the selected endpoint supports them; text-only style rules are not enough for character identity.")
     add_bullet(doc, "The local prototype's SVG frames are newly drawn placeholders. They are not copied from Fred's character files and are not AI generations.")
 
     add_heading(doc, "UI direction", 2)
     add_body(doc, "The Shop Floor Agent screenshot shows Rayvin's useful “open a demo and try it now” pattern: a clear client label, short explanation, and one prominent interaction. The second screenshot suggests a playful orange/yellow cartoon mood. This UI combines that easy-to-try flow with an off-white canvas, ink outlines, coral/yellow/sky accents, and a storyboard grid.")
     add_body(doc, "Rayvin's portfolio and the Shop Floor Agent repository show a workflow-first approach: make a web UI for immediate use, keep n8n behind it, ground answers in structured data, and document the workflow. The same pattern fits this demo.", after=0)
 
-    # Page 4: architecture and current n8n state
+    # Page 5: architecture and current n8n state
     doc.add_page_break()
-    add_heading(doc, "3. First prototype architecture", 1)
-    add_body(doc, "The UI sends one script request to n8n. n8n validates it, asks a text model to plan the scenes, calls the image model once per capped scene, and returns a single scene array for the UI to display.")
+    add_heading(doc, "4. First prototype architecture", 1)
+    add_body(doc, "The published path remains synchronous. Draft v2.1 now follows the CSV schema and includes retrieved CSV examples. Manual execution 2021 failed at request-body parsing before any image call; after fixing the expression, execution 2022 generated one frame and returned the storyboard fields with a PNG binary. The provider cost for execution 2022 was not retrieved. The Heroku host returned HTTP 503 after that successful run, so the new draft is not published and the production UI still uses the older active version.")
     add_flow_table(doc)
-    add_heading(doc, "Nodes in the current n8n draft", 2)
+    add_heading(doc, "Current generation path and planned additions", 2)
     build_table(
         doc,
         ["Stage", "Node / responsibility"],
         [
             ("Input", "Webhook POST accepts script, scene limit, and aspect-ratio label at /webhook/script-to-storyboard."),
             ("Guardrail", "Code rejects empty or over-30,000-character scripts and clamps the scene count to 1–3; it creates an internal request identifier."),
-            ("Scene planning", "AI Agent uses openai/gpt-5.6-luna and a Structured Output Parser for scene titles, narration excerpts, and prompts."),
-            ("Validation", "Code checks the scene list and required image prompts, applies the cap, and numbers each scene."),
-            ("Image generation", "A sequential loop calls Vercel's image-only endpoint with openai/gpt-image-2.5-flare, using the selected saved Gateway credential."),
-            ("Response", "The response includes status, sceneCount, failedCount, and per-scene image data/URL or failure state."),
-            ("Failure handling", "A same-workflow error route normalizes provider errors for the UI. Rayvin chose this pattern."),
+            ("Job control", "The current path is synchronous. The planned route writes a processing job, responds 202, and keeps planning/generation in the same workflow."),
+            ("Text model", "openai/gpt-5-mini creates CSV-inspired scene rows with exact narration, action, setting, hand-drawn subjects/props, overlay text, edit cues, and image prompt. Text planning does not call the image model."),
+            ("Current style retrieval", "Fred Style Reference Search retrieves matching family rules and selected examples from the two CSVs using keyword overlap. It is not semantic/vector search and does not fetch Drive image files."),
+            ("Image generation", "Sequential HTTP Request to OpenRouter POST /api/v1/images using openai/gpt-image-2.5-flare at low quality, one image per selected scene. Prompt contains setting plus drawn subjects/props; time, exact overlay text, and edit cues stay metadata."),
+            ("Visible image output", "Convert Scene Image to Binary Preview creates a PNG binary. Restore Scene JSON with Binary carries the CSV-style scene fields and image together. Execution 2022 exposed a 1.25 MB PNG under the node's Binary tab."),
+            ("Planned async/status", "Upsert the processing/final job in the jobs Data Table; respond 202 immediately; a status route returns completed, partial, or failed results to UI polling."),
+            ("Planned feedback/delivery", "Store per-scene likes and comments; send completed images to the supplied Drive folder; then post one completion notice to Slack #social."),
+            ("Failure handling", "Keep provider and job failure routes inside this one workflow, as Rayvin selected."),
         ],
         [1.4, 5.4],
         font_size=8.9,
@@ -418,52 +475,52 @@ def build_report():
     add_callout(
         doc,
         "CURRENT DRAFT STATUS AND LIMITS",
-        "Model routing is now separated: openai/gpt-5.6-luna plans scenes and openai/gpt-image-2.5-flare generates images through Vercel's image route. The draft remains inactive and has not made a paid image call. The image request is 1536×1024 (3:2) even though the prompt asks for 16:9; reference character files are not yet sent. Before a public deployment, add webhook authentication and restrict wildcard CORS to the UI origin.",
+        "Manual execution 2022 confirmed one image completed and the scene JSON survived the binary preview path. Its provider-reported usage cost was not retrieved; earlier run 2014 reported $0.00575 for one low-quality image. The latest v2.1 draft remains unpublished because the Heroku host returned HTTP 503 after the run. The active production UI therefore still uses the older version. Async job/status routes, feedback persistence, Drive/Slack delivery, and actual Drive image-reference conditioning remain future work. Drive upload access still needs a real test.",
         fill=BLUE,
         accent="3C7291",
     )
-    add_body(doc, "Use a one-image run only after Rayvin explicitly requests the paid verification. Then inspect the returned image field, actual spend, and crop before increasing the scene count.", after=0)
+    add_body(doc, "When n8n returns, open execution 2022 and inspect `Restore Scene JSON with Binary` → Binary → data. Then publish the v2.1 draft and check one image through the UI before increasing the scene count.", after=0)
 
-    # Page 5: feedback and reliability
+    # Page 6: feedback and reliability
     doc.add_page_break()
-    add_heading(doc, "4. Feedback, delivery, and reliability", 1)
+    add_heading(doc, "5. Feedback, delivery, and reliability", 1)
     add_heading(doc, "Feedback is retrieval, not automatic training", 2)
     add_body(doc, "A thumbs-up/down and a short comment are useful if stored with the exact scene prompt, style version, model, and any edit request. Later, retrieve a few approved examples for similar scenes and use their prompt patterns as context. This is feedback-guided retrieval; the model weights do not update after each comment.")
     build_table(
         doc,
         ["Prototype", "Next iteration", "Production-ready"],
         [
-            ("Browser localStorage for ratings and notes; local export only.", "n8n Data Table or Postgres/Supabase for shared feedback.", "Search approved examples by scene type/style; retain prompt versions and audit history."),
+            ("Always-on style brief plus a small tagged reference manifest; retrieve approved images per scene family.", "Add semantic vector search when tags stop scaling; keep Drive files as image binaries and vector metadata separate.", "Versioned reference curation, prompt/audit trail, and approvals before updating the canon."),
             ("Local frame downloads and JSON scene-plan export.", "Google Drive folder export for editors.", "Job records, durable image objects, idempotent retry, resumable batches."),
-            ("Visible success/error state in the UI.", "Choose an external success/failure notification channel.", "Async job IDs, polling, rate limits, spend caps, authenticated webhooks."),
+            ("Per-scene thumbs/comments with browser fallback.", "Persist to the existing n8n feedback table and retrieve approved examples.", "Quality review gates, rate limits, spend caps, authenticated webhooks, monitoring."),
         ],
         [2.05, 2.35, 2.4],
         font_size=8.4,
     )
     add_heading(doc, "Spend and safety controls", 2)
     add_bullet(doc, "Default to 1–3 images per first run. Do not include an automatic re-generation loop.")
-    add_bullet(doc, "Generate one image, read the Vercel usage record, and only then increase the scene cap.")
-    add_bullet(doc, "Check the live Gateway usage and image pricing after the first approved one-image call. Actual image spend depends on the selected model and request settings; do not scale the scene cap before reviewing it.")
+    add_bullet(doc, "Use the image model only for image generation. Scene planning, reference metadata, and feedback summaries stay on the text-model route or deterministic code.")
+    add_bullet(doc, "Execution 2014 reported $0.00575 for one low-quality image-generation call. The newer successful execution 2022 did not expose its provider cost in the retrieved result. Inspect provider usage before increasing the scene cap.")
     add_bullet(doc, "For public deployment, authenticate the webhook, restrict CORS to the UI domain, keep credentials server-side, and set a spend limit. Never put API keys in front-end code.")
     add_bullet(doc, "For the health script, keep narration facts and caveats unchanged; use neutral visual metaphors and no diagnostic text.")
     add_callout(
         doc,
         "ERROR AND COMPLETION BEHAVIOR",
-        "Rayvin selected an error branch inside the same workflow. The first UI should show the completed state itself. External notification (Telegram, email, or another channel) can be chosen after Fred confirms where the editors want the alert.",
+        "Rayvin selected same-workflow error handling. The planned delivery route uploads the generated batch to Drive folder 153VPM-IBR1T5UIq-TthqtpklyAGwi-UU and then posts one message to Slack #social using the saved credential. The Drive credential's upload access remains unverified; only the final UI end-to-end test can confirm delivery.",
         fill=GREEN,
         accent="4B8250",
     )
 
-    # Page 6: phases, estimate, sources
+    # Page 7: phases, estimate, sources
     doc.add_page_break()
-    add_heading(doc, "5. Phased build and estimate", 1)
+    add_heading(doc, "6. Phased build and estimate", 1)
     build_table(
         doc,
         ["Phase", "Outcome", "Exit check"],
         [
-            ("1. Prototype", "Cartoon storyboard UI; script entry; small scene plan; capped image pass; downloads; local review controls.", "One scene returns from n8n and is manually reviewed; no unexpected spend."),
-            ("2. Useful demo", "Real previews, per-scene retry, shared feedback, Google Drive delivery, success/failure notification.", "Fred/editor can review and retrieve one complete batch."),
-            ("3. Production", "Async jobs, auth/CORS, persistent status, spend guardrails, retry policy, monitoring, RAG over approved examples, runbook.", "Partial failures are recoverable and the process is documented."),
+            ("1. Working demo", "UI, async job/status in one workflow, scene planning, low-cost image call, binary execution preview, per-scene downloads/review.", "One scene reaches both the UI and the n8n execution Binary tab."),
+            ("2. Useful demo", "Curated style references, feedback persistence/retrieval, Drive upload, Slack completion notice, error paths.", "An editor can review a complete delivered batch and its feedback is saved."),
+            ("3. Production", "Semantic vector retrieval if needed, access controls, spend limits, durable object storage, recovery, monitoring, runbook.", "Outputs are traceable to style version, refs, prompt, and reviewer feedback."),
         ],
         [1.25, 3.25, 2.3],
         font_size=8.6,
@@ -475,23 +532,30 @@ def build_report():
         "“For a focused demo, I estimate 2–3 working days once the reference files and image provider are accessible: a small web UI, script-to-scene planning, up to three generated frames, downloads, and a review step. A polished team-ready version with Drive delivery, persistent feedback, retries, notifications, and deployment hardening would likely take another 3–5 working days.”",
         fill=PALE,
     )
-    add_body(doc, "Estimate assumes the current Vercel AI Gateway credential can be used for the image endpoint, the Drive assets remain accessible, and the first demo needs only one output style and one aspect ratio. Provider, account, file permissions, and editorial feedback can shift the schedule.", after=5)
+    add_body(doc, "Text planning uses the saved Vercel credential and image generation uses the saved OpenRouter credential. The output Drive folder is selected, but n8n upload permission needs verification. The n8n host outage is delaying implementation, and final timing depends on service recovery and endpoint reference-image support.", after=5)
     add_heading(doc, "Open decisions after the prototype", 2)
     add_bullet(doc, "Which one character is the primary anchor for the body-glitch video?")
-    add_bullet(doc, "Does Fred expect one background per script section, or several visual beats within each section?")
-    add_bullet(doc, "Where should final images live: an existing Google Drive folder, Supabase Storage, or another team location?")
-    add_bullet(doc, "Which channel should receive completion/failure alerts? The first prototype can rely on its visible UI status.")
+    add_bullet(doc, "Confirm with Fred whether the editing team expects complete scene frames or separate empty background plates; the demo currently treats each CSV row as a complete frame with background plus drawn subjects/props.")
+    add_bullet(doc, "Which specific character image should be the canonical host anchor, and should it appear in every visual family?")
+    add_bullet(doc, "Confirm n8n's saved Google Drive credential can upload to the supplied `Demo Test Upload` folder.")
+    add_bullet(doc, "Confirm #social is the right editor notification channel before sending the first live delivery alert.")
 
     add_heading(doc, "Sources checked", 2)
     add_source(doc, "EverythingProfessor", "https://www.youtube.com/@EverythingProfessor")
     add_source(doc, "Professor Historian", "https://www.youtube.com/@TheHistorianProfessor")
     add_source(doc, "WildlifeProfessor", "https://www.youtube.com/@WildlifeProfessor")
     add_source(doc, "EverythingProfessor Compilations", "https://www.youtube.com/@EverythingProfessorComps")
-    add_source(doc, "Sample video", "https://drive.google.com/file/d/1eRmvxfh5Ju4cOmTdWt4FSQCsohyM4ISW/view?usp=sharing")
+    add_source(doc, "Every Weird Body Glitch video", "https://www.youtube.com/watch?v=meH-Q1XgLBs")
+    add_source(doc, "Every Weird Body Glitch script", "https://docs.google.com/document/d/19D5RIF-E3ZB-fs_esrgCIw65Mt3jPjBAc2YzREyOvKE/edit?tab=t.0")
+    add_source(doc, "Strangest Things Your Body Does video", "https://www.youtube.com/watch?v=7tPPGl6Q_9I")
+    add_source(doc, "Strangest Things Your Body Does script", "https://docs.google.com/document/d/1vtfXQZaVTlnAxQ4tUsJ2QuKrXiQl7PR4kdYjMc-gsKY/edit?tab=t.0#heading=h.gzdctbyeq5dv")
+    add_source(doc, "Earlier sample video (asteroid topic)", "https://drive.google.com/file/d/1eRmvxfh5Ju4cOmTdWt4FSQCsohyM4ISW/view?usp=sharing", "Broader visual/pacing context")
     add_source(doc, "Script / voiceover folder", "https://drive.google.com/drive/u/1/folders/1q_BkGppDA4k189FXZxXewRWi9yJF_r4H")
     add_source(doc, "Character / style folder", "https://drive.google.com/drive/folders/1KLTxXSsptR9OguL30DCBLX72GX2rtUBo?usp=sharing")
     add_source(doc, "Portfolio and Shop Floor Agent", "https://rayvingianan.r4yv.tech/", "Repo: github.com/rayvin04/shop-floor-ai-rayvin-gianan")
-    add_source(doc, "Vercel model listing and routing docs", "https://vercel.com/ai-gateway/models/gpt-image-2.5-flare", "Image endpoint: vercel.com/docs/ai-gateway/modalities/image-generation/openai")
+    add_source(doc, "OpenRouter GPT Image 2.5 Flare listing", "https://openrouter.ai/openai/gpt-image-2.5-flare", "Image generation; inspect endpoint-specific reference support")
+    add_source(doc, "OpenRouter Images API guide", "https://openrouter.ai/blog/tutorials/image-generation/", "Includes input_references")
+    add_body(doc, "The two uploaded workbooks analyzed were 01_every_weird_body_glitch.csv.xlsx and 03_strangest_things_your_body_does.csv.xlsx. Both use the eight-column scene format summarized in section 2.", after=0)
 
     doc.core_properties.title = "Fred's Script-to-Storyboard Demo — Reference Analysis"
     doc.core_properties.subject = "Reference analysis, architecture, and phased build estimate"
