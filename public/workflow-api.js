@@ -5,6 +5,7 @@
     generate: `${base}/fred-storyboard-generate-v4`,
     status: `${base}/fred-storyboard-status-v4`,
     csv: `${base}/fred-storyboard-csv-v4`,
+    deliver: `${base}/fred-storyboard-deliver-v4`,
   };
 
   async function requestJson(url, options = {}, timeoutMs = 25000) {
@@ -29,12 +30,12 @@
     }
   }
 
-  function post(url, body) {
+  function post(url, body, timeoutMs = 25000) {
     return requestJson(url, {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=UTF-8" },
       body: JSON.stringify(body),
-    });
+    }, timeoutMs);
   }
 
   async function download(url, timeoutMs = 60000) {
@@ -60,6 +61,7 @@
   window.storyboardWorkflow = {
     plan(script, title) { return post(routes.plan, { script, title }); },
     generate(jobId, backgroundIds) { return post(routes.generate, { jobId, backgroundIds }); },
+    deliver(jobId, title) { return post(routes.deliver, { jobId, title }, 90000); },
     status(jobId) { return requestJson(`${routes.status}?jobId=${encodeURIComponent(jobId)}`); },
     downloadCsv(jobId) { return download(`${routes.csv}?jobId=${encodeURIComponent(jobId)}`); },
     downloadImage(url) { return download(url); },

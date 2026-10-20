@@ -1,6 +1,6 @@
 # Background-first workflow architecture
 
-**Scope:** background-first storyboard prototype · **Status:** workflow `Fred Storyboard — Full Plan + Background Batches` (`NO5b5a1P44wvK4U7`) exists in n8n; scene-aware naming and SVG export are being prepared locally, while the combined delivery route is not live yet.
+**Scope:** background-first storyboard prototype · **Status:** workflow Fred Storyboard — Full Plan + Background Batches (NO5b5a1P44wvK4U7) includes full-script planning, background batches, CSV/SVG export, and a same-workflow Drive/email delivery route. Fill editingTeamEmail before use; destination write access still needs a live check.
 
 ## Design decisions
 
@@ -42,7 +42,7 @@ flowchart TD
   UI -->|POST jobId after review| Deliver --> UI
 ```
 
-The delivery route shown above is planned, not live. Its folder, settings, and retry contract are documented in [`delivery-and-export-plan.md`](delivery-and-export-plan.md). Do not add the UI delivery button until the workflow route and Gmail/Drive credentials are validated.
+The delivery route is wired to the UI and documented in delivery-and-export-plan.md. Its target folder permission is not confirmed, and no live move or email test has been run.
 
 ## 1. Planning route
 
@@ -145,13 +145,13 @@ An omitted `backgroundIds` means choose the next pending batch. Validate that ID
 
 `GET /webhook/fred-storyboard-csv-v4?jobId=UUID` reads the saved storyboard rows, creates a UTF-8 CSV with Fred’s eight columns plus background ID, image status, and generation-batch note, and returns it as a download. Deferred rows include the note that more background plates remain for a later batch.
 
-## 4. Delivery route (planned)
+## 4. Delivery route
 
-Use the user-supplied shared destination folder `153VPM-IBR1T5UIq-TthqtpklyAGwi-UU`; keep generated previews in private staging until the user clicks **Send to Drive & notify team**. The main workbook now contains a `Workflow Settings` tab with an empty `editingTeamEmail` cell, the team folder ID, the staging folder ID, and a delivery cap of 10. Verify write access with the saved n8n Drive credential before enabling this route.
+Use the user-supplied shared destination folder 153VPM-IBR1T5UIq-TthqtpklyAGwi-UU; keep generated previews in private staging until the user clicks Send to editors. Workflow Settings contains an empty editingTeamEmail cell, the team folder ID, the staging folder ID, and a delivery cap of 10. The route is live in the same workflow, but the saved n8n Drive credential write access to the target folder needs a real delivery check.
 
-The webhook accepts only a job ID. Read the recipient and delivery state from Google Sheets, validate the email field, move Drive files serially in groups of at most 10, and update the delivery records after each file. If more than 10 files remain, return a partial status and let the UI continue. Send one email after every generated plate for that job is in the team folder. The email lists the storyboard title, scene count, filenames with scene numbers, folder link, and any failed/deferred counts. Do not accept a folder or recipient from the public request.
+The webhook accepts a job ID and title only. It reads scene rows, recipient, and duplicate-send state from Google Sheets, validates the email, and allows up to 10 completed background files. It moves those files to the target folder, sends one email after the moves succeed, then records the job in Delivery Log. The email lists filenames, covered scenes, folder link, CSV link, and the number of backgrounds still pending. Do not accept a folder or recipient from public input.
 
-The move operation must retain the Drive file ID so the private image proxy continues to work after delivery. Keep binaries out of this route; it should act on file IDs and metadata only. Keep the notification idempotent using Sheets status; if Gmail succeeded but the workflow failed before its status update, flag `sending` for review rather than sending another message automatically.
+The move operation retains the Drive file ID so the image proxy can keep resolving it. Keep binaries out of this route; it acts on IDs and metadata only. A recorded successful delivery is rejected on retry. There is a small failure window after Gmail sends but before the Sheets log succeeds; review the execution before retrying if that happens.
 
 ## 5. UI behavior
 
@@ -162,7 +162,7 @@ The move operation must retain the Drive file ID so the private image proxy cont
 5. Display unique backgrounds via the private image proxy. Offer `Generate next batch` with the next <=10 deferred IDs.
 6. Each storyboard row links to its background ID. Reused backgrounds display one image card attached to multiple rows.
 7. Download the CSV for structured source data or the browser-generated SVG for a visual review sheet. The SVG includes every storyboard field and background status but does not embed binary images.
-8. After reviewing the generated plates, choose the combined Drive-and-email action. The UI must not show this action as available until the delivery route is live.
+8. After reviewing generated plates, choose Send to editors. The UI shows this control when at least one completed plate is available and disables it after a successful send.
 
 No image is generated before an explicit generation action. Do not make the UI imply that a full storyboard means every background has already been painted.
 

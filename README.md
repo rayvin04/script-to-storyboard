@@ -10,7 +10,7 @@ The complete script is planned first using Fred’s CSV examples, style guide, a
 
 The public UI is [Fred’s Storyboard Lab](https://script-to-storyboard-six.vercel.app/). It has fixed workflow routes in `public/workflow-api.js`; the user does not paste webhook URLs. It supports full storyboard review, a workflow-generated CSV, a browser-generated visual SVG, batch image generation, individual plate downloads, and a ZIP of completed images. If more than 10 unique settings are planned, the UI and deferred rows in the CSV say that more background plates remain for a later batch and include the count in the UI.
 
-Scene-aware background filenames are being added in the local workflow source using the job suffix, background ID, and scene numbers. The team delivery folder is recorded in the Google Sheet `Workflow Settings` tab. The combined **Send to Drive & notify team** action is not live yet: n8n must be healthy, the Drive credential must be checked against the shared folder, and the configured `editingTeamEmail` value must be filled in before adding the workflow route and UI control. See [the delivery and export plan](docs/delivery-and-export-plan.md).
+Scene-aware background filenames use the job suffix, background ID, and linked scene numbers. The UI includes Send to editors, connected to POST /webhook/fred-storyboard-deliver-v4 in the same n8n workflow. The route moves completed files into the configured shared Drive folder and emails the recipient from Workflow Settings. Before using it, fill the blank editingTeamEmail setting. The n8n Drive credential write access to the destination has not yet been confirmed. See the delivery and export plan.
 
 ### Workflow routes
 
@@ -19,8 +19,9 @@ Scene-aware background filenames are being added in the local workflow source us
 - `GET /webhook/fred-storyboard-status-v4?jobId=...` — return storyboard rows and background status.
 - `GET /webhook/fred-storyboard-image-v4?jobId=...&backgroundId=...` — stream one private Drive image.
 - `GET /webhook/fred-storyboard-csv-v4?jobId=...` — create and download the Fred-format CSV in n8n.
+- `POST /webhook/fred-storyboard-deliver-v4` — move completed plates to the team folder and notify the configured email recipient.
 
-The planned `POST /webhook/fred-storyboard-deliver-v4` route is not live. It will move reviewed plate files to the shared team folder in serial groups of at most 10 and send one email after the job's generated plates have arrived.
+Storyboard SVG export is built in the browser from the full scene plan. Delivery is capped at 10 files, checks Delivery Log for an existing completed send, and does not call the image model.
 
 ## Known-good fallback
 

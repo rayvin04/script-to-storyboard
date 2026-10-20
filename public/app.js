@@ -6,6 +6,7 @@ const STATUS_POLL_INTERVAL_MS = 12000;
 const STATUS_RETRY_BASE_MS = 15000;
 const STATUS_RETRY_MAX_MS = 60000;
 const JOB_STORAGE_KEY = "fredStoryboardJobId";
+const DELIVERY_STORAGE_KEY = "fredStoryboardDeliveredJobId";
 const DEFERRED_NOTE = "This is the full storyboard. More background plates remain for a later batch.";
 
 const $ = id => document.getElementById(id);
@@ -17,14 +18,15 @@ const els = {
   boardCount: $("board-count"), subtitle: $("board-subtitle"), summary: $("job-summary"), deferred: $("deferred-callout"), deferredCopy: $("deferred-copy"),
   first: $("generate-first"), firstCount: $("first-batch-count"), next: $("generate-next"), nextCount: $("next-batch-count"),
   retry: $("retry-failed"), downloadCsv: $("download-csv"), downloadSvg: $("download-svg"), downloadImages: $("download-images"),
+  deliver: $("send-to-editors"), deliverLabel: $("send-to-editors-label"),
   batchStatus: $("batch-status"), backgrounds: $("background-grid"), backgroundCount: $("background-count-label"),
   table: $("storyboard-table-body"), sceneCount: $("scene-count-label"), footer: $("footer-status-copy"), jobId: $("footer-job-id"),
   stepPlan: $("step-plan"), stepImages: $("step-images"), stepExport: $("step-export"),
 };
 
 const state = {
-  jobId: "", job: null, scenes: [], backgrounds: [],
-  polling: false, pollTimer: null, isPlanning: false, isGenerating: false, pollFailures: 0,
+  jobId: "", job: null, scenes: [], backgrounds: [], deliveredJobId: "",
+  polling: false, pollTimer: null, isPlanning: false, isGenerating: false, isDelivering: false, pollFailures: 0,
   expectedBatchIds: [], seenBatchIds: new Set(), expectedBatchAt: 0,
 };
 
@@ -163,6 +165,9 @@ function updateActions(job) {
   els.downloadImages.disabled = busy || completed.length === 0;
   els.downloadCsv.disabled = !state.jobId || state.isPlanning;
   els.downloadSvg.disabled = !state.jobId || state.isPlanning || state.scenes.length === 0;
+  const delivered = Boolean(state.jobId) && state.deliveredJobId === state.jobId;
+  els.deliver.disabled = busy || state.isDelivering || completed.length === 0 || delivered;
+  els.deliverLabel.textContent = state.isDelivering ? "Sending…" : delivered ? "Sent to editors" : "Send to editors";
   const hasDeferred = deferred.length > 0 || Number(job.deferredCount) > 0;
   els.deferred.hidden = !hasDeferred;
   if (hasDeferred) {
@@ -281,6 +286,8 @@ async function createStoryboard() {
   if (state.isPlanning || state.isGenerating) return;
   state.isPlanning = true;
   state.jobId = "";
+  state.deliveredJobId = "";
+  try { localStorage.removeItem(DELIVERY_STORAGE_KEY); } catch {}
   state.expectedBatchIds = [];
   state.seenBatchIds.clear();
   state.expectedBatchAt = 0;
@@ -459,6 +466,33 @@ async function downloadAllBackgrounds() {
   }
 }
 
+async function sendToEditors() {
+  if (!state.jobId || state.isDelivering || state.isPlanning || state.isGenerating) return;
+  const ready = state.backgrounds.filter(item => item.status === "completed" && item.imageUrl);
+  if (!ready.length) return;
+  state.isDelivering = true;
+  els.deliver.disabled = true;
+  els.deliverLabel.textContent = "Sending…";
+  showNotice("");
+  setFooter(`Moving ${ready.length} completed background ${ready.length === 1 ? "plate" : "plates"} and notifying the editors. No image credits are used.`);
+  try {
+    const result = await window.storyboardWorkflow.deliver(state.jobId, state.job?.title || "");
+    state.deliveredJobId = state.jobId;
+    try { localStorage.setItem(DELIVERY_STORAGE_KEY, state.jobId); } catch {}
+    const pending = Number(result.pendingBackgroundCount) || 0;
+    const more = pending ? ` ${pending} other storyboard background ${pending === 1 ? "plate remains" : "plates remain"} for a later batch.` : " All storyboard backgrounds were included.";
+    showNotice(`${result.movedCount} background ${result.movedCount === 1 ? "plate was" : "plates were"} moved to the team Drive folder and the editing team was notified.${more}`);
+    setFooter(`Delivery complete · ${result.folderUrl}`);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    showNotice(message, "error");
+    setFooter("Delivery did not complete. Check the n8n execution before retrying.");
+  } finally {
+    state.isDelivering = false;
+    updateActions(state.job || {});
+  }
+}
+
 function loadSample() {
   els.title.value = SAMPLE_TITLE;
   els.script.value = SAMPLE_SCRIPT;
@@ -477,6 +511,7 @@ els.retry.addEventListener("click", () => generateBatch(state.backgrounds.filter
 els.downloadCsv.addEventListener("click", downloadCsv);
 els.downloadSvg.addEventListener("click", downloadStoryboardSvg);
 els.downloadImages.addEventListener("click", downloadAllBackgrounds);
+els.deliver.addEventListener("click", sendToEditors);
 els.backgrounds.addEventListener("click", async event => {
   const button = event.target.closest("[data-download-background]");
   if (!button) return;
@@ -512,11 +547,14 @@ els.downloadCsv.disabled = true;
 els.downloadSvg.disabled = true;
 els.first.disabled = true;
 els.downloadImages.disabled = true;
+els.deliver.disabled = true;
 
 try {
   const savedJobId = localStorage.getItem(JOB_STORAGE_KEY);
   if (savedJobId) {
     state.jobId = savedJobId;
+    const savedDeliveredJobId = localStorage.getItem(DELIVERY_STORAGE_KEY);
+    if (savedDeliveredJobId === savedJobId) state.deliveredJobId = savedDeliveredJobId;
     state.isPlanning = true;
     setWorkspaceVisible(true);
     els.mode.textContent = "RECONNECTING";

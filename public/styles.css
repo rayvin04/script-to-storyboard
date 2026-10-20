@@ -129,6 +129,7 @@ h2 { margin: 0; font-size: 19px; letter-spacing: -.025em; }
 .outline-button, .send-button { min-height: 36px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 0 11px; border: 1.5px solid var(--ink); border-radius: 9px; background: #fff; color: var(--ink); font-size: 10px; font-weight: 900; box-shadow: 2px 2px 0 var(--ink); cursor: pointer; transition: transform .15s, box-shadow .15s; white-space: nowrap; }
 .outline-button:hover, .send-button:hover { transform: translate(1px, 1px); box-shadow: 1px 1px 0 var(--ink); }
 .outline-button:disabled { cursor: not-allowed; opacity: .5; box-shadow: none; transform: none; }
+.send-button:disabled { cursor: not-allowed; opacity: .55; box-shadow: none; transform: none; }
 .outline-button svg, .send-button svg, .export-button svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .send-button { background: #eff8ea; }
 .later-tag { padding: 3px 5px; border-radius: 4px; background: #dcefd3; color: #456b3f; font-size: 7px; letter-spacing: .08em; }
@@ -384,6 +385,8 @@ dialog::backdrop { background: rgba(32, 42, 59, .42); backdrop-filter: blur(2px)
 .batch-buttons .outline-button { min-height: 37px; padding: 0 9px; font-size: 9px; }
 .batch-buttons .outline-button[hidden] { display: none; }
 .batch-status { margin-top: 12px; padding: 9px 11px; border: 1px dashed #9ca9b7; border-radius: 9px; background: #f7f8fa; color: #59677a; font-size: 9px; line-height: 1.45; }
+.delivery-help { margin: 10px 0 0; color: #718092; font-size: 9px; line-height: 1.5; }
+.delivery-help a { color: #39704b; font-weight: 800; text-underline-offset: 2px; }
 .section-divider { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 20px 0 10px; color: #354154; font-size: 12px; font-weight: 900; }
 .section-divider small { color: #7c8796; font-size: 9px; font-weight: 700; }
 .storyboard-divider { margin-top: 25px; }
@@ -435,6 +438,8 @@ dialog::backdrop { background: rgba(32, 42, 59, .42); backdrop-filter: blur(2px)
 :root[data-theme="dark"] .batch-toolbar { border-bottom-color: #465267; }
 :root[data-theme="dark"] .batch-help, :root[data-theme="dark"] .table-hint { color: #aab6c6; }
 :root[data-theme="dark"] .batch-status { border-color: #647188; background: #202b3b; color: #c1cada; }
+:root[data-theme="dark"] .delivery-help { color: #aab6c6; }
+:root[data-theme="dark"] .delivery-help a { color: #b7dfae; }
 :root[data-theme="dark"] .section-divider { color: #e7e0d3; }
 :root[data-theme="dark"] .background-card { background: #202b3b; }
 :root[data-theme="dark"] .background-id, :root[data-theme="dark"] .background-card-copy small, :root[data-theme="dark"] .plate-cost { color: #aeb9c8; }

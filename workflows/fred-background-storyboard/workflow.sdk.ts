@@ -247,6 +247,91 @@ const notePlan = sticky('## 1 · Full storyboard first\n\nThis route reads the l
 const noteImages = sticky('## 2 · Background plates only\n\nAI 2 uses GPT Image Flare for image generation only. The prompt uses the Background field plus the current shared style guide; no characters, anatomy, moving/loose props, text, diagrams, or motion. Images run one at a time. Every batch is capped at 10 unique backgrounds.', [generateHook, readBatchStyle, backgroundLoop, generateBackground, uploadBackground, updateImageSuccess], { color: 5 });
 const noteUi = sticky('## 3 · UI status, private images, and CSV\n\nGoogle Sheets stores job/scene status. Google Drive stores generated image files. The UI polls this workflow, loads each image through a private Drive proxy, and downloads the Fred CSV created by the CSV node. Deferred backgrounds carry the note: “This is the full storyboard. More background plates remain for a later batch.”', [statusHook, imageHook, csvHook, buildStatus, makeCsv], { color: 5 });
 
+const deliveryHook = trigger({ type: 'n8n-nodes-base.webhook', version: 2.1, config: { name: 'Delivery Webhook', parameters: { httpMethod: 'POST', path: 'fred-storyboard-deliver-v4', responseMode: 'responseNode', options: { allowedOrigins: '*' } } }, output: [{ json: { body: { jobId: 'job-demo-12345678', title: 'Example storyboard' } } }] });
+const validateDelivery = node({ type: 'n8n-nodes-base.code', version: 2, config: { name: 'Validate Delivery Request', parameters: { mode: 'runOnceForAllItems', jsCode:`let body=$json.body??$json;
+if(typeof body==='string'){try{body=JSON.parse(body);}catch{body={};}}
+const jobId=typeof body.jobId==='string'?body.jobId.trim():'';
+const title=typeof body.title==='string'?body.title.trim().slice(0,120):'';
+const valid=/^job-[a-z0-9-]{6,80}$/i.test(jobId);
+return [{json:{ok:valid,jobId,title,statusCode:valid?200:400,error:valid?'':'A valid storyboard job ID is required.'}}];` } }, output: [{ json: { ok: true, jobId: 'job-demo-12345678', title: 'Example storyboard' } }] });
+const deliveryRows = node({ type: 'n8n-nodes-base.googleSheets', version: 4.7, config: { name: 'Read Storyboard Rows for Delivery', alwaysOutputData: true, executeOnce: true, parameters: { resource: 'sheet', operation: 'read', authentication: 'oAuth2', documentId: { __rl: true, mode: 'id', value: mainSheet }, sheetName: { __rl: true, mode: 'list', value: '210559586' }, filtersUI: { values: [{ lookupColumn: 'jobId', lookupValue: expr("{{ $('Validate Delivery Request').first().json.jobId }}") }] }, returnAllMatches: 'returnAllMatches', options: {} }, credentials: { googleSheetsOAuth2Api: newCredential('giananrayvin@gmail.com') } }, output: [{ json: { jobId: 'job-demo-12345678', sceneNumber: 1, backgroundId: 'BG001', backgroundImageStatus: 'completed', imageFileId: 'drive-file-demo', imageFileName: 'fred-12345678-BG001-SC-001.png' } }] });
+const deliverySettings = node({ type: 'n8n-nodes-base.googleSheets', version: 4.7, config: { name: 'Read Workflow Delivery Settings', executeOnce: true, parameters: { resource: 'sheet', operation: 'read', authentication: 'oAuth2', documentId: { __rl: true, mode: 'id', value: mainSheet }, sheetName: { __rl: true, mode: 'list', value: '2026102001' }, returnAllMatches: 'returnAllMatches', options: { outputFormatting: { values: { general: 'FORMATTED_VALUE', date: 'FORMATTED_STRING' } } } }, credentials: { googleSheetsOAuth2Api: newCredential('giananrayvin@gmail.com') } }, output: [{ json: { Setting: 'teamDriveFolderId', Value: '153VPM-IBR1T5UIq-TthqtpklyAGwi-UU' } }, { json: { Setting: 'editingTeamEmail', Value: '' } }] });
+const deliveryLog = node({ type: 'n8n-nodes-base.googleSheets', version: 4.7, config: { name: 'Read Delivery Log', alwaysOutputData: true, executeOnce: true, parameters: { resource: 'sheet', operation: 'read', authentication: 'oAuth2', documentId: { __rl: true, mode: 'id', value: mainSheet }, sheetName: { __rl: true, mode: 'list', value: '529064309' }, filtersUI: { values: [{ lookupColumn: 'jobId', lookupValue: expr("{{ $('Validate Delivery Request').first().json.jobId }}") }] }, returnAllMatches: 'returnAllMatches', options: {} }, credentials: { googleSheetsOAuth2Api: newCredential('giananrayvin@gmail.com') } }, output: [{ json: { jobId: 'job-demo-12345678', deliveryStatus: 'delivered' } }] });
+const buildDeliveryPlan = node({ type: 'n8n-nodes-base.code', version: 2, config: { name: 'Build Team Delivery Plan', parameters: { mode: 'runOnceForAllItems', jsCode:`const req=$('Validate Delivery Request').first().json;
+if(!req.ok)return [{json:{ok:false,statusCode:400,error:req.error||'A valid storyboard job ID is required.'}}];
+const rows=$('Read Storyboard Rows for Delivery').all().map(item=>item.json).filter(row=>String(row.jobId||'')===req.jobId);
+if(!rows.length)return [{json:{ok:false,statusCode:404,error:'No storyboard scenes were found for this job.'}}];
+const settingRows=$('Read Workflow Delivery Settings').all().map(item=>item.json);
+const settings={};
+for(const row of settingRows){const key=String(row.Setting??row.setting??'').trim();if(key)settings[key]=String(row.Value??row.value??'').trim();}
+const folderId=settings.teamDriveFolderId||'';
+const email=settings.editingTeamEmail||'';
+const at=email.indexOf('@'), lastDot=email.lastIndexOf('.');
+if(!folderId)return [{json:{ok:false,statusCode:400,error:'Workflow Settings is missing teamDriveFolderId.'}}];
+if(!email||email.includes(' ')||at<1||lastDot<at+2||lastDot===email.length-1)return [{json:{ok:false,statusCode:400,error:'Add the editing team email in Workflow Settings → editingTeamEmail before delivery.'}}];
+const deliveries=$('Read Delivery Log').all().map(item=>item.json).filter(row=>String(row.jobId||'')===req.jobId);
+if(deliveries.some(row=>String(row.deliveryStatus||'').toLowerCase()==='delivered'))return [{json:{ok:false,statusCode:409,error:'This storyboard has already been delivered to the editing team.'}}];
+const byBackground=new Map();
+for(const row of rows){
+ const backgroundId=String(row.backgroundId||'').trim();
+ if(!backgroundId)continue;
+ if(!byBackground.has(backgroundId))byBackground.set(backgroundId,{backgroundId,sceneNumbers:[],imageFileId:'',imageFileName:'',completed:false});
+ const item=byBackground.get(backgroundId);
+ const scene=Number(row.sceneNumber);if(Number.isInteger(scene)&&!item.sceneNumbers.includes(scene))item.sceneNumbers.push(scene);
+ if(String(row.backgroundImageStatus||'').toLowerCase()==='completed'&&row.imageFileId){item.completed=true;item.imageFileId=String(row.imageFileId);item.imageFileName=String(row.imageFileName||('fred-'+backgroundId+'.png'));}
+}
+const backgrounds=[...byBackground.values()].sort((a,b)=>a.backgroundId.localeCompare(b.backgroundId));
+const files=backgrounds.filter(item=>item.completed&&item.imageFileId).map(item=>({...item,sceneNumbers:item.sceneNumbers.sort((a,b)=>a-b)}));
+if(!files.length)return [{json:{ok:false,statusCode:409,error:'No completed background images are ready to send yet.'}}];
+const configuredLimit=Number(settings.maxFilesPerDelivery)||10;
+const maxFiles=Math.max(1,Math.min(10,Math.floor(configuredLimit)));
+if(files.length>maxFiles)return [{json:{ok:false,statusCode:400,error:'This delivery contains '+files.length+' background files, but the safe per-delivery limit is '+maxFiles+'.'}}];
+const title=req.title||('Storyboard '+req.jobId);
+const pendingBackgroundCount=backgrounds.length-files.length;
+const folderUrl='https://drive.google.com/drive/folders/'+encodeURIComponent(folderId);
+const csvUrl='https://n8n-rayv-742595626609.herokuapp.com/webhook/fred-storyboard-csv-v4?jobId='+encodeURIComponent(req.jobId);
+return files.map(file=>({json:{ok:true,jobId:req.jobId,title,teamDriveFolderId:folderId,emailRecipient:email,folderUrl,csvUrl,fileCount:files.length,pendingBackgroundCount,backgroundId:file.backgroundId,sceneNumbers:file.sceneNumbers,imageFileId:file.imageFileId,imageFileName:file.imageFileName}}));` } }, output: [{ json: { ok: true, jobId: 'job-demo-12345678', title: 'Example storyboard', teamDriveFolderId: '153VPM-IBR1T5UIq-TthqtpklyAGwi-UU', imageFileId: 'drive-file-demo', imageFileName: 'fred-12345678-BG001-SC-001.png', sceneNumbers: [1] } }] });
+const deliveryReady = node({ type: 'n8n-nodes-base.if', version: 2.3, config: { name: 'Delivery Plan Ready?', parameters: { conditions: { options: { caseSensitive: true, leftValue: '', typeValidation: 'strict', version: 2 }, conditions: [{ leftValue: expr('{{ $json.ok === true }}'), rightValue: true, operator: { type: 'boolean', operation: 'true', singleValue: true } }], combinator: 'and' }, options: {} } }, output: [{ json: { ok: true, imageFileId: 'drive-file-demo', teamDriveFolderId: '153VPM-IBR1T5UIq-TthqtpklyAGwi-UU' } }, { json: { ok: false, statusCode: 400, error: 'Add the editing team email in Workflow Settings.' } }] });
+const deliveryError = node({ type: 'n8n-nodes-base.respondToWebhook', version: 1.5, config: { name: 'Return Delivery Error', parameters: { respondWith: 'json', responseBody: expr('{{ $json }}'), options: { responseCode: expr('{{ $json.statusCode || 400 }}'), enableStreaming: false, responseHeaders: { entries: [{ name: 'Access-Control-Allow-Origin', value: '*' }, { name: 'Cache-Control', value: 'no-store' }] } } } }, output: [{ json: { ok: false, statusCode: 400, error: 'Add the editing team email in Workflow Settings.' } }] });
+const moveBackgroundFiles = node({ type: 'n8n-nodes-base.googleDrive', version: 3, config: { name: 'Move Background Files to Team Drive', retryOnFail: true, maxTries: 2, waitBetweenTries: 2000, parameters: { resource: 'file', operation: 'move', authentication: 'oAuth2', fileId: { __rl: true, mode: 'id', value: expr('{{ $json.imageFileId }}') }, driveId: { __rl: true, mode: 'list', value: 'My Drive' }, folderId: { __rl: true, mode: 'id', value: expr('{{ $json.teamDriveFolderId }}') } }, credentials: { googleDriveOAuth2Api: newCredential('giananrayvin@gmail.com GDRIVE') } }, output: [{ json: { id: 'drive-file-demo', name: 'fred-12345678-BG001-SC-001.png' } }] });
+const buildDeliveryEmail = node({ type: 'n8n-nodes-base.code', version: 2, config: { name: 'Build Editing Team Email', parameters: { mode: 'runOnceForAllItems', jsCode:`const plan=$('Build Team Delivery Plan').all().map(item=>item.json).filter(item=>item.ok);
+const moved=$input.all().map(item=>item.json);
+if(!plan.length)throw new Error('There are no prepared files to report.');
+if(moved.length!==plan.length)throw new Error('Moved file count did not match the delivery plan; email was not sent.');
+const first=plan[0];
+const escapeHtml=value=>String(value??'').replace(/[&<>"]/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[char]));
+const names=plan.map(item=>item.imageFileName);
+const fileList=names.map(name=>'<li>'+escapeHtml(name)+'</li>').join('');
+const sceneList=[...new Set(plan.flatMap(item=>item.sceneNumbers||[]))].sort((a,b)=>a-b).join(', ');
+const remaining=Number(first.pendingBackgroundCount)||0;
+const remainingNote=remaining?'<p><strong>More storyboard backgrounds remain ungenerated or pending ('+remaining+'). This delivery includes the completed plates only.</strong></p>':'';
+const message='<p>The background plates for <strong>'+escapeHtml(first.title)+'</strong> are ready for the editing team.</p>'+
+'<p><strong>Files moved:</strong> '+plan.length+'<br><strong>Scenes covered:</strong> '+escapeHtml(sceneList||'—')+'</p>'+
+'<ul>'+fileList+'</ul>'+remainingNote+
+'<p><a href="'+escapeHtml(first.folderUrl)+'">Open the shared Drive folder</a></p>'+
+'<p><a href="'+escapeHtml(first.csvUrl)+'">Download the storyboard CSV</a></p>'+
+'<p>These are background plates only; the animator character/prop and motion columns remain in the CSV.</p>';
+return [{json:{jobId:first.jobId,title:first.title,sendTo:first.emailRecipient,subject:'Background plates ready — '+first.title,message,fileCount:plan.length,folderUrl:first.folderUrl,csvUrl:first.csvUrl,teamDriveFolderId:first.teamDriveFolderId,pendingBackgroundCount:remaining,sceneNumbers:sceneList,fileManifest:JSON.stringify(plan.map(item=>({backgroundId:item.backgroundId,sceneNumbers:item.sceneNumbers,imageFileId:item.imageFileId,imageFileName:item.imageFileName})))}}];` } }, output: [{ json: { jobId: 'job-demo-12345678', title: 'Example storyboard', sendTo: 'editors@example.com', subject: 'Background plates ready', message: '<p>Backgrounds are ready.</p>', fileCount: 1, folderUrl: 'https://drive.google.com/drive/folders/153VPM-IBR1T5UIq-TthqtpklyAGwi-UU' } }] });
+const sendDeliveryEmail = node({ type: 'n8n-nodes-base.gmail', version: 2.2, config: { name: 'Send Editing Team Email', parameters: { resource: 'message', operation: 'send', authentication: 'oAuth2', sendTo: expr('{{ $json.sendTo }}'), subject: expr('{{ $json.subject }}'), emailType: 'html', message: expr('{{ $json.message }}'), options: { appendAttribution: false } }, credentials: { gmailOAuth2: newCredential('giananrayvin@gmail.com') } }, output: [{ json: { id: 'gmail-message-demo' } }] });
+const deliveryLogSchema = [
+  { id: 'jobId', displayName: 'jobId', type: 'string', required: false, display: true, canBeUsedToMatch: true },
+  { id: 'title', displayName: 'title', type: 'string', required: false, display: true },
+  { id: 'deliveryStatus', displayName: 'deliveryStatus', type: 'string', required: false, display: true },
+  { id: 'targetFolderId', displayName: 'targetFolderId', type: 'string', required: false, display: true },
+  { id: 'fileCount', displayName: 'fileCount', type: 'number', required: false, display: true },
+  { id: 'fileManifest', displayName: 'fileManifest', type: 'string', required: false, display: true },
+  { id: 'emailRecipient', displayName: 'emailRecipient', type: 'string', required: false, display: true },
+  { id: 'notificationSentAt', displayName: 'notificationSentAt', type: 'string', required: false, display: true },
+  { id: 'deliveredAt', displayName: 'deliveredAt', type: 'string', required: false, display: true },
+  { id: 'error', displayName: 'error', type: 'string', required: false, display: true },
+];
+const recordDelivery = node({ type: 'n8n-nodes-base.googleSheets', version: 4.7, config: { name: 'Record Completed Delivery', parameters: { resource: 'sheet', operation: 'appendOrUpdate', authentication: 'oAuth2', documentId: { __rl: true, mode: 'id', value: mainSheet }, sheetName: { __rl: true, mode: 'list', value: '529064309' }, columns: { mappingMode: 'defineBelow', matchingColumns: ['jobId'], value: { jobId: expr("{{ $('Build Editing Team Email').first().json.jobId }}"), title: expr("{{ $('Build Editing Team Email').first().json.title }}"), deliveryStatus: 'delivered', targetFolderId: expr("{{ $('Build Editing Team Email').first().json.teamDriveFolderId }}"), fileCount: expr("{{ $('Build Editing Team Email').first().json.fileCount }}"), fileManifest: expr("{{ $('Build Editing Team Email').first().json.fileManifest }}"), emailRecipient: expr("{{ $('Build Editing Team Email').first().json.sendTo }}"), notificationSentAt: expr('{{ $now.toISO() }}'), deliveredAt: expr('{{ $now.toISO() }}'), error: '' }, schema: deliveryLogSchema }, options: { cellFormat: 'RAW', handlingExtraData: 'error' } }, credentials: { googleSheetsOAuth2Api: newCredential('giananrayvin@gmail.com') } }, output: [{ json: { jobId: 'job-demo-12345678', deliveryStatus: 'delivered', fileCount: 1 } }] });
+const deliverySuccess = node({ type: 'n8n-nodes-base.code', version: 2, config: { name: 'Build Delivery Success Response', parameters: { mode: 'runOnceForAllItems', jsCode:`const email=$('Build Editing Team Email').first().json;
+const plan=$('Build Team Delivery Plan').all().map(item=>item.json).filter(item=>item.ok);
+return [{json:{ok:true,status:'delivered',jobId:email.jobId,title:email.title,movedCount:email.fileCount,sceneNumbers:email.sceneNumbers,folderUrl:email.folderUrl,csvUrl:email.csvUrl,emailRecipient:email.sendTo,fileNames:plan.map(item=>item.imageFileName),pendingBackgroundCount:email.pendingBackgroundCount,note:email.pendingBackgroundCount?'Some storyboard backgrounds remain for a later batch.':'All storyboard backgrounds are included.'}}];` } }, output: [{ json: { ok: true, status: 'delivered', jobId: 'job-demo-12345678', movedCount: 1, folderUrl: 'https://drive.google.com/drive/folders/153VPM-IBR1T5UIq-TthqtpklyAGwi-UU', emailRecipient: 'editors@example.com', pendingBackgroundCount: 0 } }] });
+const deliveryReply = node({ type: 'n8n-nodes-base.respondToWebhook', version: 1.5, config: { name: 'Return Delivery Success', parameters: { respondWith: 'json', responseBody: expr('{{ $json }}'), options: { responseCode: 200, enableStreaming: false, responseHeaders: { entries: [{ name: 'Access-Control-Allow-Origin', value: '*' }, { name: 'Cache-Control', value: 'no-store' }] } } } }, output: [{ json: { ok: true, status: 'delivered', movedCount: 1 } }] });
+const noteDelivery = sticky('## 4 · Send to editors\n\nThe UI sends the job ID to this route. It reads image status and delivery settings from Google Sheets, requires editingTeamEmail, then moves each completed Drive file to the shared folder and emails the editor after the moves succeed. The delivery log prevents a second notification after a recorded success. No image generation happens on this route.', [validateDelivery, deliveryRows, deliverySettings, deliveryLog, buildDeliveryPlan, deliveryReady, moveBackgroundFiles, buildDeliveryEmail, sendDeliveryEmail, recordDelivery, deliverySuccess, deliveryReply], { color: 5 });
+
 export default workflow('fred-background-storyboard-v4', 'Fred Storyboard — Full Plan + Background Batches')
   .add(planHook).add(normalizePlan).add(planValid).add(planInvalid).add(createJobRow).add(appendJob).add(ackPlan).add(ackPlanWebhook)
   .add(readStyleGuide).add(readReferenceIndex).add(readExample01).add(readExample03).add(buildPlannerContext).add(plannerModel).add(plannerParser).add(storyboardChain).add(normalizeScenes).add(appendSceneRows).add(buildPlanTotals).add(updatePlanJob)
@@ -254,7 +339,8 @@ export default workflow('fred-background-storyboard-v4', 'Fred Storyboard — Fu
   .add(statusHook).add(readStatusJob).add(readStatusScenes).add(buildStatus).add(statusReply)
   .add(imageHook).add(readImageRow).add(prepareDownload).add(imageAvailable).add(imageNotReady).add(downloadImage).add(imageReply)
   .add(csvHook).add(readCsvRows).add(makeCsv).add(csvReply)
-  .add(notePlan).add(noteImages).add(noteUi)
+  .add(deliveryHook).add(validateDelivery).add(deliveryRows).add(deliverySettings).add(deliveryLog).add(buildDeliveryPlan).add(deliveryReady).add(deliveryError).add(moveBackgroundFiles).add(buildDeliveryEmail).add(sendDeliveryEmail).add(recordDelivery).add(deliverySuccess).add(deliveryReply)
+  .add(notePlan).add(noteImages).add(noteUi).add(noteDelivery)
   .add(planHook.output(0).to(normalizePlan))
   .add(normalizePlan.output(0).to(planValid))
   .add(planValid.output(0).to(createJobRow))
@@ -316,4 +402,18 @@ export default workflow('fred-background-storyboard-v4', 'Fred Storyboard — Fu
   .add(downloadImage.output(0).to(imageReply))
   .add(csvHook.output(0).to(readCsvRows))
   .add(readCsvRows.output(0).to(makeCsv))
-  .add(makeCsv.output(0).to(csvReply));
+  .add(makeCsv.output(0).to(csvReply))
+  .add(deliveryHook.output(0).to(validateDelivery))
+  .add(validateDelivery.output(0).to(deliveryRows))
+  .add(deliveryRows.output(0).to(deliverySettings))
+  .add(deliverySettings.output(0).to(deliveryLog))
+  .add(deliveryLog.output(0).to(buildDeliveryPlan))
+  .add(buildDeliveryPlan.output(0).to(deliveryReady))
+  .add(deliveryReady.output(0).to(moveBackgroundFiles))
+  .add(deliveryReady.output(1).to(deliveryError))
+  .add(moveBackgroundFiles.output(0).to(buildDeliveryEmail))
+  .add(buildDeliveryEmail.output(0).to(sendDeliveryEmail))
+  .add(sendDeliveryEmail.output(0).to(recordDelivery))
+  .add(recordDelivery.output(0).to(deliverySuccess))
+  .add(deliverySuccess.output(0).to(deliveryReply))
+  .group('Team Drive Delivery', [validateDelivery, deliveryRows, deliverySettings, deliveryLog, buildDeliveryPlan, deliveryReady, deliveryError, moveBackgroundFiles, buildDeliveryEmail, sendDeliveryEmail, recordDelivery, deliverySuccess, deliveryReply, noteDelivery], { description: 'Moves completed background files and sends one email to the configured editing team.' });

@@ -35,7 +35,7 @@ The new workflow is **Fred Storyboard — Full Plan + Background Batches**, ID `
 
 The public page is `https://script-to-storyboard-six.vercel.app/`. The source is `public/`; routes are fixed in `public/workflow-api.js`. The workflow uses external Google Sheets and Drive for persistent data and files. The browser can build the visual SVG export locally. Do not add n8n Data Tables or Memory.
 
-The combined Drive delivery route and team notification are planned but not live. Once n8n is healthy, add a same-workflow route that moves completed plates to the shared team folder in serial batches of at most 10 and sends one email to the configured `editingTeamEmail` after all generated plates have arrived. Do not take the destination or recipient from public webhook input.
+The same workflow now has POST /webhook/fred-storyboard-deliver-v4, connected to the UI Send to editors action. It checks Sheets settings and the Delivery Log, moves up to 10 completed files, sends a Gmail notification to editingTeamEmail, and records a successful delivery. The recipient setting remains blank until Rayvin fills it in; the Drive credential write access to the destination is unverified. Do not take the destination or recipient from public webhook input.
 
 ## Reference data and credentials
 
@@ -46,8 +46,8 @@ All numeric IDs below are exact resources established in the connected accounts;
 - Example sheet 03: `1z3zC8r8Ew93j22QvGRQXcqfeHF-vEMlUa9hDsA_5QOc`, tab `03_strangest_things_your_body_d`, 166 source rows.
 - Fred's style source folder: `1KLTxXSsptR9OguL30DCBLX72GX2rtUBo`. Its character PNGs are style evidence, never image subjects. The tagged environment example also contains a person; if used as an image reference, say to ignore and omit that person.
 - Private image staging folder: `1CcdOgXEwhyXJ1Dnonzv4AVFWloztgTGn`.
-- Shared editing-team delivery folder supplied by the user: `153VPM-IBR1T5UIq-TthqtpklyAGwi-UU` (`Demo Test Upload`). Verify that the n8n Drive credential can write to it before enabling delivery.
-- The main workbook has a `Workflow Settings` tab. `editingTeamEmail` is blank for the user to fill in; `teamDriveFolderId`, `stagingFolderId`, and `maxFilesPerDelivery` are recorded there.
+- Shared editing-team delivery folder supplied by the user: 153VPM-IBR1T5UIq-TthqtpklyAGwi-UU (Demo Test Upload). The route is configured for it; verify the n8n Drive credential write permission during the first delivery.
+- The main workbook has a Workflow Settings tab. editingTeamEmail is blank for the user to fill in; teamDriveFolderId, stagingFolderId, and maxFilesPerDelivery are recorded there. It also has a Delivery Log tab for job-level delivery history.
 - Google Sheets credential: `giananrayvin@gmail.com`, ID `uhpKISQ818MUREdV`.
 - Google Drive credential: `giananrayvin@gmail.com GDRIVE`, ID `PWL6ap3LIUEv75px`.
 - Vercel text-model credential: `Vercel AI Gateway account`, ID `FulgOrYzN8KoCQ7j`; model `openai/gpt-5-mini`.
@@ -119,7 +119,7 @@ Add sticky notes to the same workflow for: (1) full storyboard planning + sheet-
 - A one-image production smoke check may consume image credits. Use low quality. Confirm a successful image response and provider cost before testing a larger batch.
 - A same-workflow error path was previously selected; keep failure recording inside this workflow. Do not create a separate error workflow unless the user explicitly changes that decision.
 - Use scene-aware file names in the format `fred-{job-random-suffix}-BG001-SC-001-007.png`. The same name must be used for binary metadata, the Drive file, Sheets `imageFileName`, UI single-image download, and ZIP download. For more than four scene numbers, keep the first four in the name and append `PLUS-NN`; Sheets holds the complete mapping.
-- Keep Drive delivery separate from generation. Stage files privately for UI preview, and move them into the user-supplied team folder only after the user clicks the combined **Send to Drive & notify team** action. The delivery route, Gmail node, and team-facing button are still pending n8n recovery and credential verification.
+- Keep Drive delivery separate from generation. Stage files privately for UI preview, and move them into the user-supplied team folder only after the user clicks Send to editors. The route uses Google Drive and Gmail; no image API calls occur during delivery. It checks for a successful row in Delivery Log to prevent a second recorded send. A Gmail-success/Sheets-failure window may require reviewing the execution before retrying.
 - The existing Heroku host has a 512 MB quota and has crashed during earlier runs. Do not increase delivery or generation concurrency; move files without loading their binary data into n8n, and cap each delivery execution at 10 files.
 
 ## History to retain
