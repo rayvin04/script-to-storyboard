@@ -1,17 +1,15 @@
 (() => {
   const base = "https://n8n-rayv-742595626609.herokuapp.com/webhook";
-  // One Generate click always plans first, then calls this same workflow once
-  // per background. The action field marks the internal pipeline stage only.
   const route = base + "/fred-image-generation-stage-1";
-  // Leave a small response-handling buffer beyond n8n's 180-second node timeout.
-  const PLAN_TIMEOUT_MS = 210000;
-  const IMAGE_TIMEOUT_MS = 195000;
+  // Heroku returns H12 at 30 seconds for a non-streaming request. Allow a short
+  // buffer for that response, but never leave the UI waiting for several minutes.
+  const REQUEST_TIMEOUT_MS = 45000;
 
-  async function postJson(url, body, timeoutMs) {
+  async function postJson(body) {
     const controller = new AbortController();
-    const timer = window.setTimeout(() => controller.abort(), timeoutMs);
+    const timer = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
     try {
-      const response = await fetch(url, {
+      const response = await fetch(route, {
         method: "POST",
         cache: "no-store",
         signal: controller.signal,
@@ -24,7 +22,7 @@
         data = text ? JSON.parse(text) : {};
       } catch {
         if (response.status >= 500) {
-          const error = new Error("n8n returned an HTML/server error (HTTP " + response.status + "). Wait for the host to recover, then check the matching execution before retrying.");
+          const error = new Error("n8n returned an HTML/server error (HTTP " + response.status + "). The host may have timed out; check the matching execution before retrying.");
           error.stopBatch = true;
           throw error;
         }
@@ -41,7 +39,7 @@
       return data;
     } catch (error) {
       if (error && error.name === "AbortError") {
-        const timeoutError = new Error("The workflow timed out after " + Math.round(timeoutMs / 1000) + " seconds. No automatic retry was sent, to avoid duplicate image charges. Check the n8n execution before retrying.");
+        const timeoutError = new Error("The webhook did not return within 45 seconds. No automatic retry was sent, to avoid duplicate image charges. Check the n8n execution before retrying.");
         timeoutError.stopBatch = true;
         throw timeoutError;
       }
@@ -57,17 +55,8 @@
   }
 
   window.storyboardWorkflow = {
-    plan(script) {
-      const title = script.split(/\r?\n/).map(line => line.trim()).find(Boolean) || "Untitled storyboard";
-      return postJson(route, { action: "plan", title, script }, PLAN_TIMEOUT_MS);
-    },
-    generateBackground(background) {
-      return postJson(route, {
-        action: "image",
-        background: background.backgroundPrompt || background.background,
-        backgroundId: background.backgroundId,
-        sceneNumbers: background.sceneNumbers || []
-      }, IMAGE_TIMEOUT_MS);
+    generate(title, script) {
+      return postJson({ title, script });
     }
   };
 })();
