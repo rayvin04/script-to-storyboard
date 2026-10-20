@@ -72,7 +72,7 @@ const createJobRow = node({ type: 'n8n-nodes-base.code', version: 2, config: { n
 return [{json:{jobId:req.jobId,jobStatus:'planning',createdAt:req.createdAt,updatedAt:req.updatedAt,title:req.title,script:req.script,sceneCount:0,backgroundCount:0,generatedCount:0,failedCount:0,deferredCount:0,batchLimit:10,initialBatchIds:'',error:'',batchNote:'This is the full storyboard. More background plates may remain for a later batch.',styleVersion:req.styleVersion,referenceFileIds:'Style Guide + Reference Index + both Fred CSV examples'}}];` } }, output: [{ json: { jobId: 'job-demo-12345678', jobStatus: 'planning' } }] });
 const appendJob = node({ type: 'n8n-nodes-base.googleSheets', version: 4.7, config: { name: 'Save Job in Google Sheets', parameters: { resource: 'sheet', operation: 'append', authentication: 'oAuth2', documentId: { __rl: true, mode: 'id', value: mainSheet }, sheetName: { __rl: true, mode: 'name', value: 'Storyboard Jobs' }, columns: { mappingMode: 'autoMapInputData', value: {}, schema: jobSchema }, options: { cellFormat: 'RAW', handlingExtraData: 'error' } }, credentials: { googleSheetsOAuth2Api: newCredential('giananrayvin@gmail.com') } }, output: [{ json: { jobId: 'job-demo-12345678' } }] });
 const ackPlan = node({ type: 'n8n-nodes-base.code', version: 2, config: { name: 'Build Planning Receipt', parameters: { mode: 'runOnceForAllItems', jsCode: `const req = $('Validate Script and Create Job').first().json;
-return [{json:{ok:true,jobId:req.jobId,status:'planning',note:req.note,statusUrl:'https://n8n-rayv-742595626609.herokuapp.com/webhook/fred-storyboard-status-v4?jobId='+encodeURIComponent(req.jobId),csvUrl:'https://n8n-rayv-742595626609.herokuapp.com/webhook/fred-storyboard-csv-v4?jobId='+encodeURIComponent(req.jobId)}}];` } }, output: [{ json: { jobId: 'job-demo-12345678', status: 'planning' } }] });
+return [{json:{ok:true,jobId:req.jobId,status:'planning',createdAt:req.createdAt,note:req.note,statusUrl:'https://n8n-rayv-742595626609.herokuapp.com/webhook/fred-storyboard-status-v4?jobId='+encodeURIComponent(req.jobId),csvUrl:'https://n8n-rayv-742595626609.herokuapp.com/webhook/fred-storyboard-csv-v4?jobId='+encodeURIComponent(req.jobId)}}];` } }, output: [{ json: { jobId: 'job-demo-12345678', status: 'planning', createdAt: '' } }] });
 const ackPlanWebhook = node({ type: 'n8n-nodes-base.respondToWebhook', version: 1.5, config: { name: 'Accept Full Storyboard Plan', parameters: { respondWith: 'json', responseBody: expr('{{ $json }}'), options: { responseCode: 202, enableStreaming: false, responseHeaders: { entries: [{ name: 'Access-Control-Allow-Origin', value: '*' }, { name: 'Cache-Control', value: 'no-store' }] } } } }, output: [{ json: { status: 'planning' } }] });
 
 const readStyleGuide = node({ type: 'n8n-nodes-base.googleSheets', version: 4.7, config: { name: 'Read Fred Style Guide', executeOnce: true, parameters: { resource: 'sheet', operation: 'read', authentication: 'oAuth2', documentId: { __rl: true, mode: 'id', value: mainSheet }, sheetName: { __rl: true, mode: 'name', value: 'Style Guide' }, returnAllMatches: 'returnAllMatches', options: { outputFormatting: { values: { general: 'FORMATTED_VALUE', date: 'FORMATTED_STRING' } } } }, credentials: { googleSheetsOAuth2Api: newCredential('giananrayvin@gmail.com') } }, output: [{ json: { rule: 'bold irregular black outlines, flat fills, varied settings' } }] });
@@ -212,20 +212,25 @@ return [{json:{jobId:req.jobId,jobStatus:status,updatedAt:new Date().toISOString
 const updateBatchJob = node({ type: 'n8n-nodes-base.googleSheets', version: 4.7, config: { name: 'Save Batch Summary in Sheets', parameters: { resource: 'sheet', operation: 'appendOrUpdate', authentication: 'oAuth2', documentId: { __rl: true, mode: 'id', value: mainSheet }, sheetName: { __rl: true, mode: 'name', value: 'Storyboard Jobs' }, columns: { mappingMode: 'defineBelow', matchingColumns: ['jobId'], value: { jobId: expr('{{ $json.jobId }}'), jobStatus: expr('{{ $json.jobStatus }}'), updatedAt: expr('{{ $json.updatedAt }}'), generatedCount: expr('{{ $json.generatedCount }}'), failedCount: expr('{{ $json.failedCount }}'), deferredCount: expr('{{ $json.deferredCount }}'), batchNote: expr('{{ $json.batchNote }}'), error: expr('{{ $json.error }}') }, schema: batchJobSchema }, options: { cellFormat: 'RAW', handlingExtraData: 'error' } }, credentials: { googleSheetsOAuth2Api: newCredential('giananrayvin@gmail.com') } }, output: [{ json: { jobId: 'job-demo-12345678', jobStatus: 'completed' } }] });
 
 const statusHook = trigger({ type: 'n8n-nodes-base.webhook', version: 2.1, config: { name: 'Storyboard Status Webhook', parameters: { httpMethod: 'GET', path: 'fred-storyboard-status-v4', responseMode: 'responseNode', options: { allowedOrigins: '*' } } }, output: [{ json: { query: { jobId: 'job-demo-12345678' } } }] });
-const readStatusJob = node({ type: 'n8n-nodes-base.googleSheets', version: 4.7, config: { name: 'Read Storyboard Job Status', executeOnce: true, parameters: { resource: 'sheet', operation: 'read', authentication: 'oAuth2', documentId: { __rl: true, mode: 'id', value: mainSheet }, sheetName: { __rl: true, mode: 'name', value: 'Storyboard Jobs' }, filtersUI: { values: [{ lookupColumn: 'jobId', lookupValue: expr("{{ $('Storyboard Status Webhook').first().json.query.jobId }}") }] }, returnAllMatches: 'returnAllMatches' }, credentials: { googleSheetsOAuth2Api: newCredential('giananrayvin@gmail.com') } }, output: [{ json: { jobId: 'job-demo-12345678', jobStatus: 'storyboard_ready', updatedAt: '', sceneCount: 1, backgroundCount: 1, generatedCount: 0, failedCount: 0, deferredCount: 0, initialBatchIds: '[]', error: '', batchNote: '', styleVersion: 'fred-background-style-v1', referenceFileIds: '' } }] });
+const readStatusJob = node({ type: 'n8n-nodes-base.googleSheets', version: 4.7, config: { name: 'Read Storyboard Job Status', executeOnce: true, alwaysOutputData: true, parameters: { resource: 'sheet', operation: 'read', authentication: 'oAuth2', documentId: { __rl: true, mode: 'id', value: mainSheet }, sheetName: { __rl: true, mode: 'name', value: 'Storyboard Jobs' }, filtersUI: { values: [{ lookupColumn: 'jobId', lookupValue: expr("{{ $('Storyboard Status Webhook').first().json.query.jobId }}") }] }, returnAllMatches: 'returnAllMatches' }, credentials: { googleSheetsOAuth2Api: newCredential('giananrayvin@gmail.com') } }, output: [{ json: { jobId: 'job-demo-12345678', jobStatus: 'storyboard_ready', updatedAt: '', sceneCount: 1, backgroundCount: 1, generatedCount: 0, failedCount: 0, deferredCount: 0, initialBatchIds: '[]', error: '', batchNote: '', styleVersion: 'fred-background-style-v1', referenceFileIds: '' } }] });
+const statusNeedsRows = node({ type: 'n8n-nodes-base.if', version: 2.3, config: { name: 'Storyboard Status Needs Scene Rows?', parameters: { conditions: { options: { caseSensitive: true, leftValue: '', typeValidation: 'strict', version: 2 }, conditions: [{ leftValue: expr("{{ Number($json.sceneCount) > 0 || ['storyboard_ready','partial','completed'].includes(String($json.jobStatus || '').toLowerCase()) }}"), rightValue: true, operator: { type: 'boolean', operation: 'true', singleValue: true } }], combinator: 'and' }, options: {} } }, output: [{ json: { jobId: 'job-demo-12345678', jobStatus: 'storyboard_ready', sceneCount: 1 } }, { json: { jobId: 'job-demo-12345678', jobStatus: 'planning', sceneCount: 0 } }] });
+const buildLightStatus = node({ type: 'n8n-nodes-base.code', version: 2, config: { name: 'Build Lightweight Planning Status', parameters: { mode: 'runOnceForAllItems', jsCode: `const rows = $('Read Storyboard Job Status').all().map(item => item.json).filter(row => row.jobId);
+const job = rows[0] || {};
+const query = $('Storyboard Status Webhook').first().json.query || {};
+const jobId = String(job.jobId || query.jobId || '');
+const createdAt = String(job.createdAt || query.createdAt || '');
+const updatedAt = String(job.updatedAt || createdAt);
+const statusValue = String(job.jobStatus || 'planning').toLowerCase();
+const startedAt = Date.parse(updatedAt || createdAt);
+const stalled = statusValue === 'planning' && Number(job.sceneCount || 0) === 0 && Number.isFinite(startedAt) && Date.now() - startedAt >= 180000;
+const status = stalled ? 'failed' : statusValue;
+const error = stalled ? 'No storyboard scenes were saved within three minutes. Check the n8n execution and Heroku memory usage before retrying. No background images were generated.' : String(job.error || '');
+const csvUrl = 'https://n8n-rayv-742595626609.herokuapp.com/webhook/fred-storyboard-csv-v4?jobId=' + encodeURIComponent(jobId);
+return [{json:{ok:!!jobId,jobId,status,title:String(job.title||''),createdAt,updatedAt,error,sceneCount:Number(job.sceneCount)||0,backgroundCount:Number(job.backgroundCount)||0,generatedCount:Number(job.generatedCount)||0,failedCount:Number(job.failedCount)||0,deferredCount:Number(job.deferredCount)||0,batchLimit:10,batchNote:String(job.batchNote||'This is the full storyboard. More background plates may remain for a later batch.'),note:'The complete storyboard remains available as a CSV. Background images appear here.',backgrounds:[],csvUrl}}];` } }, output: [{ json: { ok: true, jobId: 'job-demo-12345678', status: 'planning', sceneCount: 0, backgrounds: [] } }] });
 const readStatusScenes = node({ type: 'n8n-nodes-base.googleSheets', version: 4.7, config: { name: 'Read Full Storyboard Scenes', executeOnce: true, alwaysOutputData: true, parameters: { resource: 'sheet', operation: 'read', authentication: 'oAuth2', documentId: { __rl: true, mode: 'id', value: mainSheet }, sheetName: { __rl: true, mode: 'name', value: 'Job Results' }, filtersUI: { values: [{ lookupColumn: 'jobId', lookupValue: expr("{{ $('Storyboard Status Webhook').first().json.query.jobId }}") }] }, returnAllMatches: 'returnAllMatches' }, credentials: { googleSheetsOAuth2Api: newCredential('giananrayvin@gmail.com') } }, output: [{ json: { jobId: 'job-demo-12345678', sceneNumber: 1, backgroundId: 'BG001' } }] });
 const buildStatus = node({ type: 'n8n-nodes-base.code', version: 2, config: { name: 'Build UI Status and Unique Backgrounds', parameters: { mode: 'runOnceForAllItems', jsCode: `const jobRows = $('Read Storyboard Job Status').all().map(item => item.json);
 const job = jobRows[0] || {};
 const rows = $input.all().map(item => item.json).filter(row => row.jobId);
-const scenes = rows.map(row => ({
-  sceneNumber: Number(row.sceneNumber), timestamp: row.timestamp || '', voiceover: row.voiceover || '',
-  whatsHappening: row.whatsHappening || '', background: row.background || '',
-  handDrawnCharactersAndProps: row.handDrawnCharactersAndProps || '', onScreenText: row.onScreenText || '',
-  transitionsMotion: row.transitionsMotion || '', backgroundId: row.backgroundId,
-  backgroundImageStatus: row.backgroundImageStatus,
-  imageUrl: row.backgroundImageStatus === 'completed' ? 'https://n8n-rayv-742595626609.herokuapp.com/webhook/fred-storyboard-image-v4?jobId=' + encodeURIComponent(row.jobId) + '&backgroundId=' + encodeURIComponent(row.backgroundId) : null,
-  error: row.error || ''
-}));
 const map = new Map();
 for (const row of rows) {
   if (!row.backgroundId) continue;
@@ -248,13 +253,13 @@ for (const row of rows) {
 const backgrounds = Array.from(map.values()).sort((a, b) => a.backgroundId.localeCompare(b.backgroundId));
 const createdAt = String(job.createdAt || '');
 const updatedAt = String(job.updatedAt || '');
-const startedAt = Date.parse(updatedAt || createdAt);
-const stalledPlan = String(job.jobStatus || '').toLowerCase() === 'planning' && scenes.length === 0 && Number(job.sceneCount) === 0 && Number.isFinite(startedAt) && Date.now() - startedAt >= 180000;
-const status = stalledPlan ? 'failed' : (job.jobStatus || 'unknown');
-const error = stalledPlan ? 'No storyboard scenes were saved within three minutes. Check the n8n execution and Heroku memory usage before retrying. No background images were generated.' : String(job.error || '');
+const status = job.jobStatus || 'unknown';
+const error = String(job.error || '');
 const deferredCount = Number(job.deferredCount) || backgrounds.filter(item => item.status === 'deferred').length;
 const note = deferredCount > 0 ? 'This is the full storyboard. More background plates remain for a later batch.' : 'This is the full storyboard. All background plates fit within this batch.';
-return [{ json: { ok: !!job.jobId, jobId: job.jobId || $('Storyboard Status Webhook').first().json.query.jobId, status, title: job.title || '', createdAt, updatedAt, error, sceneCount: Number(job.sceneCount) || scenes.length, backgroundCount: Number(job.backgroundCount) || backgrounds.length, generatedCount: backgrounds.filter(item => item.status === 'completed').length, failedCount: backgrounds.filter(item => item.status === 'failed').length, deferredCount, batchLimit: 10, batchNote: job.batchNote || note, note, scenes, backgrounds, csvUrl: 'https://n8n-rayv-742595626609.herokuapp.com/webhook/fred-storyboard-csv-v4?jobId=' + encodeURIComponent(job.jobId || '') } }];` } }, output: [{ json: { ok: true, jobId: 'job-demo-12345678', status: 'failed', createdAt: '', updatedAt: '', error: '', scenes: [], backgrounds: [] } }] });
+const jobId = String(job.jobId || $('Storyboard Status Webhook').first().json.query.jobId || '');
+const sceneCount = Number(job.sceneCount) || new Set(rows.map(row => Number(row.sceneNumber)).filter(Number.isFinite)).size;
+return [{ json: { ok: !!jobId, jobId, status, title: job.title || '', createdAt, updatedAt, error, sceneCount, backgroundCount: Number(job.backgroundCount) || backgrounds.length, generatedCount: backgrounds.filter(item => item.status === 'completed').length, failedCount: backgrounds.filter(item => item.status === 'failed').length, deferredCount, batchLimit: 10, batchNote: job.batchNote || note, note, backgrounds, csvUrl: 'https://n8n-rayv-742595626609.herokuapp.com/webhook/fred-storyboard-csv-v4?jobId=' + encodeURIComponent(jobId) } }];` } }, output: [{ json: { ok: true, jobId: 'job-demo-12345678', status: 'storyboard_ready', sceneCount: 1, backgrounds: [] } }] });
 const statusReply = node({ type: 'n8n-nodes-base.respondToWebhook', version: 1.5, config: { name: 'Return Storyboard Status', parameters: { respondWith: 'json', responseBody: expr('{{ $json }}'), options: { responseCode: 200, enableStreaming: false, responseHeaders: { entries: [{ name: 'Access-Control-Allow-Origin', value: '*' }, { name: 'Cache-Control', value: 'no-store' }] } } } }, output: [{ json: { ok: true } }] });
 
 const imageHook = trigger({ type: 'n8n-nodes-base.webhook', version: 2.1, config: { name: 'Private Background Image Webhook', parameters: { httpMethod: 'GET', path: 'fred-storyboard-image-v4', responseMode: 'responseNode', options: { allowedOrigins: '*' } } }, output: [{ json: { query: { jobId: 'job-demo-12345678', backgroundId: 'BG001' } } }] });
@@ -280,7 +285,7 @@ const csvReply = node({ type: 'n8n-nodes-base.respondToWebhook', version: 1.5, c
 
 const notePlan = sticky('## 1 · Full storyboard first\n\nThis route reads the live Style Guide, Drive Reference Index, and both Fred CSV examples from Google Sheets. AI 1 plans the entire script and stores every CSV scene row. Scene count is not capped at 10.', [planHook, readStyleGuide, readReferenceIndex, readExample01, readExample03, storyboardChain, appendSceneRows], { color: 5 });
 const noteImages = sticky('## 2 · Background plates only\n\nAI 2 uses GPT Image Flare for image generation only. The prompt uses the Background field plus the current shared style guide; no characters, anatomy, moving/loose props, text, diagrams, or motion. Images run one at a time. Every batch is capped at 10 unique backgrounds.', [generateHook, readBatchStyle, backgroundLoop, generateBackground, uploadBackground, updateImageSuccess], { color: 5 });
-const noteUi = sticky('## 3 · UI status, private images, and CSV\n\nGoogle Sheets stores job/scene status. Google Drive stores generated image files. The UI polls this workflow, loads each image through a private Drive proxy, and downloads the Fred CSV created by the CSV node. Deferred backgrounds carry the note: “This is the full storyboard. More background plates remain for a later batch.”', [statusHook, imageHook, csvHook, buildStatus, makeCsv], { color: 5 });
+const noteUi = sticky('## 3 · Background-only UI status\n\nThe planning receipt responds before Google Sheets and AI work continue. While planning, status reads only the job row; after the storyboard is ready, status reads scene rows only to aggregate background plates. The UI polls less often and renders plates, not the full scene table. The full storyboard remains available through the CSV route; SVG export loads that CSV only when requested.', [statusHook, imageHook, csvHook, statusNeedsRows, buildLightStatus, buildStatus, makeCsv], { color: 5 });
 
 const deliveryHook = trigger({ type: 'n8n-nodes-base.webhook', version: 2.1, config: { name: 'Delivery Webhook', parameters: { httpMethod: 'POST', path: 'fred-storyboard-deliver-v4', responseMode: 'responseNode', options: { allowedOrigins: '*' } } }, output: [{ json: { body: { jobId: 'job-demo-12345678', title: 'Example storyboard' } } }] });
 const validateDelivery = node({ type: 'n8n-nodes-base.code', version: 2, config: { name: 'Validate Delivery Request', parameters: { mode: 'runOnceForAllItems', jsCode:`let body=$json.body??$json;
@@ -371,19 +376,19 @@ export default workflow('fred-background-storyboard-v4', 'Fred Storyboard — Fu
   .add(planHook).add(normalizePlan).add(planValid).add(planInvalid).add(createJobRow).add(appendJob).add(ackPlan).add(ackPlanWebhook)
   .add(readStyleGuide).add(readReferenceIndex).add(readExample01).add(readExample03).add(buildPlannerContext).add(plannerModel).add(plannerParser).add(storyboardChain).add(normalizeScenes).add(appendSceneRows).add(buildPlanTotals).add(updatePlanJob)
   .add(generateHook).add(normalizeBatch).add(batchValid).add(batchInvalid).add(batchAck).add(batchAckWebhook).add(readBatchRows).add(readBatchStyle).add(selectBatchWork).add(batchHasItems).add(batchNoWork).add(markGeneratingRows).add(updateGeneratingRows).add(restoreBatchItems).add(backgroundLoop).add(buildImageRequest).add(generateBackground).add(parseImageResult).add(imageOk).add(uploadBackground).add(buildImageSuccessRows).add(markImageFailureRows).add(markDriveFailureRows).add(updateImageSuccess).add(updateImageFailure).add(updateDriveFailure).add(readFinalBatchRows).add(buildBatchSummary).add(updateBatchJob)
-  .add(statusHook).add(readStatusJob).add(readStatusScenes).add(buildStatus).add(statusReply)
+  .add(statusHook).add(readStatusJob).add(statusNeedsRows).add(buildLightStatus).add(readStatusScenes).add(buildStatus).add(statusReply)
   .add(imageHook).add(readImageRow).add(prepareDownload).add(imageAvailable).add(imageNotReady).add(downloadImage).add(imageReply)
   .add(csvHook).add(readCsvRows).add(makeCsv).add(csvReply)
   .add(deliveryHook).add(validateDelivery).add(deliveryRows).add(deliverySettings).add(deliveryLog).add(buildDeliveryPlan).add(deliveryReady).add(deliveryError).add(moveBackgroundFiles).add(buildDeliveryEmail).add(sendDeliveryEmail).add(recordDelivery).add(deliverySuccess).add(deliveryReply)
   .add(notePlan).add(noteImages).add(noteUi).add(noteDelivery)
   .add(planHook.output(0).to(normalizePlan))
   .add(normalizePlan.output(0).to(planValid))
-  .add(planValid.output(0).to(createJobRow))
+  .add(planValid.output(0).to(ackPlan))
   .add(planValid.output(1).to(planInvalid))
-  .add(createJobRow.output(0).to(appendJob))
-  .add(appendJob.output(0).to(ackPlan))
   .add(ackPlan.output(0).to(ackPlanWebhook))
-  .add(ackPlanWebhook.output(0).to(readStyleGuide))
+  .add(ackPlanWebhook.output(0).to(createJobRow))
+  .add(createJobRow.output(0).to(appendJob))
+  .add(appendJob.output(0).to(readStyleGuide))
   .add(readStyleGuide.output(0).to(readReferenceIndex))
   .add(readReferenceIndex.output(0).to(readExample01))
   .add(readExample01.output(0).to(readExample03))
@@ -426,9 +431,12 @@ export default workflow('fred-background-storyboard-v4', 'Fred Storyboard — Fu
   .add(readFinalBatchRows.output(0).to(buildBatchSummary))
   .add(buildBatchSummary.output(0).to(updateBatchJob))
   .add(statusHook.output(0).to(readStatusJob))
-  .add(readStatusJob.output(0).to(readStatusScenes))
+  .add(readStatusJob.output(0).to(statusNeedsRows))
+  .add(statusNeedsRows.output(0).to(readStatusScenes))
+  .add(statusNeedsRows.output(1).to(buildLightStatus))
   .add(readStatusScenes.output(0).to(buildStatus))
   .add(buildStatus.output(0).to(statusReply))
+  .add(buildLightStatus.output(0).to(statusReply))
   .add(imageHook.output(0).to(readImageRow))
   .add(readImageRow.output(0).to(prepareDownload))
   .add(prepareDownload.output(0).to(imageAvailable))

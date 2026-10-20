@@ -16,7 +16,7 @@ The workflow uses scene-aware image names (fred-{job-random-suffix}-BG001-SC-001
 | --- | --- |
 | `POST /webhook/fred-storyboard-plan-v4` | Start full-script storyboard planning. |
 | `POST /webhook/fred-storyboard-generate-v4` | Start generation for up to 10 selected unique background plates. |
-| `GET /webhook/fred-storyboard-status-v4?jobId=...` | Poll job, scenes, background status, and image proxy URLs. |
+| `GET /webhook/fred-storyboard-status-v4?jobId=...&createdAt=...` | Poll lightweight planning status, then background status and private image proxy URLs. |
 | `GET /webhook/fred-storyboard-image-v4?jobId=...&backgroundId=...` | Stream one validated private Drive image. |
 | `GET /webhook/fred-storyboard-csv-v4?jobId=...` | Download the complete storyboard CSV created inside this workflow. |
 | `POST /webhook/fred-storyboard-deliver-v4` | Move completed background files to the team folder and notify the configured editor by email. |
@@ -26,13 +26,16 @@ The UI Send to editors button calls this route with a job ID. It rejects missing
 ## Guardrails
 
 - Full storyboard first; image generation is an explicit, separate action.
+- The plan receipt is returned before Google Sheets writes and AI planning continue, so the UI does not wait for the full plan request to finish.
+- While a job is planning, status reads only the job row. It reads the scene sheet only after the plan is ready, and the status response returns background groups rather than full scene rows.
 - A planning job with no saved scenes is reported as failed after three minutes, so the UI does not poll a dead run indefinitely.
 - No more than 10 unique images per request; generation is serial.
 - Image prompts use the scene’s `Background` field plus the shared style guide only.
 - Flare is reserved for image generation; planning uses Vercel AI Gateway text model.
 - Persistent jobs, storyboard rows, and references use Google Sheets. Image binaries use private Google Drive.
 - Background names include a short job suffix, unique background ID, and linked scene numbers. The name is shared by the binary, Drive file, and Sheets `imageFileName` value.
-- CSV remains the structured animator source. SVG is a visual review copy built in the browser and does not contain image binaries.
+- The UI displays background plates only. CSV remains the structured animator source; SVG is built on demand from that CSV and does not contain image binaries.
+- The UI polls every 30 seconds while planning or generating to reduce repeated status executions.
 - The delivery destination is the shared team folder 153VPM-IBR1T5UIq-TthqtpklyAGwi-UU; the saved n8n Drive credential write access remains unverified.
 - Delivery must stay serial and capped at 10 Drive files per execution. The email recipient comes from the `editingTeamEmail` cell in the Google Sheet, never from a public webhook field.
 - No n8n Data Tables, n8n Memory, or internal n8n storage for project data.
