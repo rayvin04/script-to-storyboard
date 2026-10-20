@@ -57,6 +57,9 @@ The first CSV's opening is a white topic grid with 12 circular icons. Its phanto
 
 - Use bold, slightly irregular black hand-drawn contours and solid, readable color fills.
 - Keep people simple and expressive with clear silhouettes; don't add ornamental detail.
+- For the character-sheet family in Fred's Drive folder, use an oversized rounded-square head, a thick black outer contour, compact simple body shapes, and block-like hair with very few interior marks.
+- Keep the face sparse: small horizontal square/rectangular white eyes with heavy black outlines and tiny dark pupils, short raised or slightly worried brows, at most a tiny nose mark, and a short straight closed mouth. The default expression is neutral and mildly concerned; show emotion with gaze, brow angle, and pose.
+- Keep this character treatment flat and simple: uniform color fills, bold black outlines, minimal shading, and no glossy highlights, gradients, lashes, blush, realistic facial anatomy, or smiles.
 - The recurring host has a large pale-cream oval head, sparse face marks, and the dark compact body/clothing seen in approved references. Keep glasses and outfit consistent with the selected anchor.
 - Distinguish the professor/host from the green-shirt story protagonist and from other generic people. Don't substitute one role for another.
 
@@ -107,18 +110,19 @@ The image request should include narration, action, background, hand-drawn subje
 
 ## RAG and references
 
-### Current n8n draft (20 October 2026)
+### Current prototype — 20 October 2026
 
-- Workflow **Script to Image Paid Demo** (`rV2JjknCieGGXRNL`) was updated to draft **CSV storyboard planner v2.1**. `Plan Storyboard Scenes` returns the CSV-inspired fields above. `Fred Style Reference Search` performs deterministic keyword retrieval over the style rules and curated examples from both supplied CSVs. `Generate Scene Image` uses those fields but excludes overlay text and editing transitions. `Format Scene Result`, `Restore Scene JSON with Binary`, and `Build Storyboard Response` carry the metadata through the image path.
-- Manual execution `2021` stopped at the request body because of an expression-syntax error; it failed before an image call. That syntax was corrected.
-- Manual execution `2022` succeeded for one low-quality 16:9 phantom-vibration frame. The planner used the CSV's yellow/green living-room composition, left unknown timing/text/transition fields blank, and marked the generic person as not the Fred host. The response retained the scene metadata and the image; `Restore Scene JSON with Binary` exposed a PNG binary of about 1.25 MB.
-- `usage.cost` for execution `2022` was not retrieved, so do not assume it matches the earlier reported $0.00575 from execution `2014`.
-- The workflow's saved draft and active published version are different. The latest draft has not been published, so the production UI still invokes the older active version. The Heroku n8n host returned HTTP 503 after execution `2022`; check the execution and publish only after service recovers. The local `workflow.json` export may also be behind the live draft.
-- The retrieval tool contains text rules and CSV row examples, not the Drive image files. It is keyword-based context retrieval, not vector search or image retrieval; text alone cannot guarantee exact character consistency.
+- Active workflow **Fred Image Generation - Stage 1** (`QRPeaK5ayX9ZC5Zx`) accepts one scene prompt, downloads two Drive images, generates one low-quality 16:9 image with OpenRouter's dedicated GPT Image Flare endpoint, and returns both a data URL and binary preview.
+- The character reference is Fred's actual `woman.png` from the [character/style folder](https://drive.google.com/drive/folders/1KLTxXSsptR9OguL30DCBLX72GX2rtUBo?usp=sharing), Drive ID `10O0lflQ35oRR4v8H41IZcZ1D45R-QtMV`. The environment reference is Drive image ID `19_rZZhpt3du495njrjnO5nuPWQjxnMAQ`.
+- The prompt explicitly preserves the reference face geometry: rounded-square head, narrow square/rectangular eyes, tiny pupils, raised worried brows, short straight neutral mouth, bold outlines, and flat fills. A test with a woman shopping for a necklace succeeded as execution `2344` for **$0.029689**.
+- The successful frame matches the requested eyes, brows, and mouth. Some background shading and detail remain richer than the character-sheet samples; judge another fixed sample before treating the visual style as locked.
+- This test used a manual workflow execution. The production workflow was published with the same prompt and reference update; the UI still uses the same production webhook and image response shape. The previous UI test verified image display before this style revision.
+- The stage is deliberately stateless. It has no planner, vector search, n8n Data Tables, Sheets, review loop, Drive upload, or delivery notification. The old v2 storyboard workflow is preserved separately as a reference backup.
+- The style lookup in the older storyboard workflow is deterministic text retrieval, not vector RAG. Passing selected image bytes to the image model provides visual conditioning; text retrieval by itself cannot guarantee exact character consistency.
 
 ### Next reference-grounding stage
 
-1. Review Fred's [character and art-style folder](https://drive.google.com/drive/folders/1KLTxXSsptR9OguL30DCBLX72GX2rtUBo?usp=sharing) and approve a separate host/professor anchor, green-shirt protagonist, and scene-family examples.
+1. Keep separate approved anchors for Fred's professor/host, green-shirt protagonist, and scene characters. `woman.png` is currently the single-image test anchor for a woman character, not a universal avatar.
 2. Store each file in Drive with metadata: `driveFileId`, `visualFamily`, `role`, caption, palette/framing tags, approval state, and `styleVersion`.
 3. Retrieve the approved anchor for the matching character role plus one or two references for the visual family. If no match exists, use the guide and a known anchor rather than a random reference.
 4. Fetch selected Drive image bytes and pass them to OpenRouter `input_references` only after confirming support for the chosen model/provider endpoint. Record reference IDs with the image result.

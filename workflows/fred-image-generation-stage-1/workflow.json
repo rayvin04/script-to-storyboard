@@ -3,19 +3,19 @@
   "name": "Fred Image Generation - Stage 1",
   "active": false,
   "isArchived": false,
-  "versionId": "62349160-eb30-4f7b-b790-edb51416ecb1",
+  "versionId": "d0b97e3b-aa72-4f04-bfab-4915eebcd431",
   "activeVersionId": null,
   "triggerCount": 0,
   "nodeCount": 8,
   "createdAt": "2026-10-20T04:05:28.329Z",
-  "updatedAt": "2026-10-20T04:12:23.637Z",
+  "updatedAt": "2026-10-20T04:36:21.737Z",
   "settings": {
     "executionOrder": "v1",
     "availableInMCP": true
   },
   "tags": [],
   "parentFolderId": null,
-  "description": "A minimal one-image proof-of-generation using GPT Image 2.5 Flare with Fred's two approved Google Drive style references. It returns image data directly and does not persist jobs or use n8n Data Tables.",
+  "description": "One-image proof using Fred's woman character reference and warm environment reference with GPT Image 2.5 Flare; returns image data directly without persistence.",
   "scopes": [
     "execution:reveal",
     "workflow:create",
@@ -136,7 +136,7 @@
       "parameters": {
         "mode": "runOnceForAllItems",
         "language": "javaScript",
-        "jsCode": "let input = $json.body ?? $json;\nif (typeof input === 'string') { try { input = JSON.parse(input); } catch { throw new Error('Request body must be valid JSON.'); } }\nconst scenePrompt = typeof input.prompt === 'string' ? input.prompt.trim() : '';\nif (scenePrompt.length < 20 || scenePrompt.length > 2500) throw new Error('Send a scene prompt between 20 and 2,500 characters.');\nconst styleGuide = 'Make one 16:9 still in the supplied reference images’ visual language. Reference 1 is the casual recurring character; reference 2 defines the room and background drawing style. Use flat 2D educational cartoon art, bold slightly irregular black ink outlines, simple expressive faces, clear silhouettes, solid colors, minimal restrained shading, yellow or cream walls, green furniture, blue accents, and warm amber or brown details. Use one frozen action and one clear focal point. No text, captions, labels, lettering, logos, watermarks, borders, photorealism, 3D, anime, or thin corporate vector art.';\nconst prompt = styleGuide + '\\n\\nSCENE TO ILLUSTRATE:\\n' + scenePrompt;\nconst references = [{fileId:'1B8FZJvtx2udKt-WHK_WlLF5RmWCl6hE4',role:'casual_character',name:'normal man.png'},{fileId:'19_rZZhpt3du495njrjnO5nuPWQjxnMAQ',role:'background_style',name:'yellow living room.png'}];\nreturn references.map((reference, referenceIndex) => ({json:{...reference,referenceIndex,prompt}}));"
+        "jsCode": "let input = $json.body ?? $json;\nif (typeof input === 'string') { try { input = JSON.parse(input); } catch { throw new Error('Request body must be valid JSON.'); } }\nconst scenePrompt = typeof input.prompt === 'string' ? input.prompt.trim() : '';\nif (scenePrompt.length < 20 || scenePrompt.length > 2500) throw new Error('Send a scene prompt between 20 and 2,500 characters.');\nconst styleGuide = [\n  'Use the supplied images as hard visual constraints, not loose inspiration.',\n  'REFERENCE 1 is woman.png from Fred’s character folder. Match its simple recurring character design closely while preserving the scene’s requested skin tone, hair, clothing, and action.',\n  'CHARACTER SHAPE: oversized rounded-square head; thick, slightly uneven black outer contour; flat single-color face; simple block-shaped hair with very few interior details; compact simple torso and limbs; clear silhouette.',\n  'FACE SHAPE: two small, narrow horizontal square or rectangular eyes with white fill, heavy black outline, and tiny black pupils; short raised or slightly worried brows; at most a tiny simple nose mark; a short, thin, straight horizontal closed mouth. The default expression is neutral and mildly concerned, like the supplied character sheet.',\n  'Keep the eyes small and squared. Show emotion through a slight brow angle, gaze direction, and pose. Never add a smile, grin, open mouth, large round eyes, glossy highlights, long lashes, blush, detailed nose, or realistic facial anatomy.',\n  'LINE AND COLOR: bold black hand-drawn outlines around the head, body, clothing, and props; simple flat fills; minimal cel shading; no gradients or painterly texture. The character and background must share the same flat cartoon treatment.',\n  'REFERENCE 2 defines the warm illustrated environment: clean hand-drawn room and prop outlines, warm yellow or cream walls, wood and amber accents, and restrained green and blue details. Keep the background simple and subordinate to one clear foreground action.',\n  'Create one frozen moment in a wide 16:9 composition. No text, captions, labels, lettering, logos, watermarks, borders, photorealism, 3D, anime, or polished corporate vector art.'\n].join(' ');\nconst prompt = styleGuide + '\\n\\nSCENE TO ILLUSTRATE:\\n' + scenePrompt;\nconst references = [\n  {fileId:'10O0lflQ35oRR4v8H41IZcZ1D45R-QtMV',role:'fred_character_style_woman',name:'woman.png'},\n  {fileId:'19_rZZhpt3du495njrjnO5nuPWQjxnMAQ',role:'fred_environment_style',name:'ChatGPT Image Aug 3, 2026, 12_38_37 PM.png'}\n];\nreturn references.map((reference, referenceIndex) => ({json:{...reference,referenceIndex,prompt}}));"
       }
     },
     {
@@ -278,7 +278,7 @@
         270
       ],
       "parameters": {
-        "content": "# Stage 1 · Prove one image generation\n\nOne webhook request → two approved Google Drive reference images → OpenRouter Images API → image data returned to the caller.\n\nGPT Image 2.5 Flare is called only through the dedicated image endpoint at low quality, 16:9, one image. This prototype has no AI planning, n8n Data Tables, database persistence, Sheets, or Drive upload. The Format Image Result node exposes both the data URL and a binary image preview for inspection.",
+        "content": "# Stage 1 · Fred character style refinement\n\nOne prompt → Fred’s actual woman.png character reference + warm environment reference → one 16:9 GPT Image 2.5 Flare result.\n\nThe image prompt locks the reference character’s rounded-square head, small square/rectangular eyes, raised worried brows, short straight neutral mouth, compact simple body, bold black outlines, flat fills, and minimal shading. This stage is still one image per request; no batch planner, database, n8n Data Table, or upload step.",
         "color": 5,
         "width": 1740,
         "height": 200
@@ -292,4 +292,3 @@
     "builderVariant": "mcp"
   }
 }
-

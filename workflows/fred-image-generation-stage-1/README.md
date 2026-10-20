@@ -1,6 +1,6 @@
 # Fred image generation — Stage 1
 
-This is the deliberately small first working slice of the storyboard demo. It accepts one scene description, downloads two approved visual references from Fred's Google Drive folder, sends one low-quality 16:9 image request to OpenRouter's dedicated Images API, and returns the PNG to the web UI.
+This is the deliberately small first working slice of the storyboard demo. It accepts one scene description, downloads Fred's woman character anchor and a warm environment image from Drive, sends one low-quality 16:9 image request to OpenRouter's dedicated Images API, and returns the PNG to the web UI.
 
 ## Live workflow
 
@@ -26,13 +26,13 @@ On success, the webhook returns the fields ok, model, mimeType, costUsd, and ima
 
 1. Image Test Webhook accepts the browser request.
 2. Prepare Image Request validates the prompt and appends the fixed style rules.
-3. Download Style References fetches normal man.png and yellow living room.png through the saved Google Drive credential.
+3. Download Style References fetches `woman.png` (Fred's character folder) and the warm illustrated environment reference through the saved Google Drive credential.
 4. Build Flare Image Request embeds those two actual image files as input_references.
 5. Generate with GPT Image Flare calls openai/gpt-image-2.5-flare through OpenRouter's image-generation endpoint using the saved GPT 2.5 Image Flare credential. This endpoint is used only to generate images.
 6. Format Image Result returns the image data URL, cost, and a binary preview.
 7. Respond with Image JSON returns the result to the UI.
 
-The request uses n=1, quality=low, and aspect_ratio=16:9. The optional output_compression value was removed after the provider rejected the request unless a JPEG/WebP output format is also selected.
+The request uses n=1, quality=low, and aspect_ratio=16:9. The style prompt calls for a rounded-square head, small square/rectangular eyes with tiny pupils, worried brows, a short straight neutral mouth, simple body shapes, bold black outlines, flat fills, and restrained shading. The optional output_compression value was removed after the provider rejected the request unless a JPEG/WebP output format is also selected.
 
 ## Storage and scope
 
@@ -45,6 +45,8 @@ The web page submits one image prompt, shows the returned image, and downloads t
 Manual execution 2340 succeeded on 20 October 2026. Both Drive references were downloaded; OpenRouter returned HTTP 200 from provider OpenAI with a PNG. n8n created a 1.29 MB binary preview and returned a base64 PNG data URL to the response node. Reported provider cost: **$0.028384**.
 
 Production UI execution 2341 also succeeded. The generated PNG appeared in the public page, and the Download image button confirmed the PNG download. Reported provider cost: **$0.028414**. The stable Vercel alias now points to this tested UI build.
+
+After the style prompt and character reference were updated, manual execution 2344 generated a necklace-shopping scene successfully. It used the actual `woman.png` character asset from Fred's Drive folder, returned a PNG, and reported **$0.029689**. The eyes, brows, and straight mouth moved closer to Fred's character sheet. This was a manual n8n execution; the updated version is published on the same production webhook, while the previous UI execution remains the last direct UI display check.
 
 Manual execution 2339 did not generate an image. It surfaced the unsupported optional compression parameter; the workflow was corrected before execution 2340.
 
