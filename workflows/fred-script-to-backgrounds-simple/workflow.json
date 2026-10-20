@@ -7,7 +7,7 @@
         "path": "fred-image-generation-stage-1",
         "responseMode": "responseNode",
         "options": {
-          "allowedOrigins": "https://script-to-storyboard-six.vercel.app,https://script-to-storyboard-rh9j2ogz2-rayvin-gianan-s-projects.vercel.app"
+          "allowedOrigins": "https://script-to-storyboard-six.vercel.app,https://script-to-storyboard-rh9j2ogz2-rayvin-gianan-s-projects.vercel.app,https://script-to-storyboard-rj8si3nam-rayvin-gianan-s-projects.vercel.app,https://script-to-storyboard-2936gb8xd-rayvin-gianan-s-projects.vercel.app,https://script-to-storyboard-git-codex-5b7cab-rayvin-gianan-s-projects.vercel.app"
         }
       },
       "id": "686810ba-a70b-4eb0-90bc-c012f251e9ae",
@@ -138,7 +138,7 @@
               },
               {
                 "name": "Access-Control-Allow-Origin",
-                "value": "={{ [\"https://script-to-storyboard-six.vercel.app\",\"https://script-to-storyboard-rh9j2ogz2-rayvin-gianan-s-projects.vercel.app\"].includes($('Storyboard and Background Pipeline Webhook').first().json.headers && $('Storyboard and Background Pipeline Webhook').first().json.headers.origin) ? $('Storyboard and Background Pipeline Webhook').first().json.headers.origin : \"https://script-to-storyboard-six.vercel.app\" }}"
+                "value": "={{ [\"https://script-to-storyboard-six.vercel.app\",\"https://script-to-storyboard-rh9j2ogz2-rayvin-gianan-s-projects.vercel.app\",\"https://script-to-storyboard-rj8si3nam-rayvin-gianan-s-projects.vercel.app\",\"https://script-to-storyboard-2936gb8xd-rayvin-gianan-s-projects.vercel.app\",\"https://script-to-storyboard-git-codex-5b7cab-rayvin-gianan-s-projects.vercel.app\"].includes($('Storyboard and Background Pipeline Webhook').first().json.headers && $('Storyboard and Background Pipeline Webhook').first().json.headers.origin) ? $('Storyboard and Background Pipeline Webhook').first().json.headers.origin : \"https://script-to-storyboard-six.vercel.app\" }}"
               },
               {
                 "name": "Content-Type",
@@ -272,7 +272,7 @@
             "entries": [
               {
                 "name": "Access-Control-Allow-Origin",
-                "value": "={{ [\"https://script-to-storyboard-six.vercel.app\",\"https://script-to-storyboard-rh9j2ogz2-rayvin-gianan-s-projects.vercel.app\"].includes($('Storyboard and Background Pipeline Webhook').first().json.headers && $('Storyboard and Background Pipeline Webhook').first().json.headers.origin) ? $('Storyboard and Background Pipeline Webhook').first().json.headers.origin : \"https://script-to-storyboard-six.vercel.app\" }}"
+                "value": "={{ [\"https://script-to-storyboard-six.vercel.app\",\"https://script-to-storyboard-rh9j2ogz2-rayvin-gianan-s-projects.vercel.app\",\"https://script-to-storyboard-rj8si3nam-rayvin-gianan-s-projects.vercel.app\",\"https://script-to-storyboard-2936gb8xd-rayvin-gianan-s-projects.vercel.app\",\"https://script-to-storyboard-git-codex-5b7cab-rayvin-gianan-s-projects.vercel.app\"].includes($('Storyboard and Background Pipeline Webhook').first().json.headers && $('Storyboard and Background Pipeline Webhook').first().json.headers.origin) ? $('Storyboard and Background Pipeline Webhook').first().json.headers.origin : \"https://script-to-storyboard-six.vercel.app\" }}"
               },
               {
                 "name": "Cache-Control",
@@ -349,7 +349,7 @@
             "entries": [
               {
                 "name": "Access-Control-Allow-Origin",
-                "value": "={{ [\"https://script-to-storyboard-six.vercel.app\",\"https://script-to-storyboard-rh9j2ogz2-rayvin-gianan-s-projects.vercel.app\"].includes($('Storyboard and Background Pipeline Webhook').first().json.headers && $('Storyboard and Background Pipeline Webhook').first().json.headers.origin) ? $('Storyboard and Background Pipeline Webhook').first().json.headers.origin : \"https://script-to-storyboard-six.vercel.app\" }}"
+                "value": "={{ [\"https://script-to-storyboard-six.vercel.app\",\"https://script-to-storyboard-rh9j2ogz2-rayvin-gianan-s-projects.vercel.app\",\"https://script-to-storyboard-rj8si3nam-rayvin-gianan-s-projects.vercel.app\",\"https://script-to-storyboard-2936gb8xd-rayvin-gianan-s-projects.vercel.app\",\"https://script-to-storyboard-git-codex-5b7cab-rayvin-gianan-s-projects.vercel.app\"].includes($('Storyboard and Background Pipeline Webhook').first().json.headers && $('Storyboard and Background Pipeline Webhook').first().json.headers.origin) ? $('Storyboard and Background Pipeline Webhook').first().json.headers.origin : \"https://script-to-storyboard-six.vercel.app\" }}"
               },
               {
                 "name": "Cache-Control",
@@ -513,7 +513,7 @@
             "entries": [
               {
                 "name": "Access-Control-Allow-Origin",
-                "value": "={{ [\"https://script-to-storyboard-six.vercel.app\",\"https://script-to-storyboard-rh9j2ogz2-rayvin-gianan-s-projects.vercel.app\"].includes($('Storyboard and Background Pipeline Webhook').first().json.headers && $('Storyboard and Background Pipeline Webhook').first().json.headers.origin) ? $('Storyboard and Background Pipeline Webhook').first().json.headers.origin : \"https://script-to-storyboard-six.vercel.app\" }}"
+                "value": "={{ [\"https://script-to-storyboard-six.vercel.app\",\"https://script-to-storyboard-rh9j2ogz2-rayvin-gianan-s-projects.vercel.app\",\"https://script-to-storyboard-rj8si3nam-rayvin-gianan-s-projects.vercel.app\",\"https://script-to-storyboard-2936gb8xd-rayvin-gianan-s-projects.vercel.app\",\"https://script-to-storyboard-git-codex-5b7cab-rayvin-gianan-s-projects.vercel.app\"].includes($('Storyboard and Background Pipeline Webhook').first().json.headers && $('Storyboard and Background Pipeline Webhook').first().json.headers.origin) ? $('Storyboard and Background Pipeline Webhook').first().json.headers.origin : \"https://script-to-storyboard-six.vercel.app\" }}"
               },
               {
                 "name": "Cache-Control",
@@ -576,7 +576,7 @@
             "entries": [
               {
                 "name": "Access-Control-Allow-Origin",
-                "value": "={{ [\"https://script-to-storyboard-six.vercel.app\",\"https://script-to-storyboard-rh9j2ogz2-rayvin-gianan-s-projects.vercel.app\"].includes($('Storyboard and Background Pipeline Webhook').first().json.headers && $('Storyboard and Background Pipeline Webhook').first().json.headers.origin) ? $('Storyboard and Background Pipeline Webhook').first().json.headers.origin : \"https://script-to-storyboard-six.vercel.app\" }}"
+                "value": "={{ [\"https://script-to-storyboard-six.vercel.app\",\"https://script-to-storyboard-rh9j2ogz2-rayvin-gianan-s-projects.vercel.app\",\"https://script-to-storyboard-rj8si3nam-rayvin-gianan-s-projects.vercel.app\",\"https://script-to-storyboard-2936gb8xd-rayvin-gianan-s-projects.vercel.app\",\"https://script-to-storyboard-git-codex-5b7cab-rayvin-gianan-s-projects.vercel.app\"].includes($('Storyboard and Background Pipeline Webhook').first().json.headers && $('Storyboard and Background Pipeline Webhook').first().json.headers.origin) ? $('Storyboard and Background Pipeline Webhook').first().json.headers.origin : \"https://script-to-storyboard-six.vercel.app\" }}"
               },
               {
                 "name": "Cache-Control",
@@ -825,5 +825,5 @@
     "saveDataSuccessExecution": "none",
     "saveExecutionProgress": false
   },
-  "versionId": "9a5bde00-ab98-4e6f-a6f8-db067ac48de4"
+  "versionId": "83eb16fc-8654-46bd-a388-87fb01c1a46d"
 }

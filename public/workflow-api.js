@@ -3,8 +3,9 @@
   // One Generate click always plans first, then calls this same workflow once
   // per background. The action field marks the internal pipeline stage only.
   const route = base + "/fred-image-generation-stage-1";
-  const PLAN_TIMEOUT_MS = 300000;
-  const IMAGE_TIMEOUT_MS = 180000;
+  // Leave a small response-handling buffer beyond n8n's 180-second node timeout.
+  const PLAN_TIMEOUT_MS = 210000;
+  const IMAGE_TIMEOUT_MS = 195000;
 
   async function postJson(url, body, timeoutMs) {
     const controller = new AbortController();
@@ -57,7 +58,8 @@
 
   window.storyboardWorkflow = {
     plan(script) {
-      return postJson(route, { action: "plan", script }, PLAN_TIMEOUT_MS);
+      const title = script.split(/\r?\n/).map(line => line.trim()).find(Boolean) || "Untitled storyboard";
+      return postJson(route, { action: "plan", title, script }, PLAN_TIMEOUT_MS);
     },
     generateBackground(background) {
       return postJson(route, {

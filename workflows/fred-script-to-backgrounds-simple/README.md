@@ -42,3 +42,7 @@ The workflow reads the `Planner Context` tab in [Fred Storyboard Style and Refer
 When there are more than 10 distinct settings, the planner samples evenly across the complete scene sequence rather than taking only the opening scenes. Any remaining unique settings are counted as deferred. The workflow disables successful-execution payload storage so large base64 images are not retained in n8n execution history.
 
 The published graph is authoritative. Import snapshots should be inactive to avoid registering a duplicate webhook. Reconnect saved credentials in n8n after importing on another instance.
+
+## UI Connection and Timeouts
+
+The frontend uses the same production webhook for both stages. It sends `action: "plan"` with the full script and a title derived from the first non-empty line, then sends one `action: "image"` request per selected background in a serial loop. The client waits 210 seconds for planning and 195 seconds per image; the Vercel model and OpenRouter HTTP nodes each have a 180-second timeout, leaving response-handling time. Keep the webhook's `allowedOrigins` and every `Respond to Webhook` CORS response in sync with the deployed Vercel origins. Add a new preview origin in both places before testing from a newly generated preview URL.
