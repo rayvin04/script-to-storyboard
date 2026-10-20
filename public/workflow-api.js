@@ -1,7 +1,7 @@
 (() => {
   const base = "https://n8n-rayv-742595626609.herokuapp.com/webhook";
-  // n8n exposes one webhook for this lightweight workflow. The action field
-  // selects storyboard planning or a single background image request.
+  // One Generate click always plans first, then calls this same workflow once
+  // per background. The action field marks the internal pipeline stage only.
   const route = base + "/fred-image-generation-stage-1";
   const PLAN_TIMEOUT_MS = 300000;
   const IMAGE_TIMEOUT_MS = 180000;

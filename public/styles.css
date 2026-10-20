@@ -502,6 +502,31 @@ dialog::backdrop { background: rgba(32, 42, 59, .42); backdrop-filter: blur(2px)
 .image-empty .empty-illustration svg { width: 42px; height: 36px; }
 .image-empty h3 { margin: 0; font-size: 15px; }
 .image-empty p { max-width: 330px; margin: 7px 0 0; color: var(--muted); font-size: 11px; line-height: 1.55; }
+.storyboard-disclosure { margin-top: 16px; overflow: hidden; border: 1.5px solid var(--line); border-radius: 13px; background: var(--panel); }
+.storyboard-disclosure summary { min-height: 46px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 13px; color: var(--ink); font-size: 13px; font-weight: 800; cursor: pointer; list-style: none; }
+.storyboard-disclosure summary::-webkit-details-marker { display: none; }
+.storyboard-disclosure summary::after { content: "+"; margin-left: auto; color: #566274; font-size: 18px; line-height: 1; }
+.storyboard-disclosure[open] summary::after { content: "−"; }
+.storyboard-count { margin-left: auto; color: var(--muted); font-size: 11px; font-weight: 600; }
+.storyboard-content { padding: 0 12px 12px; }
+.storyboard-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 1px 10px; }
+.storyboard-toolbar p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.45; }
+.storyboard-download { flex: 0 0 auto; min-height: 34px; padding: 6px 11px; border: 1.5px solid var(--line); border-radius: 8px; background: var(--yellow); color: var(--ink); font-size: 11px; font-weight: 800; cursor: pointer; }
+.storyboard-download:hover:not(:disabled) { filter: brightness(.97); transform: translateY(-1px); }
+.storyboard-download:disabled { opacity: .55; cursor: not-allowed; }
+.storyboard-table-scroll { max-height: 440px; overflow: auto; border: 1px solid #bcc4ce; border-radius: 8px; background: #fffefa; }
+.storyboard-table { width: max-content; min-width: 100%; border-collapse: separate; border-spacing: 0; color: var(--ink); font-size: 11px; line-height: 1.5; }
+.storyboard-table th, .storyboard-table td { min-width: 145px; max-width: 260px; padding: 9px 10px; border-right: 1px solid #d9dee5; border-bottom: 1px solid #d9dee5; text-align: left; vertical-align: top; overflow-wrap: anywhere; }
+.storyboard-table th { position: sticky; top: 0; z-index: 1; background: #f2edf7; color: #354154; font-size: 10px; font-weight: 800; }
+.storyboard-table th:first-child, .storyboard-table td:first-child { min-width: 66px; max-width: 72px; text-align: center; }
+.storyboard-table tr:last-child td { border-bottom: 0; }
+.storyboard-table th:last-child, .storyboard-table td:last-child { border-right: 0; }
+:root[data-theme="dark"] .storyboard-disclosure { background: #202b3b; }
+:root[data-theme="dark"] .storyboard-disclosure summary::after { color: var(--muted); }
+:root[data-theme="dark"] .storyboard-download { border-color: #77849a; background: #3b3546; color: var(--ink); }
+:root[data-theme="dark"] .storyboard-table-scroll { border-color: #65738a; background: #1c2635; }
+:root[data-theme="dark"] .storyboard-table th, :root[data-theme="dark"] .storyboard-table td { border-color: #465267; }
+:root[data-theme="dark"] .storyboard-table th { background: #354257; color: var(--ink); }
 .image-deferred-callout { margin-top: 16px; }
 .progress-track span.is-active { background-image: linear-gradient(100deg, transparent 22%, rgba(255,255,255,.45) 45%, transparent 68%); background-size: 220% 100%; animation: progress-sheen 1.15s linear infinite; }
 @keyframes progress-sheen { to { background-position: -220% 0; } }

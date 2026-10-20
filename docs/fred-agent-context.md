@@ -6,7 +6,7 @@ Updated 20 October 2026. This is the current implementation brief for agents wor
 
 - The user pastes **one complete narration script once**. They do not write a separate prompt for each image.
 - The text planner covers the whole script with a scene-by-scene storyboard in Fred’s original eight-column format.
-- The image stage reads only each scene group’s `Background` description and creates up to **10 unique background plates** for that script, one request at a time.
+- The storyboard is part of the final result. The image stage reads only each scene group’s `Background` description and creates up to **10 unique background plates** for that script, one request at a time.
 - Keep Fred’s drawing treatment consistent while letting each scene’s location, palette, and composition fit its narration.
 - Generate environment backgrounds only. Animators add characters, animals, anatomy, handheld or loose props, diagrams, text, and all movement.
 - If more than 10 unique settings are planned, tell the user how many remain for a later run. Never send a per-scene prompt form to the user.
@@ -15,8 +15,9 @@ Updated 20 October 2026. This is the current implementation brief for agents wor
 
 - n8n workflow: **Fred Script-to-Backgrounds — Simple**, ID `QRPeaK5ayX9ZC5Zx` ([open in n8n](https://n8n-rayv-742595626609.herokuapp.com/workflow/QRPeaK5ayX9ZC5Zx)).
 - One production webhook: `POST /webhook/fred-image-generation-stage-1`.
-- `{"action":"plan","script":"..."}` validates one full script, reads the external reference tab once, plans all storyboard scenes, and returns at most 10 distinct backgrounds plus counts.
+- `{"action":"plan","script":"..."}` validates one full script, reads the external reference tab once, plans all storyboard scenes, and returns all scene rows, Fred-format CSV data, at most 10 distinct backgrounds, and counts.
 - `{"action":"image","background":"...","backgroundId":"BG001","sceneNumbers":[1]}` makes one image. The browser waits for that result before sending the next image request to the same webhook.
+- The browser always runs plan first, then image requests in order from the returned storyboard. The `action` field is an internal stage marker; the user submits one script and does not choose a mode.
 - Text planning uses Vercel AI Gateway `openai/gpt-5-mini` and the structured storyboard parser. GPT Image 2.5 Flare is used **only** for image generation through OpenRouter’s Images API, at low quality, 16:9, `n: 1`.
 - Current fixed image style reference: Google Drive image `19_rZZhpt3du495njrjnO5nuPWQjxnMAQ`. It guides linework and color treatment; the reference subject, setting, and composition are not copied.
 
@@ -47,9 +48,9 @@ Only `Background` can contribute scene-specific content to an image request. Nev
 
 ## UI and scope
 
-The static UI is in `public/`. It has one full-script textarea, a generate action, simple progress, and a gallery of completed backgrounds. It displays each result as soon as it arrives and preserves already completed images if a later image fails.
+The static UI is in `public/`. It has one full-script textarea and one generate action. It shows the complete storyboard in a collapsible table with a workflow-produced CSV download, plus a gallery of completed backgrounds. It displays each image as soon as it arrives and preserves completed images if a later image fails.
 
-Current demo deliberately omits full storyboard preview, CSV/SVG export, Drive upload, email delivery, review feedback, job/status persistence, and automatic retries. Do not add these to the simplified path without a new user request. Keep every AI/node step for this product in the same n8n workflow.
+Current demo omits SVG export, Drive upload, email delivery, review feedback, job/status persistence, and automatic retries. The storyboard CSV is returned by n8n and downloaded in the browser without persistence. Keep every AI/node step for this product in the same n8n workflow.
 
 ## Reliability and known test state
 
