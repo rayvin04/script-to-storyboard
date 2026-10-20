@@ -26,6 +26,7 @@ The UI Send to editors button calls this route with a job ID. It rejects missing
 ## Guardrails
 
 - Full storyboard first; image generation is an explicit, separate action.
+- A planning job with no saved scenes is reported as failed after three minutes, so the UI does not poll a dead run indefinitely.
 - No more than 10 unique images per request; generation is serial.
 - Image prompts use the scene’s `Background` field plus the shared style guide only.
 - Flare is reserved for image generation; planning uses Vercel AI Gateway text model.

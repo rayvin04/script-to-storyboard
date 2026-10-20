@@ -3,6 +3,7 @@ const SAMPLE_SCRIPT = `Your phone buzzes in your pocket. You reach for it. Nothi
 const MAX_SCRIPT_LENGTH = 30000;
 const BATCH_LIMIT = 10;
 const STATUS_POLL_INTERVAL_MS = 12000;
+const PLAN_STALE_AFTER_MS = 3 * 60 * 1000;
 const STATUS_RETRY_BASE_MS = 15000;
 const STATUS_RETRY_MAX_MS = 60000;
 const JOB_STORAGE_KEY = "fredStoryboardJobId";
@@ -227,6 +228,18 @@ function renderStatus(job) {
   }
 }
 
+function markStalledPlan(job) {
+  const status = String(job.status || "").toLowerCase();
+  const hasScenes = (Array.isArray(job.scenes) && job.scenes.length > 0) || Number(job.sceneCount) > 0;
+  const timestamp = Date.parse(job.updatedAt || job.createdAt || "");
+  if (status !== "planning" || hasScenes || !Number.isFinite(timestamp) || Date.now() - timestamp < PLAN_STALE_AFTER_MS) return job;
+  return {
+    ...job,
+    status: "failed",
+    error: job.error || "No storyboard scenes were saved within three minutes. Check the n8n execution and Heroku memory usage before retrying. No background images were generated.",
+  };
+}
+
 function shouldKeepPolling(job) {
   return state.isPlanning || state.isGenerating;
 }
@@ -234,8 +247,9 @@ function shouldKeepPolling(job) {
 async function pollOnce() {
   if (!state.jobId) return;
   try {
-    const job = await window.storyboardWorkflow.status(state.jobId);
+    let job = await window.storyboardWorkflow.status(state.jobId);
     if (job.ok === false) throw new Error(job.error || "Could not read this storyboard job.");
+    job = markStalledPlan(job);
     state.pollFailures = 0;
     renderStatus(job);
     if (shouldKeepPolling(job)) {
@@ -284,8 +298,10 @@ async function createStoryboard() {
     return;
   }
   if (state.isPlanning || state.isGenerating) return;
+  stopPolling();
   state.isPlanning = true;
   state.jobId = "";
+  state.job = null;
   state.deliveredJobId = "";
   try { localStorage.removeItem(DELIVERY_STORAGE_KEY); } catch {}
   state.expectedBatchIds = [];
@@ -293,6 +309,7 @@ async function createStoryboard() {
   state.expectedBatchAt = 0;
   state.scenes = [];
   state.backgrounds = [];
+  try { localStorage.removeItem(JOB_STORAGE_KEY); } catch {}
   els.plan.disabled = true;
   els.planLabel.textContent = "Starting storyboard…";
   els.mode.textContent = "PLANNING";
