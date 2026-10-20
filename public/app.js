@@ -9,42 +9,6 @@ const SAMPLE_SCRIPT = [
   "A small eyelid flutter is commonly linked to tiredness, stress, caffeine, or eye strain. The tiny muscle is usually just being over-responsive; it often fades with rest.",
 ].join("\n");
 
-const N8N_PRODUCTION_WEBHOOK_URL = "https://n8n-rayv-742595626609.herokuapp.com/webhook/script-to-storyboard";
-
-const DEMO_SCENES = [
-  {
-    id: "scene-01",
-    title: "The phantom phone buzz",
-    narration: "Your brain can mistake a tiny muscle twitch or a shift in your clothes for a notification.",
-    prompt: "A person pauses at a desk after feeling a phantom phone vibration; show a gentle buzz cue near a pocket.",
-    tag: "body signal",
-    art: "phone",
-  },
-  {
-    id: "scene-02",
-    title: "Pins and needles",
-    narration: "Pressure can temporarily squeeze a nerve. As the signal settles, the skin may tingle.",
-    prompt: "A friendly character sits on one foot and notices a light tingling sensation in the toes.",
-    tag: "nerve signal",
-    art: "tingle",
-  },
-  {
-    id: "scene-03",
-    title: "The eyelid flutter",
-    narration: "Tiredness, stress, caffeine, or eye strain can make a tiny eyelid muscle flutter.",
-    prompt: "A tired but friendly character has a tiny eyelid twitch, shown with two small motion marks.",
-    tag: "muscle twitch",
-    art: "eye",
-  },
-  {
-    id: "scene-04",
-    title: "A tiny brain zap",
-    narration: "The sensation can feel sudden and strange, like a quick spark that is gone in a moment.",
-    prompt: "A character pauses as a small harmless spark-shaped thought appears beside the head.",
-    tag: "quick sensation",
-    art: "spark",
-  },
-];
 
 const els = {
   script: document.getElementById("script-input"),
@@ -87,9 +51,10 @@ function setTheme(theme, persist = false) {
   }
 }
 
-let requestedScenes = 1;
-let currentScenes = DEMO_SCENES.slice(0, requestedScenes).map((scene) => ({ ...scene, source: "demo" }));
-const liveWebhook = N8N_PRODUCTION_WEBHOOK_URL;
+let requestedScenes = 5;
+let currentScenes = [];
+let activeRequestId = "";
+let isBuilding = false;
 let feedback = readStoredFeedback();
 
 function readStoredFeedback() {
@@ -100,9 +65,17 @@ function readStoredFeedback() {
   }
 }
 
-function saveFeedback() {
-  localStorage.setItem("storyboardFeedback", JSON.stringify(feedback));
-  els.footer.textContent = "Feedback saved in this browser";
+function feedbackKey(scene) {
+  return (scene.requestId || activeRequestId || "preview") + ":" + scene.id;
+}
+
+async function saveFeedback(scene) {
+  const key = feedbackKey(scene);
+  try { localStorage.setItem("storyboardFeedback", JSON.stringify(feedback)); } catch {}
+  if (!scene.requestId) throw new Error("Generate a live image before submitting a review.");
+  els.footer.textContent = "Saving your review to the workflow…";
+  await window.storyboardWorkflow.review({ requestId: scene.requestId, sceneId: scene.id, ...feedback[key] });
+  els.footer.textContent = "Review saved · the art Agents can read it for future scenes";
 }
 
 function escapeHtml(value) {
@@ -111,74 +84,35 @@ function escapeHtml(value) {
   })[char]);
 }
 
-function artSvg(kind, sceneNumber) {
-  let frame = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" role="img" aria-label="Illustrative storyboard frame">'
-    + '<rect width="800" height="450" fill="#bfe5f5"/>'
-    + '<circle cx="681" cy="78" r="43" fill="#ffd166"/>'
-    + '<path d="M0 313 Q135 280 258 319 T520 309 T800 312 V450 H0Z" fill="#9cd48f" stroke="#1f293b" stroke-width="5"/>'
-    + '<path d="M0 360 Q170 338 320 370 T650 355 T800 366 V450 H0Z" fill="#76bf79"/>'
-    + '<path d="M45 314V186M45 227c-38-30-39-58-4-70 29 7 30 38 4 70Zm0 38c39-34 40-61 5-73-30 12-30 42-5 73Z" fill="#67ad70" stroke="#1f293b" stroke-width="5" stroke-linejoin="round"/>'
-    + '<path d="M720 318V211M720 250c-36-30-34-57 1-66 30 9 29 40-1 66Zm0 41c38-32 39-58 5-72-30 10-32 41-5 72Z" fill="#67ad70" stroke="#1f293b" stroke-width="5" stroke-linejoin="round"/>'
-    + '<path d="M252 318v-74l99-54 98 54v74Z" fill="#ffb29c" stroke="#1f293b" stroke-width="6" stroke-linejoin="round"/>'
-    + '<path d="M238 247l113-76 113 76" fill="none" stroke="#1f293b" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>'
-    + '<rect x="330" y="260" width="43" height="58" rx="7" fill="#f9e3a8" stroke="#1f293b" stroke-width="5"/>'
-    + '<path d="M387 318v-44h34v44" fill="#8fd0ef" stroke="#1f293b" stroke-width="5"/>'
-    + '<ellipse cx="530" cy="327" rx="80" ry="20" fill="#3c694d" opacity=".25"/>'
-    + '<path d="M466 280h98v44h-98z" fill="#ef674d" stroke="#1f293b" stroke-width="6" stroke-linejoin="round"/>'
-    + '<path d="M477 280c0-30 75-30 75 0" fill="#8fd0ef" stroke="#1f293b" stroke-width="6"/>'
-    + '<circle cx="515" cy="194" r="42" fill="#f2bd91" stroke="#1f293b" stroke-width="6"/>'
-    + '<path d="M474 195c-4-46 22-64 58-47 19 9 25 22 25 40-19-9-31-18-40-32-7 18-21 30-43 39Z" fill="#393442" stroke="#1f293b" stroke-width="5" stroke-linejoin="round"/>'
-    + '<circle cx="501" cy="198" r="4.5" fill="#1f293b"/><circle cx="527" cy="198" r="4.5" fill="#1f293b"/>'
-    + '<path d="M506 217q10 9 20-1" fill="none" stroke="#1f293b" stroke-width="3.5" stroke-linecap="round"/>'
-    + '<path d="M482 238v53m66-53v53M482 263l-30 29m96-28 28 17" fill="none" stroke="#1f293b" stroke-width="12" stroke-linecap="round"/>'
-    + '<path d="M487 242q27-12 57 0v62h-57z" fill="' + (sceneNumber % 2 ? "#f5c84c" : "#72c9bd") + '" stroke="#1f293b" stroke-width="5" stroke-linejoin="round"/>'
-    + '<path d="M493 302l-13 46m58-46 15 46" fill="none" stroke="#1f293b" stroke-width="11" stroke-linecap="round"/>'
-    + '<path d="M477 349h20m55 0h20" fill="none" stroke="#1f293b" stroke-width="9" stroke-linecap="round"/>';
-
-  if (kind === "phone") {
-    frame += '<path d="M554 258q15-14 0-28m14 32q22-21 1-42m-238 43q-10-9 0-18" fill="none" stroke="#ef674d" stroke-width="7" stroke-linecap="round"/>'
-      + '<rect x="565" y="254" width="22" height="38" rx="5" fill="#273246" stroke="#fffdf7" stroke-width="3"/>'
-      + '<circle cx="576" cy="284" r="2" fill="#ffd166"/>';
-  } else if (kind === "tingle") {
-    frame += '<path d="M541 344q20-10 43 0m-35 12q16-8 32 0m-27 12q12-6 22 0" fill="none" stroke="#f8e38a" stroke-width="7" stroke-linecap="round"/>'
-      + '<path d="m576 336 11-11m-8 27 15-7m-19 20 12 3" fill="none" stroke="#fffdf7" stroke-width="5" stroke-linecap="round"/>';
-  } else if (kind === "eye") {
-    frame += '<path d="M553 187q16-12 29 0m-28 10q16-12 29 0" fill="none" stroke="#ef674d" stroke-width="5" stroke-linecap="round"/>'
-      + '<path d="M492 201q10 4 18 0m11 0q11 4 19 0" fill="none" stroke="#1f293b" stroke-width="3.5" stroke-linecap="round"/>';
-  } else {
-    frame += '<path d="m569 166 9-16 9 16 17 3-13 11 3 17-16-9-15 9 3-17-13-11Z" fill="#ffd166" stroke="#1f293b" stroke-width="4" stroke-linejoin="round"/>'
-      + '<path d="M578 217q12-10 23 0m-20 11q10-8 18 0" fill="none" stroke="#ef674d" stroke-width="4" stroke-linecap="round"/>';
-  }
-
-  return frame + '<path d="M0 0h800v450H0z" fill="none" stroke="#1f293b" stroke-width="5"/></svg>';
-}
-
 function frameMarkup(scene, index) {
-  const rating = feedback[scene.id] ? feedback[scene.id].rating : "";
+  const review = feedback[feedbackKey(scene)] || {};
+  const rating = review.rating || "";
   const showComment = rating === "down";
-  const failed = scene.imageStatus === "failed" || (scene.source === "live" && !scene.imageData);
-  const imageBlock = scene.imageData
+  const failed = scene.imageStatus === "failed" || scene.imageLoadError;
+  const pending = !failed && !scene.imageData;
+  const imageBlock = scene.imageData && !failed
     ? '<img src="' + escapeHtml(scene.imageData) + '" alt="Generated scene ' + (index + 1) + '" />'
     : failed
-      ? '<div class="image-failure" role="img" aria-label="Image generation failed"><span aria-hidden="true">!</span><strong>Image not generated</strong><small>See the message above for the next step.</small></div>'
-      : artSvg(scene.art || ["phone", "tingle", "eye", "spark"][index % 4], index);
+      ? '<div class="image-failure" role="status"><span aria-hidden="true">!</span><strong>' + (scene.imageLoadError ? 'Image could not load' : 'Image not generated') + '</strong><small>' + escapeHtml(scene.error || 'See the workflow message for details.') + '</small>' + (scene.imageLoadError ? '<button type="button" data-retry-image="' + escapeHtml(scene.id) + '">Reload image</button>' : '') + '</div>'
+      : '<div class="image-failure" role="status"><span aria-hidden="true">✦</span><strong>Frame in progress</strong><small>The scene plan is ready. Waiting for its image.</small></div>';
   const safeTitle = escapeHtml(scene.title || ("Scene " + (index + 1)));
   const safeNarration = escapeHtml(scene.narration || scene.scriptExcerpt || "A visual beat from the supplied narration.");
   const safeTag = escapeHtml(scene.tag || "visual beat");
   const sceneId = escapeHtml(scene.id || ("scene-" + (index + 1)));
-  const savedComment = escapeHtml(feedback[scene.id] ? feedback[scene.id].comment : "");
+  const savedComment = escapeHtml(review.comment || "");
 
   return '<article class="frame-card" data-scene-id="' + sceneId + '">'
-    + '<div class="frame-topline"><span class="scene-tag">SCENE ' + String(index + 1).padStart(2, "0") + '</span><span class="scene-state' + (failed ? ' is-failed' : '') + '">' + (failed ? "IMAGE FAILED" : scene.source === "live" ? "AI IMAGE" : "STYLE PREVIEW") + '</span></div>'
+    + '<div class="frame-topline"><span class="scene-tag">SCENE ' + String(index + 1).padStart(2, "0") + '</span><span class="scene-state' + (failed ? ' is-failed' : '') + '">' + (failed ? "IMAGE UNAVAILABLE" : pending ? "IN PROGRESS" : "AI IMAGE") + '</span></div>'
     + '<div class="frame-art" data-art-frame>' + imageBlock + '</div>'
     + '<h3 class="scene-caption">' + safeTitle + '</h3>'
     + '<p class="scene-narration">' + safeNarration + '</p>'
     + (failed ? '<p class="scene-error" role="status">' + escapeHtml(scene.error || "The image provider did not return an image.") + '</p>' : "")
     + '<div class="scene-meta"><span class="meta-pill">16:9 frame</span><span class="meta-pill">' + safeTag + '</span></div>'
-    + (!failed ? '<div class="feedback-row"><span class="feedback-label">Does this beat work?</span>'
+    + (!failed && !pending ? '<div class="feedback-row"><span class="feedback-label">Does the art style match?</span>'
     + '<button class="rate-button" type="button" data-rating="up" data-id="' + sceneId + '" aria-label="Like scene ' + (index + 1) + '" aria-pressed="' + (rating === "up") + '">👍</button>'
     + '<button class="rate-button" type="button" data-rating="down" data-id="' + sceneId + '" aria-label="Needs changes for scene ' + (index + 1) + '" aria-pressed="' + (rating === "down") + '">👎</button></div>'
-    + (showComment ? '<div class="comment-wrap"><textarea data-comment="' + sceneId + '" aria-label="What should change?" placeholder="What should change?">' + savedComment + '</textarea><button type="button" data-save-comment="' + sceneId + '">Save note</button></div>' : "") : "")
+    + (showComment ? '<div class="comment-wrap"><textarea data-comment="' + sceneId + '" aria-label="What should change?" placeholder="What should change?">' + savedComment + '</textarea><button type="button" data-save-comment="' + sceneId + '">Save note</button></div>' : "")
+    + '<button class="text-button" type="button" data-download-scene="' + sceneId + '">Download image</button>' : "")
     + '</article>';
 }
 
@@ -189,40 +123,14 @@ function renderScenes() {
     els.grid.innerHTML = currentScenes.map(frameMarkup).join("");
   }
   els.boardCount.textContent = currentScenes.length + (currentScenes.length === 1 ? " frame" : " frames");
-  const canDownload = currentScenes.some((scene) => scene.imageStatus !== "failed" && (scene.imageData || scene.source !== "live"));
+  const canDownload = currentScenes.some((scene) => scene.imageStatus === "completed" && scene.imageData);
   els.downloadAll.disabled = !canDownload;
   els.downloadAll.title = canDownload ? "Download available storyboard frames" : "No generated images are available to download";
+  document.getElementById("export-plan").disabled = !currentScenes.length || !activeRequestId;
 }
 
 function updateCount() {
-  els.count.textContent = els.script.value.length.toLocaleString() + " / 40,000";
-}
-
-function deriveLocalScenes(script, count) {
-  const lines = script.split(/\n+/).map((line) => line.trim()).filter(Boolean);
-  const paragraphs = [];
-  let heading = "";
-  let current = [];
-  lines.forEach((line) => {
-    const shortHeading = line.length < 70 && !/[.!?]$/.test(line);
-    if (shortHeading) {
-      if (current.length) paragraphs.push({ title: heading, text: current.join(" ") });
-      heading = line;
-      current = [];
-    } else current.push(line);
-  });
-  if (current.length) paragraphs.push({ title: heading, text: current.join(" ") });
-  const usable = paragraphs.length ? paragraphs : [{ title: "A new visual beat", text: script }];
-  const selected = usable.slice(0, count);
-  return selected.map((item, index) => ({
-    id: "local-" + Date.now() + "-" + index,
-    title: item.title || ["Open on the sensation", "Show what's happening", "Land the takeaway", "A closer look"][index % 4],
-    narration: item.text.slice(0, 190),
-    prompt: "A clear, friendly flat 2D cartoon storyboard frame illustrating: " + item.text.slice(0, 280),
-    tag: ["body signal", "simple explanation", "takeaway"][index % 3],
-    art: ["phone", "tingle", "eye", "spark"][index % 4],
-    source: "demo",
-  }));
+  els.count.textContent = els.script.value.length.toLocaleString() + " / 30,000";
 }
 
 function normalizeLiveResponse(data) {
@@ -240,6 +148,8 @@ function normalizeLiveResponse(data) {
     const imageData = scene.imageData || scene.image_data || (b64 ? "data:image/png;base64," + b64 : "") || scene.imageUrl || scene.image_url || "";
     const imageStatus = scene.imageStatus || scene.image_status || (imageData ? "completed" : "failed");
     return {
+      ...scene,
+      requestId: scene.requestId || result.requestId || activeRequestId,
       id: scene.id || scene.sceneId || scene.scene_id || ("live-" + index),
       title: scene.title || scene.visualBeat || scene.visual_beat || ("Scene " + (index + 1)),
       narration: scene.narration || scene.scriptExcerpt || scene.script_excerpt || scene.description || "",
@@ -254,116 +164,136 @@ function normalizeLiveResponse(data) {
   });
 }
 
-async function buildStoryboard() {
-  const script = els.script.value.trim();
-  if (!script) {
-    els.script.focus();
-    els.footer.textContent = "Paste a script before building the storyboard";
-    return;
-  }
-  if (script.length < 40) {
-    els.footer.textContent = "Add a little more narration so the scene planner has enough context";
-    return;
-  }
+function rememberRequest(id) {
+  try { localStorage.setItem("storyboardLastRequestId", id); } catch {}
+}
 
-  els.build.disabled = true;
-  els.buildLabel.textContent = "Planning scenes…";
-  els.progress.hidden = false;
-  els.progressCopy.textContent = "Sending script to the storyboard workflow…";
-  els.progressValue.textContent = "18%";
-  els.progressFill.style.width = "18%";
-  els.progressFill.style.background = "";
-  els.footer.textContent = "Connecting to the saved n8n workflow";
+function showWorkflowError(error) {
+  const message = error instanceof Error ? error.message : String(error);
+  els.footer.textContent = message;
+  els.noticeCopy.innerHTML = "<strong>Workflow message.</strong> " + escapeHtml(message);
+  els.notice.classList.add("is-error");
+  els.notice.hidden = false;
+}
 
-  try {
-    if (liveWebhook) {
-      els.progressValue.textContent = "38%";
-      els.progressFill.style.width = "38%";
-      const response = await fetch(liveWebhook, {
-        method: "POST",
-        // text/plain is a CORS-safelisted content type, so the browser sends
-        // the POST directly instead of failing on an OPTIONS preflight.
-        headers: { "Content-Type": "text/plain;charset=UTF-8" },
-        body: JSON.stringify({ script, maxScenes: requestedScenes, aspectRatio: "16:9" }),
-      });
-      const responseText = await response.text();
-      let data;
-      try {
-        data = responseText ? JSON.parse(responseText) : null;
-      } catch {
-        const snippet = responseText.slice(0, 180).replace(/\s+/g, " ").trim();
-        throw new Error("The workflow returned an unreadable response (HTTP " + response.status + "). " + (snippet ? "Response: " + snippet : ""));
-      }
-      if (!response.ok && !Array.isArray(data?.scenes)) {
-        const responseError = typeof data?.error === "string" ? data.error : data?.error?.message;
-        throw new Error(responseError || "n8n responded with status " + response.status + ".");
-      }
-      currentScenes = normalizeLiveResponse(data);
-      const failedScenes = currentScenes.filter((scene) => scene.imageStatus === "failed");
-      const failureMessage = (typeof data?.error === "string" ? data.error : data?.error?.message)
-        || failedScenes[0]?.error
-        || "One or more images could not be generated.";
-      els.progressValue.textContent = "100%";
-      els.progressFill.style.width = "100%";
-      if (failedScenes.length) {
-        els.progressCopy.textContent = "Storyboard planned; image generation failed";
-        els.progressFill.style.background = "#bd5145";
-        els.subtitle.textContent = "The workflow planned the scenes, but the image provider did not return every frame.";
-        els.mode.textContent = "IMAGE ACCESS NEEDED";
-        els.footer.textContent = failureMessage;
-        els.noticeCopy.innerHTML = "<strong>Image generation failed.</strong> " + escapeHtml(failureMessage);
-        els.notice.classList.add("is-error");
-        els.notice.hidden = false;
-      } else {
-        els.progressCopy.textContent = "Frames returned from n8n";
-        els.progressFill.style.background = "";
-        els.subtitle.textContent = "Live response from your n8n workflow.";
-        els.mode.textContent = "N8N CONNECTED";
-        els.footer.textContent = currentScenes.length + " scene frames returned · review before sharing";
-        els.notice.classList.remove("is-error");
-        els.notice.hidden = true;
-      }
-    } else {
-      await new Promise((resolve) => setTimeout(resolve, 450));
-      els.progressValue.textContent = "62%";
-      els.progressFill.style.width = "62%";
-      els.progressCopy.textContent = "Arranging the storyboard preview…";
-      await new Promise((resolve) => setTimeout(resolve, 350));
-      currentScenes = deriveLocalScenes(script, requestedScenes);
-      els.progressValue.textContent = "100%";
-      els.progressFill.style.width = "100%";
-      els.progressCopy.textContent = "Preview ready";
-      els.subtitle.textContent = "Local style preview built from the pasted script.";
-      els.footer.textContent = "Local demo mode · no model call or image charge";
+async function followStoryboard(requestId) {
+  let failures = 0;
+  let previousSceneSignature = "";
+  for (let attempt = 0; attempt < 150; attempt++) {
+    let data;
+    try {
+      data = await window.storyboardWorkflow.status(requestId);
+      failures = 0;
+    } catch (error) {
+      failures++;
+      els.progressCopy.textContent = "Waiting for n8n to reconnect. Your batch is saved…";
+      if (failures >= 5) throw new Error("n8n is unavailable. Click Resume saved batch to recover this job without generating again.");
+      await new Promise(resolve => window.setTimeout(resolve, 6000));
+      continue;
     }
-    renderScenes();
-    document.getElementById("step-3").classList.add("is-current");
-    document.getElementById("step-2").classList.add("is-done");
-    window.setTimeout(() => { els.progress.hidden = true; }, 1300);
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    currentScenes = [{
-      id: "workflow-error",
-      title: "Storyboard unavailable",
-      narration: script.slice(0, 190),
-      imageStatus: "failed",
-      error: errorMessage || "The workflow request failed.",
-      source: "live",
-    }];
-    renderScenes();
-    els.progressCopy.textContent = "Workflow request failed";
-    els.progressValue.textContent = "!";
-    els.progressFill.style.width = "100%";
-    els.progressFill.style.background = "#bd5145";
-    els.subtitle.textContent = "The workflow could not return a usable storyboard response.";
-    els.mode.textContent = "WORKFLOW ERROR";
-    els.footer.textContent = errorMessage || "Connection failed";
-    els.noticeCopy.innerHTML = "<strong>Workflow error.</strong> " + escapeHtml(errorMessage || "Connection failed.");
-    els.notice.classList.add("is-error");
-    els.notice.hidden = false;
-  } finally {
-    els.build.disabled = false;
+    activeRequestId = data.requestId || requestId;
+    if (Array.isArray(data.scenes) && data.scenes.length) {
+      const signature = JSON.stringify(data.scenes);
+      if (signature !== previousSceneSignature) {
+        currentScenes = normalizeLiveResponse(data);
+        renderScenes();
+        previousSceneSignature = signature;
+      }
+    }
+    const completed = data.completedCount || 0;
+    const count = data.sceneCount || requestedScenes;
+    const percent = data.status === "queued" ? 5 : data.status === "planning" ? 15 : Math.min(95, 25 + Math.round(70 * completed / count));
+    els.progressValue.textContent = percent + "%";
+    els.progressFill.style.width = percent + "%";
+    els.progressCopy.textContent = data.status === "planning" ? "Studying Fred’s reference images and planning scenes…" : data.status === "queued" ? "Your storyboard is queued…" : completed + " of " + count + " images ready · generating with reference images";
+    els.footer.textContent = "Saved batch · " + completed + " of " + count + " images ready";
+    if (["completed", "partial", "failed"].includes(data.status)) {
+      els.progressValue.textContent = "100%";
+      els.progressFill.style.width = "100%";
+      els.mode.textContent = data.status === "completed" ? "N8N CONNECTED" : "REVIEW REQUIRED";
+      els.subtitle.textContent = "Storyboard and images from your n8n workflow.";
+      els.progressCopy.textContent = completed + " of " + count + " images ready";
+      const failed = currentScenes.find(scene => scene.imageStatus === "failed");
+      if (data.status !== "completed") showWorkflowError(data.error || failed?.error || "Some frames did not finish. Check the workflow execution before retrying.");
+      else {
+        els.notice.hidden = true;
+        els.footer.textContent = "All " + count + " images ready · review the style and download the workflow CSV";
+      }
+      document.getElementById("step-3").classList.add("is-current");
+      document.getElementById("step-2").classList.add("is-done");
+      return;
+    }
+    await new Promise(resolve => window.setTimeout(resolve, 4000));
+  }
+  throw new Error("This batch is taking longer than expected. Resume the saved batch to check its progress without paying for a new run.");
+}
+
+async function recoverStoryboard(id) {
+  if (isBuilding) return;
+  isBuilding = true;
+  activeRequestId = id;
+  els.build.disabled = true;
+  els.buildLabel.textContent = "Loading saved batch…";
+  els.progress.hidden = false;
+  els.grid.setAttribute("aria-busy", "true");
+  try {
+    await followStoryboard(id);
     els.buildLabel.textContent = "Build storyboard";
+    els.build.dataset.resume = "";
+  } catch (error) {
+    showWorkflowError(error);
+    els.buildLabel.textContent = "Resume saved batch";
+    els.build.dataset.resume = id;
+  } finally {
+    isBuilding = false;
+    els.build.disabled = false;
+    els.grid.setAttribute("aria-busy", "false");
+  }
+}
+
+async function buildStoryboard() {
+  if (els.build.dataset.resume) return recoverStoryboard(els.build.dataset.resume);
+  const script = els.script.value.trim();
+  if (script.length < 40 || script.length > 30000) {
+    els.script.setAttribute("aria-invalid", "true");
+    els.script.focus();
+    showWorkflowError("Paste between 40 and 30,000 characters of narration.");
+    return;
+  }
+  els.script.removeAttribute("aria-invalid");
+  if (isBuilding) return;
+  isBuilding = true;
+  let submitted = false;
+  els.build.disabled = true;
+  els.buildLabel.textContent = "Planning your storyboard…";
+  els.grid.setAttribute("aria-busy", "true");
+  els.progress.hidden = false;
+  els.progressFill.style.background = "";
+  els.progressFill.style.width = "5%";
+  els.progressCopy.textContent = "Starting a saved storyboard job…";
+  els.notice.hidden = true;
+  try {
+    let capabilities;
+    try { capabilities = await window.storyboardWorkflow.ready(); }
+    catch { throw new Error("The updated n8n workflow is unavailable or has not been published yet. No image-generation request was sent."); }
+    if (capabilities.workflowVersion !== "fred-visual-v3") throw new Error("The workflow needs its current version published before this UI can generate. No image-generation request was sent.");
+    activeRequestId = "story-" + crypto.randomUUID();
+    rememberRequest(activeRequestId);
+    currentScenes = [];
+    renderScenes();
+    submitted = true;
+    await window.storyboardWorkflow.start(script, requestedScenes, activeRequestId);
+    await followStoryboard(activeRequestId);
+    els.buildLabel.textContent = "Build storyboard";
+    els.build.dataset.resume = "";
+  } catch (error) {
+    showWorkflowError(error);
+    els.buildLabel.textContent = submitted ? "Resume saved batch" : "Build storyboard";
+    els.build.dataset.resume = submitted ? activeRequestId : "";
+  } finally {
+    isBuilding = false;
+    els.build.disabled = false;
+    els.grid.setAttribute("aria-busy", "false");
   }
 }
 
@@ -378,37 +308,23 @@ function downloadBlob(blob, filename) {
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-function downloadFrame(scene, index) {
-  if (scene.imageStatus === "failed" || (scene.source === "live" && !scene.imageData)) return;
-  if (scene.imageData) {
-    const link = document.createElement("a");
-    link.href = scene.imageData;
-    link.download = "fred-storyboard-scene-" + String(index + 1).padStart(2, "0") + ".png";
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    return;
-  }
-  const markup = artSvg(scene.art || ["phone", "tingle", "eye", "spark"][index % 4], index);
-  downloadBlob(new Blob([markup], { type: "image/svg+xml;charset=utf-8" }), "fred-storyboard-scene-" + String(index + 1).padStart(2, "0") + ".svg");
+async function downloadFrame(scene, index) {
+  if (scene.imageStatus !== "completed") return;
+  const blob = await window.storyboardWorkflow.image(scene.requestId || activeRequestId, scene.id);
+  const extension = blob.type.includes("jpeg") ? "jpg" : "png";
+  downloadBlob(blob, "fred-storyboard-scene-" + String(index + 1).padStart(2, "0") + "." + extension);
 }
 
-function exportPlan() {
-  const payload = {
-    title: "Fred's storyboard preview",
-    createdAt: new Date().toISOString(),
-    mode: liveWebhook ? "n8n" : "local-demo",
-    styleGuide: "Flat 2D cartoon; loose bold black outlines; simple friendly faces; solid color fills; no text in image.",
-    scenes: currentScenes.map((scene, index) => ({
-      sceneNumber: index + 1,
-      id: scene.id,
-      title: scene.title,
-      narration: scene.narration,
-      imagePrompt: scene.prompt,
-      feedback: feedback[scene.id] || null,
-    })),
-  };
-  downloadBlob(new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" }), "fred-storyboard-plan.json");
+async function exportPlan() {
+  const button = document.getElementById("export-plan");
+  button.disabled = true;
+  els.footer.textContent = "Creating Fred’s storyboard CSV in n8n…";
+  try {
+    const blob = await window.storyboardWorkflow.csv(activeRequestId);
+    downloadBlob(blob, "fred-storyboard-" + activeRequestId + ".csv");
+    els.footer.textContent = "Storyboard CSV downloaded from n8n · 8 columns in Fred’s format";
+  } catch (error) { showWorkflowError(error); }
+  finally { button.disabled = !currentScenes.length; }
 }
 
 document.getElementById("load-sample").addEventListener("click", () => {
@@ -423,11 +339,18 @@ document.getElementById("scene-minus").addEventListener("click", () => {
   els.sceneCount.textContent = requestedScenes;
 });
 document.getElementById("scene-plus").addEventListener("click", () => {
-  requestedScenes = Math.min(3, requestedScenes + 1);
+  requestedScenes = Math.min(5, requestedScenes + 1);
   els.sceneCount.textContent = requestedScenes;
 });
 els.build.addEventListener("click", buildStoryboard);
-document.getElementById("download-all").addEventListener("click", () => currentScenes.forEach((scene, index) => window.setTimeout(() => downloadFrame(scene, index), index * 180)));
+document.getElementById("download-all").addEventListener("click", async () => {
+  els.downloadAll.disabled = true;
+  try {
+    for (let index = 0; index < currentScenes.length; index++) await downloadFrame(currentScenes[index], index);
+    els.footer.textContent = "Available images downloaded from n8n";
+  } catch (error) { showWorkflowError(error); }
+  finally { renderScenes(); }
+});
 document.getElementById("export-plan").addEventListener("click", exportPlan);
 document.getElementById("send-drive").addEventListener("click", () => els.message.showModal());
 document.getElementById("dismiss-notice").addEventListener("click", () => { document.getElementById("notice-bar").hidden = true; });
@@ -435,28 +358,57 @@ els.themeToggle.addEventListener("click", () => {
   setTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark", true);
 });
 
-els.grid.addEventListener("click", (event) => {
-  const ratingButton = event.target.closest("[data-rating]");
-  if (ratingButton) {
-    const id = ratingButton.dataset.id;
-    const rating = ratingButton.dataset.rating;
-    feedback[id] = { ...(feedback[id] || {}), rating, updatedAt: new Date().toISOString() };
-    saveFeedback();
+els.grid.addEventListener("click", async event => {
+  const target = event.target.closest("[data-rating], [data-save-comment], [data-download-scene], [data-retry-image]");
+  if (!target) return;
+  const id = target.dataset.id || target.dataset.saveComment || target.dataset.downloadScene || target.dataset.retryImage;
+  const scene = currentScenes.find(item => item.id === id);
+  if (!scene) return;
+  if (target.dataset.retryImage) {
+    scene.imageLoadError = false;
+    scene.imageData = scene.imageUrl + "&reload=" + Date.now();
     renderScenes();
     return;
   }
-  const saveButton = event.target.closest("[data-save-comment]");
-  if (saveButton) {
-    const id = saveButton.dataset.saveComment;
+  target.disabled = true;
+  try {
+    if (target.dataset.downloadScene) return await downloadFrame(scene, currentScenes.indexOf(scene));
+    const key = feedbackKey(scene);
+    const previous = feedback[key] || {};
     const field = els.grid.querySelector('[data-comment="' + CSS.escape(id) + '"]');
-    feedback[id] = { ...(feedback[id] || {}), rating: "down", comment: field ? field.value.trim() : "", updatedAt: new Date().toISOString() };
-    saveFeedback();
+    feedback[key] = { ...previous, rating: target.dataset.rating || previous.rating || "down", comment: field ? field.value.trim() : previous.comment || "", updatedAt: new Date().toISOString() };
+    await saveFeedback(scene);
     renderScenes();
-  }
+  } catch (error) { showWorkflowError(error); }
+  finally { target.disabled = false; }
 });
 
+els.grid.addEventListener("input", event => {
+  const id = event.target.dataset.comment;
+  const scene = currentScenes.find(item => item.id === id);
+  if (!scene) return;
+  const key = feedbackKey(scene);
+  feedback[key] = { ...(feedback[key] || {}), comment: event.target.value };
+});
+
+els.grid.addEventListener("error", event => {
+  if (!(event.target instanceof HTMLImageElement)) return;
+  const id = event.target.closest("[data-scene-id]")?.dataset.sceneId;
+  const scene = currentScenes.find(item => item.id === id);
+  if (!scene || scene.imageLoadError) return;
+  scene.imageLoadError = true;
+  scene.error = "The saved image is ready, but n8n did not serve it. Reload the image when the host is available.";
+  renderScenes();
+}, true);
+
 els.mode.textContent = "N8N WORKFLOW";
+els.sceneCount.textContent = requestedScenes;
+els.notice.hidden = true;
 setTheme(document.documentElement.dataset.theme);
 els.script.value = SAMPLE_SCRIPT;
 updateCount();
 renderScenes();
+try {
+  const saved = localStorage.getItem("storyboardLastRequestId");
+  if (saved) recoverStoryboard(saved);
+} catch {}

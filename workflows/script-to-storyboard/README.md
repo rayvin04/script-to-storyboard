@@ -1,3 +1,5 @@
+> Current implementation: see [Agent workflow v3](../../docs/agent-workflow-v3.md). The notes below include historical v2.1 status.
+
 # Script to Storyboard Paid Demo
 
 This folder documents the n8n workflow behind Fred's script-to-storyboard demo. The live n8n workflow is **Script to Image Paid Demo**, ID `rV2JjknCieGGXRNL`.

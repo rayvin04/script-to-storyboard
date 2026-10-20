@@ -87,42 +87,42 @@
             </div>
 
             <label class="field-label" for="script-input">Paste script or narration</label>
-            <textarea id="script-input" maxlength="40000" spellcheck="true" aria-describedby="script-help script-count" placeholder="Paste a script here. The planner will group it into clear visual beats."></textarea>
+            <textarea id="script-input" maxlength="30000" spellcheck="true" aria-describedby="script-help script-count" placeholder="Paste a script here. The planner will group it into clear visual beats."></textarea>
             <div class="field-meta">
-              <span id="script-help">Tip: keep the narration; scene beats can be edited after.</span>
-              <span id="script-count">0 / 40,000</span>
+              <span id="script-help">Tip: paste narration in order; the planner selects five visual beats.</span>
+              <span id="script-count">0 / 30,000</span>
             </div>
 
             <div class="control-row">
               <label for="scene-count">Preview scenes</label>
               <div class="stepper">
                 <button id="scene-minus" type="button" aria-label="Show fewer scenes">−</button>
-                <output id="scene-count" for="scene-minus scene-plus">1</output>
+                <output id="scene-count" for="scene-minus scene-plus">5</output>
                 <button id="scene-plus" type="button" aria-label="Show more scenes">+</button>
               </div>
             </div>
-            <p class="control-note">Small batches keep the first review quick and the image spend predictable.</p>
+            <p class="control-note">Five scenes per demo. Use fewer scenes for a smaller paid test.</p>
 
             <div class="style-lock">
               <div class="style-lock-top">
                 <span class="style-lock-icon" aria-hidden="true">✦</span>
                 <div>
                   <p class="section-kicker">STYLE GUIDE</p>
-                  <strong>Professor cartoon look</strong>
+                  <strong>Fred’s reference style</strong>
                 </div>
                 <span class="lock-label">LOCKED</span>
               </div>
               <div class="style-tags">
                 <span>flat 2D</span><span>bold ink</span><span>simple faces</span>
               </div>
-              <p class="style-description">Bright solid colors, loose black outlines, clear single-action compositions, and no baked-in lettering.</p>
+              <p class="style-description">Fred’s actual character and room images guide the line work, proportions, palette, and composition.</p>
             </div>
 
             <button class="primary-button" id="build-button" type="button">
               <span id="build-button-label">Build storyboard</span>
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6" /></svg>
             </button>
-            <p class="privacy-note"><span aria-hidden="true">◉</span> OpenRouter generates images only. Start with one scene to keep costs predictable.</p>
+            <p class="privacy-note"><span aria-hidden="true">◉</span> Flare generates images only · low quality · approved visual references attached.</p>
           </aside>
 
           <section class="board-panel panel" aria-labelledby="board-title">
@@ -156,16 +156,16 @@
 
             <div class="notice-bar" id="notice-bar" role="status">
               <span class="notice-mark" aria-hidden="true">✦</span>
-              <span id="notice-copy"><strong>Style preview.</strong> These sample panels are illustrative SVGs; no image model has run yet.</span>
+              <span id="notice-copy"><strong>Reference-guided storyboards.</strong> n8n handles the scene plan, images, reviews, and CSV download.</span>
               <button id="dismiss-notice" type="button" aria-label="Dismiss note">×</button>
             </div>
 
             <div class="frame-grid" id="frame-grid" aria-live="polite"></div>
 
             <div class="board-footer">
-              <div class="footer-status"><span class="status-dot"></span><span id="footer-status-copy">Preview ready · feedback stays in this browser</span></div>
+              <div class="footer-status"><span class="status-dot"></span><span id="footer-status-copy">Paste a script to create your five-scene storyboard</span></div>
               <button class="export-button" id="export-plan" type="button">
-                Export scene plan
+                Download storyboard CSV
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v11m0 0 4-4m-4 4-4-4M4 16v4h16v-4" /></svg>
               </button>
             </div>
@@ -189,10 +189,11 @@
       <form method="dialog" class="dialog-close-form"><button class="icon-button" value="cancel" aria-label="Close message">×</button></form>
       <span class="message-icon" aria-hidden="true">✦</span>
       <h2 id="message-title">Drive export is next</h2>
-      <p id="message-copy">This first prototype keeps feedback and previews in your browser. The next phase can add Google Drive delivery for the editing team.</p>
+      <p id="message-copy">Your scene ratings and comments are saved in n8n. Shared Drive delivery and the editing-team notification are still being built.</p>
       <form method="dialog"><button class="primary-button dialog-save" value="ok">Got it</button></form>
     </dialog>
 
+    <script src="./workflow-api.js"></script>
     <script src="./app.js"></script>
   </body>
 </html>

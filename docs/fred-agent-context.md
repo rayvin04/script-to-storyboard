@@ -1,3 +1,5 @@
+> Current implementation: see [Agent workflow v3](agent-workflow-v3.md). The notes below include historical v2.1 status.
+
 # Fred's Script-to-Storyboard Demo — Agent Context
 
 ## Purpose

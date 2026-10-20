@@ -1,47 +1,47 @@
-# Fred's Script-to-Storyboard Demo
+# Fred’s Script-to-Storyboard Demo
 
-A static, cartoon-inspired storyboard UI prototype for Fred's YouTube production workflow. The first pass supports local script previews, sample scene cards, per-scene feedback, image downloads, and scene-plan export.
+A five-scene demo for Fred’s YouTube animation workflow. The priority is his actual drawing style and scene language: script → consecutive storyboard beats → reference-guided images → human review.
 
-## Current prototype status
+## Current work
 
-- The UI is wired to one persistent n8n production webhook in `public/app.js`. The webhook URL is part of the code, so users do not need to paste or save it in the browser.
-- Use the stable Vercel URL [`https://script-to-storyboard-six.vercel.app`](https://script-to-storyboard-six.vercel.app). The project-specific deployment preview URL may require Vercel sign-in.
-- The browser sends `{ "script": "...", "maxScenes": 1, "aspectRatio": "16:9" }` to the production webhook. It uses a CORS-safelisted `text/plain` request body; the n8n workflow parses the JSON body and responds with a `scenes` array.
-- The local n8n export is configured for `openai/gpt-5-mini` scene planning through Vercel AI Gateway and `openai/gpt-image-2.5-flare` image generation through OpenRouter's dedicated Images API at low quality. OpenRouter is reserved for image generation only. The connected n8n host returned HTTP 503 during the latest check, so the active published version and image result still need verification: [open workflow](https://n8n-rayv-742595626609.herokuapp.com/workflow/rV2JjknCieGGXRNL).
-- The n8n export is stored separately in [`workflows/script-to-storyboard/`](workflows/script-to-storyboard/). The export stays inactive when imported; confirm the connected instance's published production version before using the paid image path.
-- Provider credentials stay in n8n. No API key is stored in this repository or frontend. The workflow uses Vercel for text planning and the saved OpenRouter credential for image generation.
-- The production webhook accepts requests from the stable Vercel app origin. CORS only limits browser origins; it is not caller authentication. Before wider public use, add a server-side proxy with authentication and rate limits to protect the image-generation budget.
-- The workflow returns per-scene success/failure states. Shared feedback storage, Google Drive delivery, notifications, and retrieval over previous feedback are later phases.
-- The UI preserves backend failure messages and renders an explicit failed-frame card; it no longer substitutes a local style preview when a live image request fails.
-- Ratings remain in that browser's local storage; they are not shared with a team database.
-- Google Drive delivery is a later-phase placeholder.
+The current implementation is documented in [Agent workflow v3](docs/agent-workflow-v3.md). All generation, progress, image delivery, shared feedback and CSV-download routes belong to the same n8n workflow (`rV2JjknCieGGXRNL`).
 
-## Run locally
+The live 77-node draft was saved and validated. The latest local export has 78 nodes, adding a missing-review guard and a no-charge readiness check; those final refinements still need synchronization. Execution `2024` started a one-image test, but Heroku returned HTTP 503 before its result could be inspected. The new draft has not been published, so live image generation and reference fidelity remain unverified. Inspect that saved run before spending on another test.
 
-From the repository root, run:
+The UI defaults to five scenes, shows actual saved images instead of local sample drawings, polls background-job progress, supports image downloads and shared ratings/comments, and downloads a CSV created inside n8n. Its readiness check prevents a generation request from being sent to an older published workflow.
 
-```powershell
-python -m http.server 8000 --directory public
-```
+Stable production URL: [script-to-storyboard-six.vercel.app](https://script-to-storyboard-six.vercel.app/). A deployment-specific URL is a fixed snapshot; use the stable alias after the current workflow and UI release have been verified.
 
-Then open `http://localhost:8000`.
+## Workflow architecture
 
-## Deploy on Vercel
+- The planning AI Agent studies two actual approved Drive image binaries and retrieves Fred’s style brief, CSV examples and saved art reviews.
+- A structured JSON parser enforces the storyboard fields.
+- A scene art director AI Agent calls its connected Flare image tool once per scene. That tool enters the image-only branch of the SAME workflow.
+- OpenRouter is used only for `openai/gpt-image-2.5-flare` image generation at low quality. Text planning/reasoning use the existing Vercel text model.
+- The image branch sends actual reference bytes through OpenRouter’s dedicated Images API, creates an n8n binary preview, saves the result, and returns a small receipt to the Agent.
+- The browser receives HTTP 202 quickly and polls for results. This avoids keeping a generation request open beyond Heroku’s 30-second router timeout.
+- Ratings/comments are stored in the shared n8n Feedback table and can inform later Agent prompts. They do not train the model.
+- The CSV route creates Fred’s eight columns in n8n, quotes commas/newlines correctly, and supports Excel. Unknown timings stay blank.
 
-Import this repository in Vercel and use these project settings:
-
-- Framework Preset: **Other**
-- Build Command: leave blank
-- Output Directory: `public`
-- Root Directory: repository root
-
-The app is plain HTML, CSS, and JavaScript, so it does not need a build step. The `docs/` and `scripts/` folders stay outside the deployed output; only `public/` is served. See [Vercel's static build guidance](https://vercel.com/docs/builds/configure-a-build).
-
-After deployment, the UI already targets the production webhook. Keep provider credentials in n8n, never in frontend files. The first workflow uses synchronous image generation, so the UI request remains open until the scene batch completes.
+Google Drive delivery and the editing-team notification remain marked **LATER**. Image data currently uses n8n Data Tables for this small demo; regular production use needs durable object storage, authentication, rate limits and transactional job locking.
 
 ## Project files
 
-- `public/` — static web UI served by Vercel.
-- `docs/Freds_Storyboard_Analysis.docx` — human-readable source and architecture analysis.
-- `docs/fred-agent-context.md` — compact project context for an AI agent.
-- `scripts/build_report.py` — source used to generate the DOCX report.
+- `public/` — static Vercel UI; `workflow-api.js` contains the fixed workflow routes. No provider secrets belong here.
+- `workflows/script-to-storyboard/workflow.json` — complete n8n export, inactive on import.
+- `workflows/script-to-storyboard/workflow.sdk.ts` — generated SDK graph for validation.
+- `scripts/build_agent_workflow.py` — reproducible workflow/export builder.
+- `scripts/check_storyboard_workflow.mjs` — local functional checks; makes no provider calls.
+- `docs/agent-workflow-v3.md` — current architecture, verified status and remaining work.
+- `docs/fred-agent-context.md` and `docs/fred-style-guide.md` — reference analysis and Agent context.
+- `docs/Freds_Storyboard_Analysis.docx` — earlier human-readable reference analysis; consult the v3 addendum for current implementation status.
+
+## Local checks
+
+```powershell
+node --check public/app.js
+node --check public/workflow-api.js
+node scripts/check_storyboard_workflow.mjs
+```
+
+Serve `public/` with a static server to inspect the UI. It still uses the saved n8n routes; no webhook URL entry is required. The Vercel project uses Framework Preset **Other** and Output Directory `public`. `.vercelignore` excludes workflow/docs/scripts and environment files from uploads. Keep all model credentials in n8n.
