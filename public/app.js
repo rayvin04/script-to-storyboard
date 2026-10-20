@@ -30,7 +30,7 @@ const els = {
   deferredCopy: $("deferred-copy"),
   themeToggle: $("theme-toggle")
 };
-const state = { busy: false, images: [], storyboardCsv: "" };
+const state = { busy: false, images: [], imageObjectUrls: [], storyboardCsv: "" };
 
 function setTheme(theme, persist) {
   document.documentElement.dataset.theme = theme;
@@ -81,6 +81,8 @@ function setBusy(isBusy) {
 }
 
 function clearResults() {
+  state.imageObjectUrls.forEach(url => URL.revokeObjectURL(url));
+  state.imageObjectUrls = [];
   state.images = [];
   state.storyboardCsv = "";
   els.imageGrid.querySelectorAll(".image-card").forEach(card => card.remove());
@@ -115,11 +117,11 @@ function createImageCard(image, index) {
   scenes.textContent = sceneLabel(image.sceneNumbers);
   top.append(label, scenes);
 
-  const preview = document.createElement(image.imageData ? "figure" : "div");
-  preview.className = image.imageData ? "image-card-art" : "image-card-failure";
-  if (image.imageData) {
+  const preview = document.createElement(image.previewUrl ? "figure" : "div");
+  preview.className = image.previewUrl ? "image-card-art" : "image-card-failure";
+  if (image.previewUrl) {
     const img = document.createElement("img");
-    img.src = image.imageData;
+    img.src = image.previewUrl;
     img.alt = "Generated cartoon background for " + sceneLabel(image.sceneNumbers).toLowerCase();
     img.loading = "eager";
     preview.appendChild(img);
@@ -137,9 +139,26 @@ function createImageCard(image, index) {
 
 function appendImage(image) {
   els.emptyState.hidden = true;
-  state.images.push(image);
-  els.imageGrid.appendChild(createImageCard(image, state.images.length - 1));
-  const successfulImages = state.images.filter(item => item.imageData).length;
+  const storedImage = { ...image };
+  if (typeof storedImage.imageData === "string" && storedImage.imageData.startsWith("data:image/")) {
+    const separator = storedImage.imageData.indexOf(",");
+    if (separator < 0) throw new Error("The workflow returned an invalid image data URL.");
+    const header = storedImage.imageData.slice(0, separator);
+    const mimeType = header.match(/^data:([^;]+);base64$/i)?.[1] || storedImage.mimeType || "image/png";
+    const encoded = storedImage.imageData.slice(separator + 1);
+    const binary = atob(encoded);
+    const bytes = new Uint8Array(binary.length);
+    for (let offset = 0; offset < binary.length; offset += 32768) {
+      const end = Math.min(offset + 32768, binary.length);
+      for (let index = offset; index < end; index += 1) bytes[index] = binary.charCodeAt(index);
+    }
+    storedImage.previewUrl = URL.createObjectURL(new Blob([bytes], { type: mimeType }));
+    state.imageObjectUrls.push(storedImage.previewUrl);
+    delete storedImage.imageData;
+  }
+  state.images.push(storedImage);
+  els.imageGrid.appendChild(createImageCard(storedImage, state.images.length - 1));
+  const successfulImages = state.images.filter(item => item.previewUrl).length;
   els.resultCount.textContent = successfulImages + " / " + MAX_BACKGROUND_IMAGES;
 }
 
@@ -149,6 +168,11 @@ function validatePlan(plan) {
   }
   if (typeof plan.storyboardCsv !== "string" || !plan.storyboardCsv) {
     throw new Error("The planner response did not include the storyboard CSV data.");
+  }
+  const expectedHeader = '"Scene","Timestamp","Voiceover","What\'s happening","Background","Hand-drawn characters & props","On-screen text","Transitions/Motion"';
+  const actualHeader = plan.storyboardCsv.split(/\r?\n/, 1)[0];
+  if (actualHeader !== expectedHeader) {
+    throw new Error("The planner returned a CSV with unexpected columns. No background images were generated.");
   }
   if (plan.backgrounds.length === 0) {
     throw new Error("The storyboard did not contain any usable Background descriptions. Check the planner's Background column.");
@@ -213,7 +237,8 @@ async function generateFromScript(event) {
 
     els.resultSummary.textContent =
       "Storyboard planned: " + sceneCount + " scene beats · " +
-      totalUnique + " distinct backgrounds. Generating the first " + targetImages.length + " one by one.";
+      totalUnique + " distinct backgrounds. Generating " + targetImages.length +
+      " selected across the full storyboard, one by one.";
     if (deferred > 0) {
       els.deferredNote.hidden = false;
       els.deferredCopy.textContent = totalUnique + " unique settings were identified. This run creates " +

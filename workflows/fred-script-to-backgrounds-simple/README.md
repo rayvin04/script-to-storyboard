@@ -16,7 +16,7 @@ The two internal request types are intentional: `action: "plan"` is always the f
 {"action":"plan","script":"Paste the complete voiceover script here..."}
 ```
 
-The planner reads the external `Planner Context` tab once, ranks example CSV rows, and uses Vercel AI Gateway `openai/gpt-5-mini` with a structured parser. It returns the full eight-column `storyboardCsv`, counts, and up to 10 background objects with IDs, linked scene numbers, and background descriptions. It does not duplicate the scene array in the response. The UI focuses on background progress/images and offers a storyboard CSV download; planning does not call the image model.
+The planner reads the external `Planner Context` tab once, ranks and selects four rows from each example CSV, passes only approved environment metadata from the Drive index, and uses Vercel AI Gateway `openai/gpt-5-mini` with a structured parser. It returns the full eight-column `storyboardCsv`, counts, and up to 10 background objects with IDs, linked scene numbers, and background descriptions. It checks that the ordered Voiceover rows contain every word of the submitted script before returning the CSV; incomplete plans return a clear error and create no images. It does not duplicate the scene array in the response. The UI focuses on background progress/images and offers a storyboard CSV download; planning does not call the image model.
 
 ### Generate one background image
 
@@ -32,7 +32,7 @@ The workflow reads the `Planner Context` tab in [Fred Storyboard Style and Refer
 
 ## Guardrails
 
-- Full storyboard and CSV first; image count is capped at 10 unique Background values.
+- Full storyboard and CSV first; every script word is checked for coverage, and image count is capped at 10 unique Background values.
 - Browser loop is sequential; one image per n8n execution.
 - Only the `Background` field supplies scene-specific image content.
 - No characters, animals, body parts, movable props, text, diagrams, logos, or motion are generated.
@@ -42,6 +42,13 @@ The workflow reads the `Planner Context` tab in [Fred Storyboard Style and Refer
 When there are more than 10 distinct settings, the planner samples evenly across the complete scene sequence rather than taking only the opening scenes. Any remaining unique settings are counted as deferred. The workflow disables successful-execution payload storage so large base64 images are not retained in n8n execution history.
 
 The published graph is authoritative. Import snapshots should be inactive to avoid registering a duplicate webhook. Reconnect saved credentials in n8n after importing on another instance.
+
+## Live Verification
+
+- The current published graph is active as version `6d6ac00c-1875-43c6-856e-6c08f2a63b68` with 24 nodes.
+- Image execution `2557` succeeded: it downloaded the approved Drive style reference, called OpenRouter `openai/gpt-image-2.5-flare`, and returned `imageData` for the UI.
+- Planner execution `2563` crashed before a workflow node ran. Heroku recorded R14 at roughly 601 MB against the 512 MB dyno. A follow-up plan execution `2564` started, then the host returned HTTP 503 before its status could be read.
+- The full plan-to-image journey has not passed end-to-end yet. The image branch is verified; the planner is blocked by Heroku memory pressure. The user-approved hosting cap is `$13/month`; do not raise the plan because the next Heroku dyno with 1 GB RAM is listed at `$50/month`.
 
 ## UI Connection and Timeouts
 

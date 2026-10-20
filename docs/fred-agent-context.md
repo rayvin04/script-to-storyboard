@@ -15,7 +15,7 @@ Updated 20 October 2026. This is the current implementation brief for agents wor
 
 - n8n workflow: **Fred Script-to-Backgrounds — Simple**, ID `QRPeaK5ayX9ZC5Zx` ([open in n8n](https://n8n-rayv-742595626609.herokuapp.com/workflow/QRPeaK5ayX9ZC5Zx)).
 - One production webhook: `POST /webhook/fred-image-generation-stage-1`.
-- `{"action":"plan","script":"..."}` validates one full script, reads the external reference tab once, plans all storyboard scenes, and returns all scene rows, Fred-format CSV data, at most 10 distinct backgrounds, and counts.
+- `{"action":"plan","script":"..."}` validates one full script, reads the external reference tab once, plans all storyboard scenes, and returns Fred-format CSV data, at most 10 selected distinct backgrounds, and counts. It does not duplicate every scene as JSON in the response.
 - `{"action":"image","background":"...","backgroundId":"BG001","sceneNumbers":[1]}` makes one image. The browser waits for that result before sending the next image request to the same webhook.
 - The browser always runs plan first, then image requests in order from the returned storyboard. The `action` field is an internal stage marker; the user submits one script and does not choose a mode.
 - Text planning uses Vercel AI Gateway `openai/gpt-5-mini` and the structured storyboard parser. GPT Image 2.5 Flare is used **only** for image generation through OpenRouter’s Images API, at low quality, 16:9, `n: 1`.
@@ -25,7 +25,7 @@ Updated 20 October 2026. This is the current implementation brief for agents wor
 
 The read-only tab `Planner Context` is in the external workbook [Fred Storyboard Style and Reference Index](https://docs.google.com/spreadsheets/d/1RL7C_3kg7Ua47R7BnQFi4YvsgDyecIQS7yi1uCAT-gg/edit). It consolidates the two CSV examples, style guide, and Drive reference index so the planner makes one Sheets read per script.
 
-Its columns are `recordType`, `source`, and `payloadJson`. It currently has 17 style guide records, 18 reference-index records, 81 rows from example 01, and 166 rows from example 03. The workflow ranks the examples against the submitted script and passes a compact sample, the style guide, and the index to the text model.
+Its columns are `recordType`, `source`, and `payloadJson`. It currently has 17 style guide records, 18 reference-index records, 81 rows from example 01, and 166 rows from example 03. The workflow ranks the examples against the submitted script and passes four matched rows from each source, the style guide, and the approved environment reference index to the text model.
 
 Do not save submitted scripts, generated prompts, job state, or image binaries to this reference sheet. It is reference context only. No n8n Data Tables, n8n Memory, or internal n8n storage may be introduced.
 
@@ -42,22 +42,23 @@ Preserve the source columns, in this exact order and spelling:
 7. `On-screen text`
 8. `Transitions/Motion`
 
-Keep voiceover as a close, faithful excerpt; use exact supplied timestamps and leave timestamps blank when none were provided. Split visual beats when the narration or location changes. Keep animator directions, text, and motion in their own columns. Do not generate image prompts or images during the planning stage.
+Keep every Voiceover field verbatim; together the fields must cover the complete script in order. The workflow checks this before creating image requests. Use exact supplied timestamps and leave timestamps blank when none were provided. Split visual beats when the narration or location changes. Keep animator directions, text, and motion in their own columns. Do not generate image prompts or images during the planning stage.
 
 Only `Background` can contribute scene-specific content to an image request. Never concatenate voiceover, actions, characters/props, on-screen text, transitions, feedback, or inferred objects into the image prompt.
 
 ## UI and scope
 
-The static UI is in `public/`. It has one full-script textarea and one generate action. It shows the complete storyboard in a collapsible table with a workflow-produced CSV download, plus a gallery of completed backgrounds. It displays each image as soon as it arrives and preserves completed images if a later image fails.
+The static UI is in `public/`. It has one full-script textarea and one generate action. It offers the complete storyboard as a workflow-produced CSV download, plus a gallery of completed backgrounds. It displays each image as soon as it arrives and preserves completed images if a later image fails.
 
 Current demo omits SVG export, Drive upload, email delivery, review feedback, job/status persistence, and automatic retries. The storyboard CSV is returned by n8n and downloaded in the browser without persistence. Keep every AI/node step for this product in the same n8n workflow.
 
 ## Reliability and known test state
 
-- The image branch succeeded in n8n execution `2546` on 20 October 2026. OpenRouter returned an image data URL for a custom-fit jewelry-shop background; reported provider cost was about `$0.0168`.
-- Planner execution `2547` previously stopped on Google Sheets `429` rate limiting. The references have since been consolidated into one tab and one read.
-- The latest one-script planner execution `2551` was marked `crashed` before any workflow node began (its execution record contains only the webhook trigger). The n8n/Heroku host returned HTTP 503 at that time. The full planner path and deployed UI have **not** yet passed an end-to-end check.
-- The active n8n workflow was republished as `b5c77ff8-5248-462f-a082-e896e9e3a690` with clearer stage names and a canvas note: one user submit always plans the full storyboard first, then the UI sends its unique Background settings to image generation sequentially. The stage field is routing metadata, not an AI decision.
+- The image branch succeeded in n8n execution `2557` on 20 October 2026. The workflow downloaded the approved Drive style reference, called OpenRouter Flare, and returned an image data URL. An earlier successful image run reported provider cost of about `$0.0168`.
+- The planner was tightened to send four matched example rows from each CSV, cap reference-index context, validate complete ordered script coverage, and return a dynamic error status before images are requested.
+- Planner execution `2563` crashed before any node after the webhook ran. Heroku logs recorded `R14` at about 601 MB on the 512 MB dyno, followed by app recovery. A subsequent published planner request, execution `2564`, started but the host returned HTTP 503 before its status could be retrieved. Do not repeat large execution-data reads; returning image payloads through execution inspection can create multi-megabyte responses.
+- The latest published workflow version is `6d6ac00c-1875-43c6-856e-6c08f2a63b68`. One submission still always plans the complete storyboard first, then the UI requests selected unique Background settings sequentially. The stage field is routing metadata, not an AI decision.
+- Stage 2 has a verified success, but the full planner-to-image UI path has **not** yet passed an end-to-end check because the current Heroku host exceeds its 512 MB memory quota. The requested hosting budget cap is `$13/month`; the next Heroku dyno tier with 1 GB RAM is listed at `$50/month`, so do not change the plan under that cap.
 - The older complex workflow `NO5b5a1P44wvK4U7` is unpublished. Preserve it as a reference; do not use its old UI routes or activate it alongside this workflow.
 - Do not issue duplicate image calls after timeouts. Check the matching n8n execution first; a retry can incur another image charge.
 

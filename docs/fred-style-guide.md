@@ -4,7 +4,7 @@
 
 ## Product contract
 
-The user pastes one full script once. AI 1 plans the complete, scene-by-scene storyboard using Fred's eight-column format. AI 2 makes **background plates only** for up to **10 distinct settings**, serially. If the complete plan has more than 10 unique settings, the UI reports how many remain for a later run; this prototype does not export or persist the storyboard.
+The user pastes one full script once. AI 1 plans the complete, scene-by-scene storyboard using Fred's eight-column format. AI 2 makes **background plates only** for up to **10 distinct settings**, serially. If the complete plan has more than 10 unique settings, the UI reports how many remain for a later run. The UI offers the full storyboard as a CSV download without persisting it.
 
 The goal is to remove the animator's manual work of figuring out where each beat happens and painting its environment. Animators still draw every character, body part, prop that moves, overlay, and animation layer.
 
@@ -30,7 +30,7 @@ Keep these source fields, in this exact order:
 | `On-screen text` | Exact overlay copy, otherwise blank. | Excluded completely; no letters, labels, captions, or UI in the plate. |
 | `Transitions/Motion` | Preserve edit cues such as hard cut, zoom, fade, or movement. | Excluded completely; render a static environment. |
 
-These eight fields are the planner's internal structured output. The current UI displays generated backgrounds only and does not offer a storyboard table or CSV export.
+These eight fields are the planner's internal structured output. The current UI displays generated backgrounds and offers the full storyboard as a downloadable CSV.
 
 ## What the references show
 
@@ -63,10 +63,10 @@ The prompt is intentionally built from `Background` alone. Never concatenate `Wh
 
 ## Full storyboard and 10-image cap
 
-- The storyboard always covers the full script. Do not truncate it to fit an image quota.
+- The storyboard always covers the full script. Do not truncate it to fit an image quota. Before image requests, verify that the ordered Voiceover words cover the submitted script without omissions, repeats, or reordering.
 - Identify a background plate for each scene. Reuse a plate only when both setting and framing truly match; do not merge scenes just because both say “yellow wall.”
 - Assign temporary IDs (`BG001`, `BG002`, …) to distinct plates and attach their scene numbers.
-- Generate at most the first 10 unique backgrounds per script. Report the remaining count in the UI when one is known.
+- Generate at most 10 unique backgrounds sampled across the full storyboard. Report the remaining count in the UI.
 - The browser requests one image at a time. One failure should not remove images already shown; stop the remaining requests and display the error.
 - Do not claim that a later batch, file export, or image persistence is implemented in this prototype.
 
@@ -76,7 +76,7 @@ The current workflow reads the consolidated external reference data on every pla
 
 1. [Fred Storyboard Style and Reference Index](https://docs.google.com/spreadsheets/d/1RL7C_3kg7Ua47R7BnQFi4YvsgDyecIQS7yi1uCAT-gg/edit): the `Planner Context` tab contains 17 style-guide rows, 18 reference-index rows, 81 example-01 rows, and 166 example-03 rows.
 
-Use Google Sheets only as read-only reference material in this stage. Do not write scripts or generated results to any database. This is an auditable sheet-backed retrieval step, not vector RAG; the two matching CSV examples are ranked by keyword overlap before being passed to the text model.
+Use Google Sheets only as read-only reference material in this stage. Do not write scripts or generated results to any database. This is an auditable sheet-backed retrieval step, not vector RAG; rows from both CSV examples are ranked by keyword overlap before a compact selection is passed to the text model.
 
 ## Acceptance checklist
 
@@ -89,7 +89,7 @@ Use Google Sheets only as read-only reference material in this stage. Do not wri
 - [ ] One batch produces no more than 10 distinct images.
 - [ ] If more than 10 unique settings exist, the UI reports the remaining count.
 - [ ] Each generated background appears in the UI as soon as its serial request succeeds.
-- [ ] No storage, export, or delivery action is implied by the UI.
+- [ ] The CSV download contains the complete storyboard and the exact eight headers in the required order.
 - [ ] Image cost is visible when the provider returns usage data; no image model call is used for text.
 
 ## Source ledger
