@@ -1,0 +1,294 @@
+{
+  "id": "QRPeaK5ayX9ZC5Zx",
+  "name": "Fred Image Generation - Stage 1",
+  "active": false,
+  "isArchived": false,
+  "versionId": "d0b97e3b-aa72-4f04-bfab-4915eebcd431",
+  "activeVersionId": null,
+  "triggerCount": 0,
+  "nodeCount": 8,
+  "createdAt": "2026-10-20T04:05:28.329Z",
+  "updatedAt": "2026-10-20T04:36:21.737Z",
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true
+  },
+  "tags": [],
+  "parentFolderId": null,
+  "description": "One-image proof using Fred's woman character reference and warm environment reference with GPT Image 2.5 Flare; returns image data directly without persistence.",
+  "scopes": [
+    "execution:reveal",
+    "workflow:create",
+    "workflow:delete",
+    "workflow:disableRedaction",
+    "workflow:enableRedaction",
+    "workflow:execute",
+    "workflow:execute-chat",
+    "workflow:export",
+    "workflow:import",
+    "workflow:list",
+    "workflow:move",
+    "workflow:publish",
+    "workflow:read",
+    "workflow:share",
+    "workflow:unpublish",
+    "workflow:unshare",
+    "workflow:update"
+  ],
+  "canExecute": true,
+  "connections": {
+    "Image Test Webhook": {
+      "main": [
+        [
+          {
+            "node": "Prepare Image Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Image Request": {
+      "main": [
+        [
+          {
+            "node": "Download Style References",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Style References": {
+      "main": [
+        [
+          {
+            "node": "Build Flare Image Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Flare Image Request": {
+      "main": [
+        [
+          {
+            "node": "Generate with GPT Image Flare",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate with GPT Image Flare": {
+      "main": [
+        [
+          {
+            "node": "Format Image Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Image Result": {
+      "main": [
+        [
+          {
+            "node": "Respond with Image JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "nodes": [
+    {
+      "id": "686810ba-a70b-4eb0-90bc-c012f251e9ae",
+      "name": "Image Test Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        240,
+        320
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "fred-image-generation-stage-1",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "https://script-to-storyboard-six.vercel.app"
+        }
+      },
+      "webhookId": "6589edbb-ce6b-4485-8aaa-398e9ce49b43"
+    },
+    {
+      "id": "b6a176ce-13ed-4bb1-a721-f4d44fbafac0",
+      "name": "Prepare Image Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        320
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "let input = $json.body ?? $json;\nif (typeof input === 'string') { try { input = JSON.parse(input); } catch { throw new Error('Request body must be valid JSON.'); } }\nconst scenePrompt = typeof input.prompt === 'string' ? input.prompt.trim() : '';\nif (scenePrompt.length < 20 || scenePrompt.length > 2500) throw new Error('Send a scene prompt between 20 and 2,500 characters.');\nconst styleGuide = [\n  'Use the supplied images as hard visual constraints, not loose inspiration.',\n  'REFERENCE 1 is woman.png from Fred’s character folder. Match its simple recurring character design closely while preserving the scene’s requested skin tone, hair, clothing, and action.',\n  'CHARACTER SHAPE: oversized rounded-square head; thick, slightly uneven black outer contour; flat single-color face; simple block-shaped hair with very few interior details; compact simple torso and limbs; clear silhouette.',\n  'FACE SHAPE: two small, narrow horizontal square or rectangular eyes with white fill, heavy black outline, and tiny black pupils; short raised or slightly worried brows; at most a tiny simple nose mark; a short, thin, straight horizontal closed mouth. The default expression is neutral and mildly concerned, like the supplied character sheet.',\n  'Keep the eyes small and squared. Show emotion through a slight brow angle, gaze direction, and pose. Never add a smile, grin, open mouth, large round eyes, glossy highlights, long lashes, blush, detailed nose, or realistic facial anatomy.',\n  'LINE AND COLOR: bold black hand-drawn outlines around the head, body, clothing, and props; simple flat fills; minimal cel shading; no gradients or painterly texture. The character and background must share the same flat cartoon treatment.',\n  'REFERENCE 2 defines the warm illustrated environment: clean hand-drawn room and prop outlines, warm yellow or cream walls, wood and amber accents, and restrained green and blue details. Keep the background simple and subordinate to one clear foreground action.',\n  'Create one frozen moment in a wide 16:9 composition. No text, captions, labels, lettering, logos, watermarks, borders, photorealism, 3D, anime, or polished corporate vector art.'\n].join(' ');\nconst prompt = styleGuide + '\\n\\nSCENE TO ILLUSTRATE:\\n' + scenePrompt;\nconst references = [\n  {fileId:'10O0lflQ35oRR4v8H41IZcZ1D45R-QtMV',role:'fred_character_style_woman',name:'woman.png'},\n  {fileId:'19_rZZhpt3du495njrjnO5nuPWQjxnMAQ',role:'fred_environment_style',name:'ChatGPT Image Aug 3, 2026, 12_38_37 PM.png'}\n];\nreturn references.map((reference, referenceIndex) => ({json:{...reference,referenceIndex,prompt}}));"
+      }
+    },
+    {
+      "id": "a2c78350-b9c2-4150-9ad2-e3d2b85b90c0",
+      "name": "Download Style References",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        720,
+        320
+      ],
+      "parameters": {
+        "resource": "file",
+        "operation": "download",
+        "authentication": "oAuth2",
+        "fileId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.fileId }}"
+        },
+        "options": {
+          "binaryPropertyName": "data"
+        }
+      },
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "PWL6ap3LIUEv75px",
+          "name": "giananrayvin@gmail.com GDRIVE"
+        }
+      }
+    },
+    {
+      "id": "16e75c80-27ea-4a5e-ba64-218273531bde",
+      "name": "Build Flare Image Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        320
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const files = $input.all();\nconst referenceRecords = $('Prepare Image Request').all().map(item => item.json);\nif (files.length !== 2 || referenceRecords.length !== 2) throw new Error('Exactly two approved style references are required.');\nconst inputReferences = [];\nfor (let index = 0; index < files.length; index++) {\n  const binary = files[index].binary?.data;\n  if (!binary) throw new Error('A Google Drive reference did not download as an image.');\n  const buffer = await this.helpers.getBinaryDataBuffer(index, 'data');\n  const mimeType = binary.mimeType || 'image/png';\n  if (!mimeType.startsWith('image/')) throw new Error('A style reference is not an image file.');\n  inputReferences.push({type:'image_url',image_url:{url:'data:'+mimeType+';base64,'+buffer.toString('base64')}});\n}\nconst prompt = referenceRecords[0].prompt;\nreturn [{json:{model:'openai/gpt-image-2.5-flare',prompt,n:1,aspect_ratio:'16:9',quality:'low',input_references:inputReferences}}];"
+      }
+    },
+    {
+      "id": "ce8bee13-9c23-4140-9d78-491a7ac8a31e",
+      "name": "Generate with GPT Image Flare",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1200,
+        320
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://openrouter.ai/api/v1/images",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openRouterApi",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 180000
+        }
+      },
+      "credentials": {
+        "openRouterApi": {
+          "id": "5gcKsflkw4r3rGS8",
+          "name": "GPT 2.5 Image Flare"
+        }
+      }
+    },
+    {
+      "id": "5230554b-d2d2-444e-8dc7-25e8e2e038b5",
+      "name": "Format Image Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1440,
+        320
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const response = $json ?? {};\nconst body = response.body && typeof response.body === 'object' ? response.body : response;\nconst image = body.data?.[0];\nconst b64 = image?.b64_json;\nif (!b64) {\n  const providerError = body.error;\n  const errorMessage = typeof providerError === 'string' ? providerError : providerError?.message || response.error?.message || body.message || 'OpenRouter did not return image bytes.';\n  const statusCode = Number(response.statusCode || providerError?.code || 502);\n  return [{json:{ok:false,statusCode,error:String(errorMessage).slice(0,1200),model:'openai/gpt-image-2.5-flare'}}];\n}\nconst mimeType = image.media_type || body.media_type || 'image/jpeg';\nif (!mimeType.startsWith('image/')) throw new Error('The provider returned an unsupported media type.');\nconst buffer = Buffer.from(b64,'base64');\nconst extension = mimeType === 'image/png' ? 'png' : 'jpg';\nconst binary = await this.helpers.prepareBinaryData(buffer,'fred-scene.'+extension,mimeType);\nreturn [{json:{ok:true,model:'openai/gpt-image-2.5-flare',mimeType,costUsd:body.usage?.cost ?? null,imageData:'data:'+mimeType+';base64,'+b64},binary:{data:binary}}];"
+      }
+    },
+    {
+      "id": "8277d5bc-7a05-44de-8667-7d5a89ac1d09",
+      "name": "Respond with Image JSON",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1680,
+        320
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseCode": "={{ $json.ok ? 200 : ($json.statusCode ?? 502) }}",
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Cache-Control",
+                "value": "no-store"
+              },
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "https://script-to-storyboard-six.vercel.app"
+              },
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          },
+          "enableStreaming": false
+        }
+      }
+    },
+    {
+      "id": "937e5abf-7bf0-4a75-90d9-12f0e5a0824a",
+      "name": "Sticky Note 5e105651",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        190,
+        270
+      ],
+      "parameters": {
+        "content": "# Stage 1 · Fred character style refinement\n\nOne prompt → Fred’s actual woman.png character reference + warm environment reference → one 16:9 GPT Image 2.5 Flare result.\n\nThe image prompt locks the reference character’s rounded-square head, small square/rectangular eyes, raised worried brows, short straight neutral mouth, compact simple body, bold black outlines, flat fills, and minimal shading. This stage is still one image per request; no batch planner, database, n8n Data Table, or upload step.",
+        "color": 5,
+        "width": 1740,
+        "height": 200
+      }
+    }
+  ],
+  "nodeGroups": [],
+  "activeVersion": null,
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp"
+  }
+}
