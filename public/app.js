@@ -16,7 +16,7 @@ const els = {
   notice: $("notice-bar"), noticeCopy: $("notice-copy"), empty: $("workspace-empty"), results: $("results-section"),
   boardCount: $("board-count"), subtitle: $("board-subtitle"), summary: $("job-summary"), deferred: $("deferred-callout"), deferredCopy: $("deferred-copy"),
   first: $("generate-first"), firstCount: $("first-batch-count"), next: $("generate-next"), nextCount: $("next-batch-count"),
-  retry: $("retry-failed"), downloadCsv: $("download-csv"), downloadImages: $("download-images"),
+  retry: $("retry-failed"), downloadCsv: $("download-csv"), downloadSvg: $("download-svg"), downloadImages: $("download-images"),
   batchStatus: $("batch-status"), backgrounds: $("background-grid"), backgroundCount: $("background-count-label"),
   table: $("storyboard-table-body"), sceneCount: $("scene-count-label"), footer: $("footer-status-copy"), jobId: $("footer-job-id"),
   stepPlan: $("step-plan"), stepImages: $("step-images"), stepExport: $("step-export"),
@@ -118,10 +118,11 @@ function renderBackgrounds() {
       : `<div class="plate-placeholder ${status === "generating" ? "is-generating" : ""}" role="img" aria-label="${escapeHtml(statusLabel.toLowerCase())} background plate"><span aria-hidden="true">${status === "failed" ? "!" : status === "deferred" ? "↗" : status === "generating" ? "✦" : "◌"}</span><strong>${escapeHtml(status === "failed" ? "Generation failed" : status === "deferred" ? "More plates remain" : status === "generating" ? "Creating background…" : "Ready for a batch")}</strong></div>`;
     const scenes = (item.sceneNumbers || []).map(Number).filter(Number.isFinite).sort((a, b) => a - b).join(", ");
     const error = item.error ? `<p class="plate-error">${escapeHtml(item.error)}</p>` : "";
+    const filename = status === "completed" ? `<small class="plate-filename">File: <code>${escapeHtml(item.imageFileName || plannedBackgroundFilename(item))}</code></small>` : "";
     const download = status === "completed" && item.imageUrl
       ? `<button class="plate-download" type="button" data-download-background="${escapeHtml(item.backgroundId)}">Download plate</button>` : "";
     const cost = Number(item.costUsd) > 0 ? `<span class="plate-cost">$${Number(item.costUsd).toFixed(4)}</span>` : "";
-    return `<article class="background-card"><div class="background-card-top"><span class="background-id">${escapeHtml(item.backgroundId)}</span><span class="plate-status plate-status-${escapeHtml(status)}">${escapeHtml(statusLabel)}</span></div><div class="plate-art">${image}</div><div class="background-card-copy"><p>${escapeHtml(item.background || "Background setting pending")}</p><small>${scenes ? `Used in scene${scenes.includes(",") ? "s" : ""} ${escapeHtml(scenes)}` : "Not linked to a scene"}</small>${error}</div><div class="background-card-bottom">${cost}${download}</div></article>`;
+    return `<article class="background-card"><div class="background-card-top"><span class="background-id">${escapeHtml(item.backgroundId)}</span><span class="plate-status plate-status-${escapeHtml(status)}">${escapeHtml(statusLabel)}</span></div><div class="plate-art">${image}</div><div class="background-card-copy"><p>${escapeHtml(item.background || "Background setting pending")}</p><small>${scenes ? `Used in scene${scenes.includes(",") ? "s" : ""} ${escapeHtml(scenes)}` : "Not linked to a scene"}</small>${filename}${error}</div><div class="background-card-bottom">${cost}${download}</div></article>`;
   }).join("");
 }
 
@@ -161,6 +162,7 @@ function updateActions(job) {
   els.retry.disabled = busy || failed.length === 0;
   els.downloadImages.disabled = busy || completed.length === 0;
   els.downloadCsv.disabled = !state.jobId || state.isPlanning;
+  els.downloadSvg.disabled = !state.jobId || state.isPlanning || state.scenes.length === 0;
   const hasDeferred = deferred.length > 0 || Number(job.deferredCount) > 0;
   els.deferred.hidden = !hasDeferred;
   if (hasDeferred) {
@@ -361,6 +363,46 @@ function safeFilename(value) {
   return String(value || "storyboard").normalize("NFKD").replace(/[^a-zA-Z0-9_-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 70) || "storyboard";
 }
 
+function plannedBackgroundFilename(item) {
+  const jobShort = safeFilename(String(state.jobId).split("-").pop().replace(/[^a-z0-9]/gi, "").slice(0, 8).toLowerCase() || "job");
+  const backgroundId = safeFilename(item?.backgroundId || "BG000");
+  const scenes = [...new Set((item?.sceneNumbers || []).map(Number).filter(Number.isInteger))].sort((a, b) => a - b);
+  const labels = scenes.map(number => String(number).padStart(3, "0"));
+  const scenePart = labels.length <= 4
+    ? `SC-${labels.join("-") || "000"}`
+    : `SC-${labels.slice(0, 4).join("-")}-PLUS-${String(labels.length - 4).padStart(2, "0")}`;
+  const storedExtension = String(item?.imageFileName || "").match(/\.([a-z0-9]+)$/i)?.[1]?.toLowerCase();
+  const ext = storedExtension || (item?.imageMimeType === "image/jpeg" ? "jpg" : "png");
+  return `fred-${jobShort}-${backgroundId}-${scenePart}.${ext}`;
+}
+
+function backgroundExtension(item) {
+  const storedExtension = String(item?.imageFileName || "").match(/\.([a-z0-9]+)$/i)?.[1]?.toLowerCase();
+  return storedExtension || (item?.imageMimeType === "image/jpeg" ? "jpg" : "png");
+}
+
+function downloadStoryboardSvg() {
+  if (!state.scenes.length) return;
+  if (!window.storyboardSvgExporter?.buildStoryboardSvg) {
+    showNotice("The SVG export helper did not load. Reload the page and try again.", "error");
+    return;
+  }
+  try {
+    const svg = window.storyboardSvgExporter.buildStoryboardSvg({
+      title: state.job?.title || "Fred's Storyboard",
+      jobId: state.jobId,
+      scenes: state.scenes,
+      backgrounds: state.backgrounds,
+    });
+    downloadBlob(new Blob([svg], { type: "image/svg+xml;charset=utf-8" }), `${safeFilename(state.job?.title || "fred-storyboard")}-storyboard.svg`);
+    els.stepExport.classList.add("is-current");
+    setFooter(`Visual storyboard SVG downloaded · ${state.scenes.length} scenes included.`);
+  } catch (error) {
+    showNotice(error instanceof Error ? error.message : String(error), "error");
+    setFooter("The storyboard SVG could not be created.");
+  }
+}
+
 async function downloadCsv() {
   if (!state.jobId) return;
   els.downloadCsv.disabled = true;
@@ -381,8 +423,10 @@ async function downloadCsv() {
 async function downloadOneBackground(item) {
   if (!item?.imageUrl) return;
   const blob = await window.storyboardWorkflow.downloadImage(item.imageUrl);
-  const ext = item.imageMimeType === "image/jpeg" ? "jpg" : "png";
-  downloadBlob(blob, `${safeFilename(item.backgroundId)}.${ext}`);
+  const ext = backgroundExtension(item);
+  const serverName = String(item.imageFileName || "").replace(/[\\/\0]/g, "-");
+  const base = serverName.replace(/\.(?:png|jpe?g|webp)$/i, "");
+  downloadBlob(blob, `${safeFilename(base || plannedBackgroundFilename(item).replace(/\.[^.]+$/, ""))}.${ext}`);
 }
 
 async function downloadAllBackgrounds() {
@@ -399,8 +443,10 @@ async function downloadAllBackgrounds() {
       const item = ready[index];
       setFooter(`Adding background ${index + 1} of ${ready.length} to the download…`);
       const blob = await window.storyboardWorkflow.downloadImage(item.imageUrl);
-      const ext = item.imageMimeType === "image/jpeg" ? "jpg" : "png";
-      zip.file(`${safeFilename(item.backgroundId)}.${ext}`, blob);
+      const ext = backgroundExtension(item);
+      const serverName = String(item.imageFileName || "").replace(/[\\/\0]/g, "-");
+      const base = serverName.replace(/\.(?:png|jpe?g|webp)$/i, "");
+      zip.file(`${safeFilename(base || plannedBackgroundFilename(item).replace(/\.[^.]+$/, ""))}.${ext}`, blob);
     }
     const archive = await zip.generateAsync({ type: "blob" });
     downloadBlob(archive, `${safeFilename(state.job?.title || "fred-storyboard")}-backgrounds.zip`);
@@ -429,6 +475,7 @@ els.first.addEventListener("click", () => generateBatch(state.backgrounds.filter
 els.next.addEventListener("click", () => generateBatch(state.backgrounds.filter(item => item.status === "deferred").slice(0, BATCH_LIMIT), "Next batch"));
 els.retry.addEventListener("click", () => generateBatch(state.backgrounds.filter(item => item.status === "failed").slice(0, BATCH_LIMIT), "Retry failed plates"));
 els.downloadCsv.addEventListener("click", downloadCsv);
+els.downloadSvg.addEventListener("click", downloadStoryboardSvg);
 els.downloadImages.addEventListener("click", downloadAllBackgrounds);
 els.backgrounds.addEventListener("click", async event => {
   const button = event.target.closest("[data-download-background]");
@@ -462,6 +509,7 @@ els.notice.hidden = true;
 els.results.hidden = true;
 els.empty.hidden = false;
 els.downloadCsv.disabled = true;
+els.downloadSvg.disabled = true;
 els.first.disabled = true;
 els.downloadImages.disabled = true;
 

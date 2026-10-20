@@ -8,7 +8,9 @@ The n8n workflow is **Fred Storyboard — Full Plan + Background Batches**, ID *
 
 The complete script is planned first using Fred’s CSV examples, style guide, and reference index from Google Sheets. The UI can then request up to 10 distinct backgrounds, one at a time, using OpenRouter’s GPT Image 2.5 Flare image API at low quality. Generated files stay private in Drive; the page displays them through the n8n image proxy. Storyboard rows, statuses, and reference data stay in Google Sheets. No n8n Data Tables or n8n memory are used.
 
-The public UI is [Fred’s Storyboard Lab](https://script-to-storyboard-six.vercel.app/). It has fixed workflow routes in `public/workflow-api.js`; the user does not paste webhook URLs. It supports full storyboard review, CSV download, batch image generation, individual plate downloads, and a ZIP of completed images. If more than 10 unique settings are planned, the UI and deferred rows in the CSV say that more background plates remain for a later batch and include the count in the UI.
+The public UI is [Fred’s Storyboard Lab](https://script-to-storyboard-six.vercel.app/). It has fixed workflow routes in `public/workflow-api.js`; the user does not paste webhook URLs. It supports full storyboard review, a workflow-generated CSV, a browser-generated visual SVG, batch image generation, individual plate downloads, and a ZIP of completed images. If more than 10 unique settings are planned, the UI and deferred rows in the CSV say that more background plates remain for a later batch and include the count in the UI.
+
+Scene-aware background filenames are being added in the local workflow source using the job suffix, background ID, and scene numbers. The team delivery folder is recorded in the Google Sheet `Workflow Settings` tab. The combined **Send to Drive & notify team** action is not live yet: n8n must be healthy, the Drive credential must be checked against the shared folder, and the configured `editingTeamEmail` value must be filled in before adding the workflow route and UI control. See [the delivery and export plan](docs/delivery-and-export-plan.md).
 
 ### Workflow routes
 
@@ -17,6 +19,8 @@ The public UI is [Fred’s Storyboard Lab](https://script-to-storyboard-six.verc
 - `GET /webhook/fred-storyboard-status-v4?jobId=...` — return storyboard rows and background status.
 - `GET /webhook/fred-storyboard-image-v4?jobId=...&backgroundId=...` — stream one private Drive image.
 - `GET /webhook/fred-storyboard-csv-v4?jobId=...` — create and download the Fred-format CSV in n8n.
+
+The planned `POST /webhook/fred-storyboard-deliver-v4` route is not live. It will move reviewed plate files to the shared team folder in serial groups of at most 10 and send one email after the job's generated plates have arrived.
 
 ## Known-good fallback
 
@@ -39,6 +43,7 @@ Run JavaScript syntax checks for the static UI files:
 
 ```powershell
 node --check public/app.js
+node --check public/storyboard-svg.js
 node --check public/workflow-api.js
 ```
 

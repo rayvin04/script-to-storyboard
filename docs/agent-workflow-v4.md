@@ -1,6 +1,6 @@
 # Background-first workflow architecture
 
-**Scope:** background-first storyboard prototype · **Status:** live workflow `Fred Storyboard — Full Plan + Background Batches` (`NO5b5a1P44wvK4U7`)
+**Scope:** background-first storyboard prototype · **Status:** workflow `Fred Storyboard — Full Plan + Background Batches` (`NO5b5a1P44wvK4U7`) exists in n8n; scene-aware naming and SVG export are being prepared locally, while the combined delivery route is not live yet.
 
 ## Design decisions
 
@@ -10,7 +10,7 @@
 4. Keep all routes inside one n8n workflow so the UI has one backend workflow to call. Keep the proven one-image Stage 1 workflow intact as a separate fallback.
 5. Put durable project records in Google Sheets and image binaries in Google Drive. Do not use n8n Data Tables, n8n Memory, or internal workflow storage.
 6. Make image generation asynchronous from the browser's perspective: acknowledge, generate serially in the workflow, and expose status/image routes. This avoids a long browser request and keeps the Heroku memory use lower.
-7. Create the downloadable CSV inside n8n and return it with the storyboard response. The UI presents a download button for the workflow's CSV.
+7. Create the downloadable CSV inside n8n and return it with the storyboard response. Create the visual SVG locally in the UI from the full scene plan.
 8. Set `saveExecutionProgress: false` on this workflow to avoid retaining a snapshot after every node. This reduces execution-history detail, so use the Google Sheets job/scene records and platform logs to diagnose failures.
 
 ## Architecture map
@@ -33,12 +33,16 @@ flowchart TD
     Update[Update matching scene rows in Google Sheets]
     Status[Status webhook -> read job rows]
     Img[Image webhook -> validate job/BG ID -> Drive download -> binary response]
+    Deliver[Delivery webhook -> move up to 10 files -> record in Sheets -> email on completion]
   end
   UI -->|POST script| Plan --> Ref --> Agent --> Norm --> SavePlan --> PlanReply --> UI
   UI -->|POST job + BG IDs| Gen --> Ack --> Select --> Image --> Drive --> Update
   UI -->|GET jobId| Status --> UI
   UI -->|GET jobId + backgroundId| Img --> UI
+  UI -->|POST jobId after review| Deliver --> UI
 ```
+
+The delivery route shown above is planned, not live. Its folder, settings, and retry contract are documented in [`delivery-and-export-plan.md`](delivery-and-export-plan.md). Do not add the UI delivery button until the workflow route and Gmail/Drive credentials are validated.
 
 ## 1. Planning route
 
@@ -125,8 +129,9 @@ An omitted `backgroundIds` means choose the next pending batch. Validate that ID
 2. Construct one background-only prompt from the shared style rule and the selected row's `background` cell. No interpolation of any other scene field.
 3. Call OpenRouter's Images API with model `openai/gpt-image-2.5-flare`, `quality: "low"`, one image, 16:9. Image API only; no text model call here.
 4. Convert response bytes to binary, immediately upload to private Drive folder `1CcdOgXEwhyXJ1Dnonzv4AVFWloztgTGn`, then release the provider base64 from downstream item data.
-5. Update every scene row sharing this job/background ID with status, Drive ID/name/MIME, proxy URL, prompt, cost if returned, and error if failed.
-6. Continue to the next unique ID sequentially. Do not auto-regenerate a failed image; return an actionable error so the UI can offer an explicit retry.
+5. Name each file `fred-{job-random-suffix}-BG001-SC-001-007.png`; include up to four explicit zero-padded scene numbers and append `PLUS-NN` for additional references. Use the same file name for the Drive upload and `imageFileName` metadata.
+6. Update every scene row sharing this job/background ID with status, Drive ID/name/MIME, proxy URL, prompt, cost if returned, and error if failed.
+7. Continue to the next unique ID sequentially. Do not auto-regenerate a failed image; return an actionable error so the UI can offer an explicit retry.
 
 ## 3. Polling and private image proxy
 
@@ -140,7 +145,15 @@ An omitted `backgroundIds` means choose the next pending batch. Validate that ID
 
 `GET /webhook/fred-storyboard-csv-v4?jobId=UUID` reads the saved storyboard rows, creates a UTF-8 CSV with Fred’s eight columns plus background ID, image status, and generation-batch note, and returns it as a download. Deferred rows include the note that more background plates remain for a later batch.
 
-## 4. UI behavior
+## 4. Delivery route (planned)
+
+Use the user-supplied shared destination folder `153VPM-IBR1T5UIq-TthqtpklyAGwi-UU`; keep generated previews in private staging until the user clicks **Send to Drive & notify team**. The main workbook now contains a `Workflow Settings` tab with an empty `editingTeamEmail` cell, the team folder ID, the staging folder ID, and a delivery cap of 10. Verify write access with the saved n8n Drive credential before enabling this route.
+
+The webhook accepts only a job ID. Read the recipient and delivery state from Google Sheets, validate the email field, move Drive files serially in groups of at most 10, and update the delivery records after each file. If more than 10 files remain, return a partial status and let the UI continue. Send one email after every generated plate for that job is in the team folder. The email lists the storyboard title, scene count, filenames with scene numbers, folder link, and any failed/deferred counts. Do not accept a folder or recipient from the public request.
+
+The move operation must retain the Drive file ID so the private image proxy continues to work after delivery. Keep binaries out of this route; it should act on file IDs and metadata only. Keep the notification idempotent using Sheets status; if Gmail succeeded but the workflow failed before its status update, flag `sending` for review rather than sending another message automatically.
+
+## 5. UI behavior
 
 1. Paste full script -> `Build full storyboard`.
 2. Review all rows; download CSV from `csvText`.
@@ -148,10 +161,12 @@ An omitted `backgroundIds` means choose the next pending batch. Validate that ID
 4. Click `Generate first batch`; poll status until the selected IDs complete/fail.
 5. Display unique backgrounds via the private image proxy. Offer `Generate next batch` with the next <=10 deferred IDs.
 6. Each storyboard row links to its background ID. Reused backgrounds display one image card attached to multiple rows.
+7. Download the CSV for structured source data or the browser-generated SVG for a visual review sheet. The SVG includes every storyboard field and background status but does not embed binary images.
+8. After reviewing the generated plates, choose the combined Drive-and-email action. The UI must not show this action as available until the delivery route is live.
 
 No image is generated before an explicit generation action. Do not make the UI imply that a full storyboard means every background has already been painted.
 
-## 5. Failure and resource handling
+## 6. Failure and resource handling
 
 - Same workflow contains the routes and failure/status behavior. Record one failed image while preserving successful rows.
 - Limit each generation call to 10, process sequentially, and keep image bytes off Google Sheets and the browser polling response.
