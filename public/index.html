@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#fff7e8" />
     <meta
       name="description"
-      content="A friendly storyboard workspace for turning scripts into scene plans and image frames."
+      content="Generate a single reference-guided storyboard image in Fred’s cartoon style."
     />
     <title>Fred's Storyboard Lab</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -60,16 +60,16 @@
       <main id="top">
         <section class="intro-row" aria-labelledby="page-title">
           <div>
-            <p class="eyebrow"><span class="eyebrow-star">✦</span> SCRIPT TO SCENE WORKSPACE <span class="eyebrow-divider"></span> DEMO 01</p>
-            <h1 id="page-title">Turn a script into a <span>storyboard.</span></h1>
-            <p class="intro-copy">Shape the beats first. Then build a consistent frame for every scene.</p>
+            <p class="eyebrow"><span class="eyebrow-star">✦</span> ONE IMAGE TEST <span class="eyebrow-divider"></span> STAGE 1</p>
+            <h1 id="page-title">Create a storyboard frame.</h1>
+            <p class="intro-copy">Describe one scene. The workflow uses Fred’s supplied character and background references to generate a single image.</p>
           </div>
           <div class="step-strip" aria-label="Workflow steps">
-            <div class="step-chip is-done"><span class="step-number">01</span><span>Script</span></div>
+            <div class="step-chip is-current"><span class="step-number">01</span><span>Scene</span></div>
             <span class="step-line" aria-hidden="true"></span>
-            <div class="step-chip is-current" id="step-2"><span class="step-number">02</span><span>Storyboard</span></div>
+            <div class="step-chip" id="step-2"><span class="step-number">02</span><span>Image</span></div>
             <span class="step-line" aria-hidden="true"></span>
-            <div class="step-chip" id="step-3"><span class="step-number">03</span><span>Review</span></div>
+            <div class="step-chip" id="step-3"><span class="step-number">03</span><span>Download</span></div>
           </div>
         </section>
 
@@ -79,29 +79,19 @@
               <div class="heading-title">
                 <span class="heading-icon icon-sun" aria-hidden="true">✎</span>
                 <div>
-                  <p class="section-kicker">START WITH THE WORDS</p>
-                  <h2 id="script-title">Your script</h2>
+                  <p class="section-kicker">DESCRIBE ONE VISUAL BEAT</p>
+                  <h2 id="script-title">One scene</h2>
                 </div>
               </div>
-              <button class="text-button" id="load-sample" type="button">Load Fred's sample</button>
+              <button class="text-button" id="load-sample" type="button">Load sample</button>
             </div>
 
-            <label class="field-label" for="script-input">Paste script or narration</label>
-            <textarea id="script-input" maxlength="30000" spellcheck="true" aria-describedby="script-help script-count" placeholder="Paste a script here. The planner will group it into clear visual beats."></textarea>
+            <label class="field-label" for="script-input">Scene description</label>
+            <textarea id="script-input" maxlength="2500" spellcheck="true" aria-describedby="script-help script-count" placeholder="Describe one clear action, the character, and the setting."></textarea>
             <div class="field-meta">
-              <span id="script-help">Tip: paste narration in order; the planner selects five visual beats.</span>
-              <span id="script-count">0 / 30,000</span>
+              <span id="script-help">One image per request · keep the action and setting clear.</span>
+              <span id="script-count">0 / 2,500</span>
             </div>
-
-            <div class="control-row">
-              <label for="scene-count">Preview scenes</label>
-              <div class="stepper">
-                <button id="scene-minus" type="button" aria-label="Show fewer scenes">−</button>
-                <output id="scene-count" for="scene-minus scene-plus">5</output>
-                <button id="scene-plus" type="button" aria-label="Show more scenes">+</button>
-              </div>
-            </div>
-            <p class="control-note">Five scenes per demo. Use fewer scenes for a smaller paid test.</p>
 
             <div class="style-lock">
               <div class="style-lock-top">
@@ -119,10 +109,10 @@
             </div>
 
             <button class="primary-button" id="build-button" type="button">
-              <span id="build-button-label">Build storyboard</span>
+              <span id="build-button-label">Generate one image</span>
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6" /></svg>
             </button>
-            <p class="privacy-note"><span aria-hidden="true">◉</span> Flare generates images only · low quality · approved visual references attached.</p>
+            <p class="privacy-note"><span aria-hidden="true">◉</span> Flare is used for image generation only · low quality · approved visual references attached.</p>
           </aside>
 
           <section class="board-panel panel" aria-labelledby="board-title">
@@ -132,19 +122,15 @@
                   <span class="heading-icon icon-film" aria-hidden="true">
                     <svg viewBox="0 0 24 24"><path d="M4 5.5h16v13H4zM4 9h3M4 15h3M17 9h3M17 15h3M9 5.5v3M15 5.5v3M9 15.5v3M15 15.5v3" /></svg>
                   </span>
-                  <h2 id="board-title">Storyboard</h2>
-                  <span class="board-count" id="board-count">3 frames</span>
+                  <h2 id="board-title">Image preview</h2>
+                  <span class="board-count" id="board-count">Stage 1</span>
                 </div>
-                <p class="board-subtitle" id="board-subtitle">A first pass at the visual rhythm.</p>
+                <p class="board-subtitle" id="board-subtitle">Your generated image will appear here.</p>
               </div>
               <div class="board-actions">
-                <button class="outline-button" id="download-all" type="button" title="Download each preview frame as an SVG">
+                <button class="outline-button" id="download-all" type="button" title="Download the generated image" disabled>
                   <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v11m0 0 4-4m-4 4-4-4M4 16v4h16v-4" /></svg>
-                  Download all
-                </button>
-                <button class="send-button" id="send-drive" type="button" title="Drive export is planned for a later phase">
-                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7.5h6l2 2h8v9H4zM4 7.5V5h6l2 2.5" /></svg>
-                  Send to Drive <span class="later-tag">LATER</span>
+                  Download image
                 </button>
               </div>
             </div>
@@ -156,45 +142,34 @@
 
             <div class="notice-bar" id="notice-bar" role="status">
               <span class="notice-mark" aria-hidden="true">✦</span>
-              <span id="notice-copy"><strong>Reference-guided storyboards.</strong> n8n handles the scene plan, images, reviews, and CSV download.</span>
+              <span id="notice-copy"><strong>One image at a time.</strong> This stage checks that Fred’s supplied references reach the image model and the returned image reaches this page.</span>
               <button id="dismiss-notice" type="button" aria-label="Dismiss note">×</button>
             </div>
 
-            <div class="frame-grid" id="frame-grid" aria-live="polite"></div>
+            <div class="frame-grid single-image-grid" id="frame-grid" aria-live="polite"></div>
 
             <div class="board-footer">
-              <div class="footer-status"><span class="status-dot"></span><span id="footer-status-copy">Paste a script to create your five-scene storyboard</span></div>
-              <button class="export-button" id="export-plan" type="button">
-                Download storyboard CSV
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v11m0 0 4-4m-4 4-4-4M4 16v4h16v-4" /></svg>
-              </button>
+              <div class="footer-status"><span class="status-dot"></span><span id="footer-status-copy">Describe one scene to begin.</span></div>
             </div>
           </section>
         </div>
 
-        <section class="bottom-strip" aria-label="Prototype notes">
-          <div class="bottom-note"><span class="note-icon note-orange">1</span><div><strong>Scene planning first</strong><small>Review the beats before paying for a batch.</small></div></div>
-          <div class="bottom-note"><span class="note-icon note-blue">2</span><div><strong>One visual language</strong><small>Keep character and outline rules consistent.</small></div></div>
-          <div class="bottom-note"><span class="note-icon note-green">3</span><div><strong>Human feedback loop</strong><small>Ratings guide later prompts; they don't retrain the model.</small></div></div>
+        <section class="bottom-strip" aria-label="Stage 1 workflow notes">
+          <div class="bottom-note"><span class="note-icon note-orange">1</span><div><strong>One image per request</strong><small>Use a single scene description for this test.</small></div></div>
+          <div class="bottom-note"><span class="note-icon note-blue">2</span><div><strong>Fred’s references attached</strong><small>The recurring character and room images guide the result.</small></div></div>
+          <div class="bottom-note"><span class="note-icon note-green">3</span><div><strong>Review the real output</strong><small>Download the PNG and check the style before adding more steps.</small></div></div>
         </section>
       </main>
 
       <footer class="page-footer">
         <span>STORYBOARD LAB <span class="footer-spark">✦</span> A working demo for Fred's YouTube team</span>
-        <span>Prototype 01 · Visual style based on the supplied reference pack</span>
+      <span>Stage 1 · One low-quality 16:9 image per request</span>
       </footer>
     </div>
-
-    <dialog class="message-dialog" id="message-dialog" aria-labelledby="message-title">
-      <form method="dialog" class="dialog-close-form"><button class="icon-button" value="cancel" aria-label="Close message">×</button></form>
-      <span class="message-icon" aria-hidden="true">✦</span>
-      <h2 id="message-title">Drive export is next</h2>
-      <p id="message-copy">Your scene ratings and comments are saved in n8n. Shared Drive delivery and the editing-team notification are still being built.</p>
-      <form method="dialog"><button class="primary-button dialog-save" value="ok">Got it</button></form>
-    </dialog>
 
     <script src="./workflow-api.js"></script>
     <script src="./app.js"></script>
   </body>
 </html>
+
 

@@ -2,6 +2,12 @@
 
 # Fred's Script-to-Storyboard Demo — Agent Context
 
+## Current milestone update — 20 October 2026
+
+The current build is **Fred Image Generation - Stage 1**, n8n workflow **QRPeaK5ayX9ZC5Zx**. It accepts a 20–2,500 character description of one scene, loads two approved Drive image references, asks OpenRouter's dedicated GPT Image Flare image endpoint for one low-quality 16:9 PNG, and returns the image to the web UI. Manual execution 2340 succeeded; provider-reported cost was $0.028384. The fixed UI route is the Stage 1 webhook. This stage is stateless and contains no n8n Data Tables or other persistence nodes.
+
+The former 79-node workflow is preserved as inactive **Script to Image Paid Demo - Reference Backup**, ID **wGOMRtREoqFDUgqj**. Its multi-scene planning, reviews, CSV, and delivery behavior is not part of the current Stage 1 flow. Add those capabilities incrementally after the single-image UI path is verified. Use Google Sheets for future persistence, never n8n Data Tables. Keep Flare limited to image generation. See [the current workflow guide](../workflows/fred-image-generation-stage-1/README.md) for the exact request, response, and node sequence.
+
 ## Purpose
 
 Help Rayvin build a small, reviewable paid demo for Fred's YouTube production team. The first useful milestone is a script-to-storyboard prototype: paste narration, split it into a small set of visual beats, generate a limited number of consistent 16:9 frames, review them, and download the approved outputs.
@@ -203,3 +209,4 @@ Working estimate, subject to provider and Drive access: **2–3 focused working 
 - RAG implementation references: [n8n RAG guide](https://docs.n8n.io/advanced-ai/rag-in-n8n/) and [n8n Supabase Vector Store node](https://docs.n8n.io/integrations/builtin/cluster-nodes/root-nodes/n8n-nodes-langchain.vectorstoresupabase/).
 - [Rayvin's portfolio](https://rayvingianan.r4yv.tech/), [Shop Floor Agent repository](https://github.com/rayvin04/shop-floor-ai-rayvin-gianan), and [live demo](https://shop-floor.r4yv.tech/).
 - Official model routing: [OpenRouter GPT Image 2.5 Flare listing](https://openrouter.ai/openai/gpt-image-2.5-flare), [OpenRouter Images API guide](https://openrouter.ai/blog/tutorials/image-generation/), and [OpenAI image-generation settings](https://developers.openai.com/api/docs/guides/image-generation).
+

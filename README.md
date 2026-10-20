@@ -1,47 +1,36 @@
 # Fred’s Script-to-Storyboard Demo
 
-A five-scene demo for Fred’s YouTube animation workflow. The priority is his actual drawing style and scene language: script → consecutive storyboard beats → reference-guided images → human review.
+An incremental prototype for Fred’s YouTube animation workflow. The current milestone checks one core path: a scene description and two approved Drive reference images go to GPT Image Flare, then the generated frame returns to the UI.
 
-## Current work
+## Current milestone: Stage 1 image test
 
-The current implementation is documented in [Agent workflow v3](docs/agent-workflow-v3.md). All generation, progress, image delivery, shared feedback and CSV-download routes belong to the same n8n workflow (`rV2JjknCieGGXRNL`).
+The live n8n workflow is **Fred Image Generation - Stage 1**, ID **QRPeaK5ayX9ZC5Zx**. Its export and node-by-node guide are in [the Stage 1 workflow folder](workflows/fred-image-generation-stage-1/README.md).
 
-The live 77-node draft was saved and validated. The latest local export has 78 nodes, adding a missing-review guard and a no-charge readiness check; those final refinements still need synchronization. Execution `2024` started a one-image test, but Heroku returned HTTP 503 before its result could be inspected. The new draft has not been published, so live image generation and reference fidelity remain unverified. Inspect that saved run before spending on another test.
+This workflow creates one low-quality 16:9 image per request. It reads the approved character and room references from Google Drive, calls OpenRouter's dedicated Images API for image generation only, and returns a PNG data URL plus an n8n binary preview. It does not use n8n Data Tables or other n8n storage.
 
-The UI defaults to five scenes, shows actual saved images instead of local sample drawings, polls background-job progress, supports image downloads and shared ratings/comments, and downloads a CSV created inside n8n. Its readiness check prevents a generation request from being sent to an older published workflow.
+Manual execution 2340 succeeded and returned a PNG. OpenRouter reported a generation cost of $0.028384 for that image. The web UI has been simplified to one scene description, one image preview, and a PNG download action.
 
-Stable production URL: [script-to-storyboard-six.vercel.app](https://script-to-storyboard-six.vercel.app/). A deployment-specific URL is a fixed snapshot; use the stable alias after the current workflow and UI release have been verified.
+The old 79-node workflow was duplicated as **Script to Image Paid Demo - Reference Backup**, ID **wGOMRtREoqFDUgqj**. It is preserved as a guide and remains inactive. The older production workflow is separate and is not the Stage 1 endpoint.
 
-## Workflow architecture
+## What comes later
 
-- The planning AI Agent studies two actual approved Drive image binaries and retrieves Fred’s style brief, CSV examples and saved art reviews.
-- A structured JSON parser enforces the storyboard fields.
-- A scene art director AI Agent calls its connected Flare image tool once per scene. That tool enters the image-only branch of the SAME workflow.
-- OpenRouter is used only for `openai/gpt-image-2.5-flare` image generation at low quality. Text planning/reasoning use the existing Vercel text model.
-- The image branch sends actual reference bytes through OpenRouter’s dedicated Images API, creates an n8n binary preview, saves the result, and returns a small receipt to the Agent.
-- The browser receives HTTP 202 quickly and polls for results. This avoids keeping a generation request open beyond Heroku’s 30-second router timeout.
-- Ratings/comments are stored in the shared n8n Feedback table and can inform later Agent prompts. They do not train the model.
-- The CSV route creates Fred’s eight columns in n8n, quotes commas/newlines correctly, and supports Excel. Unknown timings stay blank.
-
-Google Drive delivery and the editing-team notification remain marked **LATER**. Image data currently uses n8n Data Tables for this small demo; regular production use needs durable object storage, authentication, rate limits and transactional job locking.
+Once the single-image path is verified through the public UI, add the next workflow stages one at a time: a five-scene storyboard plan in Fred's CSV format, Google Sheets for review metadata, then Google Drive delivery and the editing-team notification. Do not add n8n Data Tables or use n8n's native storage for persistence. Keep Flare for images only.
 
 ## Project files
 
-- `public/` — static Vercel UI; `workflow-api.js` contains the fixed workflow routes. No provider secrets belong here.
-- `workflows/script-to-storyboard/workflow.json` — complete n8n export, inactive on import.
-- `workflows/script-to-storyboard/workflow.sdk.ts` — generated SDK graph for validation.
-- `scripts/build_agent_workflow.py` — reproducible workflow/export builder.
-- `scripts/check_storyboard_workflow.mjs` — local functional checks; makes no provider calls.
-- `docs/agent-workflow-v3.md` — current architecture, verified status and remaining work.
-- `docs/fred-agent-context.md` and `docs/fred-style-guide.md` — reference analysis and Agent context.
-- `docs/Freds_Storyboard_Analysis.docx` — earlier human-readable reference analysis; consult the v3 addendum for current implementation status.
+- public/ — static Vercel UI; workflow-api.js contains the fixed Stage 1 webhook route.
+- workflows/fred-image-generation-stage-1/ — current workflow export and Stage 1 guide.
+- workflows/script-to-storyboard/ — earlier storyboard workflow and its historical notes.
+- docs/fred-agent-context.md and docs/fred-style-guide.md — Fred's reference analysis and project context.
+- docs/agent-workflow-v3.md — historical design notes for the former complex workflow.
+- docs/Freds_Storyboard_Analysis.docx — human-readable reference analysis.
 
-## Local checks
+## Local verification
 
-```powershell
-node --check public/app.js
-node --check public/workflow-api.js
-node scripts/check_storyboard_workflow.mjs
-```
+Run Node syntax checks for the static UI files, then serve the public folder to inspect the page:
 
-Serve `public/` with a static server to inspect the UI. It still uses the saved n8n routes; no webhook URL entry is required. The Vercel project uses Framework Preset **Other** and Output Directory `public`. `.vercelignore` excludes workflow/docs/scripts and environment files from uploads. Keep all model credentials in n8n.
+    node --check public/app.js
+    node --check public/workflow-api.js
+
+The Vercel project uses Framework Preset Other and Output Directory public. Provider credentials stay in n8n; do not place them in the browser code.
+

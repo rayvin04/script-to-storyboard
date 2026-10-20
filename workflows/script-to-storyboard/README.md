@@ -1,4 +1,4 @@
-> Current implementation: see [Agent workflow v3](../../docs/agent-workflow-v3.md). The notes below include historical v2.1 status.
+> Historical workflow notes. Current implementation is [Fred Image Generation - Stage 1](../fred-image-generation-stage-1/README.md). The old complex workflow was preserved as an inactive reference backup; do not mistake its Data Tables, reviews, polling, or CSV routes for the current image-only path.
 
 # Script to Storyboard Paid Demo
 
@@ -64,3 +64,4 @@ Each image is a complete storyboard frame combining its setting/background with 
 - Retry only transient provider errors with a small limit; return per-scene error state for failed frames.
 
 See [`docs/fred-style-guide.md`](../../docs/fred-style-guide.md) for the visual brief, CSV analysis, retrieval rules, and prompt template. See [`docs/fred-agent-context.md`](../../docs/fred-agent-context.md) for project instructions and architecture context.
+
