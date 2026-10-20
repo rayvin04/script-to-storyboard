@@ -23,11 +23,15 @@ const els = {
   resultSummary: $("result-summary"),
   imageGrid: $("image-grid"),
   emptyState: $("empty-state"),
+  storyboardDisclosure: $("storyboard-disclosure"),
+  storyboardCount: $("storyboard-count"),
+  storyboardBody: $("storyboard-body"),
+  downloadStoryboard: $("download-storyboard"),
   deferredNote: $("deferred-note"),
   deferredCopy: $("deferred-copy"),
   themeToggle: $("theme-toggle")
 };
-const state = { busy: false, images: [] };
+const state = { busy: false, images: [], storyboardCsv: "" };
 
 function setTheme(theme, persist) {
   document.documentElement.dataset.theme = theme;
@@ -73,16 +77,22 @@ function setBusy(isBusy) {
   state.busy = isBusy;
   els.script.disabled = isBusy;
   els.sampleButton.disabled = isBusy;
-  els.generateLabel.textContent = isBusy ? "Working through the script…" : "Generate backgrounds";
+  els.generateLabel.textContent = isBusy ? "Planning, then generating…" : "Create storyboard & backgrounds";
   updateInputState();
 }
 
 function clearResults() {
   state.images = [];
+  state.storyboardCsv = "";
   els.imageGrid.querySelectorAll(".image-card").forEach(card => card.remove());
   els.emptyState.hidden = false;
   els.resultCount.textContent = "0 / " + MAX_BACKGROUND_IMAGES;
-  els.resultSummary.textContent = "Your scene-specific images will appear here as each one finishes.";
+  els.resultSummary.textContent = "The storyboard and its scene-specific background images will appear here.";
+  els.storyboardDisclosure.hidden = true;
+  els.storyboardDisclosure.open = false;
+  els.storyboardCount.textContent = "0 scenes";
+  els.storyboardBody.replaceChildren();
+  els.downloadStoryboard.disabled = true;
   els.deferredNote.hidden = true;
   els.deferredCopy.textContent = "";
 }
@@ -132,13 +142,56 @@ function appendImage(image) {
 }
 
 function validatePlan(plan) {
-  if (!plan || !Array.isArray(plan.backgrounds)) {
-    throw new Error("The planner response did not include background scenes. Check the Plan Storyboard path in n8n.");
+  if (!plan || !Array.isArray(plan.scenes) || !Array.isArray(plan.backgrounds)) {
+    throw new Error("The planner response must include the complete storyboard and its background settings.");
+  }
+  if (typeof plan.storyboardCsv !== "string" || !plan.storyboardCsv) {
+    throw new Error("The planner response did not include the storyboard CSV data.");
   }
   if (plan.backgrounds.length === 0) {
     throw new Error("The storyboard did not contain any usable Background descriptions. Check the planner's Background column.");
   }
   return plan.backgrounds.slice(0, MAX_BACKGROUND_IMAGES);
+}
+
+function renderStoryboard(scenes, csvText) {
+  const columns = [
+    ["sceneNumber", "Scene"],
+    ["timestamp", "Timestamp"],
+    ["voiceover", "Voiceover"],
+    ["whatsHappening", "What's happening"],
+    ["background", "Background"],
+    ["handDrawnCharactersAndProps", "Hand-drawn characters & props"],
+    ["onScreenText", "On-screen text"],
+    ["transitionsMotion", "Transitions/Motion"]
+  ];
+  const rows = scenes.map(scene => {
+    const row = document.createElement("tr");
+    for (const [key] of columns) {
+      const cell = document.createElement("td");
+      cell.textContent = scene && scene[key] != null && String(scene[key]).trim() ? String(scene[key]) : "—";
+      row.appendChild(cell);
+    }
+    return row;
+  });
+  els.storyboardBody.replaceChildren(...rows);
+  els.storyboardCount.textContent = scenes.length + (scenes.length === 1 ? " scene" : " scenes");
+  state.storyboardCsv = csvText;
+  els.downloadStoryboard.disabled = false;
+  els.storyboardDisclosure.hidden = false;
+}
+
+function downloadStoryboard() {
+  if (!state.storyboardCsv) return;
+  const blob = new Blob(["\ufeff", state.storyboardCsv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "fred-storyboard.csv";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 async function generateFromScript(event) {
@@ -166,6 +219,7 @@ async function generateFromScript(event) {
   try {
     const plan = await window.storyboardWorkflow.plan(script);
     targetImages = validatePlan(plan);
+    renderStoryboard(plan.scenes, plan.storyboardCsv);
     const sceneCount = Number(plan.totalScenes) || 0;
     const totalUnique = Number(plan.totalUniqueBackgrounds) || targetImages.length;
     const deferred = Number(plan.remainingBackgrounds) || 0;
@@ -206,7 +260,7 @@ async function generateFromScript(event) {
       completed += 1;
       const percent = Math.round((completed / targetImages.length) * 100);
       setProgress(
-        completed === targetImages.length ? "All selected backgrounds are ready." : completed + " of " + targetImages.length + " backgrounds ready.",
+      completed === targetImages.length ? "Storyboard complete · All selected backgrounds are ready." : completed + " of " + targetImages.length + " backgrounds ready.",
         percent,
         completed + " / " + targetImages.length,
         false
@@ -216,9 +270,9 @@ async function generateFromScript(event) {
     }
 
     if (deferred > 0) {
-      els.resultSummary.textContent = completed + " backgrounds ready. The storyboard has " + deferred + " more unique settings for a later batch.";
+      els.resultSummary.textContent = "Storyboard complete · " + completed + " backgrounds ready. " + deferred + " unique settings remain for a later batch.";
     } else {
-      els.resultSummary.textContent = completed + " scene-aware backgrounds are ready.";
+      els.resultSummary.textContent = "Storyboard complete · " + completed + " scene-aware backgrounds are ready.";
     }
     setNotice("", false);
   } catch (error) {
@@ -229,7 +283,9 @@ async function generateFromScript(event) {
     setNotice(message + partial, true);
     els.resultSummary.textContent = completed > 0
       ? completed + " background" + (completed === 1 ? " is" : "s are") + " ready. The batch stopped after an error."
-      : "No backgrounds were returned. Fix the workflow issue before trying again.";
+      : els.storyboardDisclosure.hidden
+        ? "No storyboard or backgrounds were returned. Check the n8n workflow before retrying."
+        : "The storyboard is ready, but no backgrounds were returned. Check the n8n workflow before retrying.";
     els.progressValue.textContent = completed + " / " + targetImages.length;
     els.progressFill.classList.remove("is-active");
     if (completed === 0) els.progressWrap.hidden = true;
@@ -240,6 +296,7 @@ async function generateFromScript(event) {
 
 els.script.addEventListener("input", updateInputState);
 els.form.addEventListener("submit", generateFromScript);
+els.downloadStoryboard.addEventListener("click", downloadStoryboard);
 els.sampleButton.addEventListener("click", () => {
   els.script.value = SAMPLE_SCRIPT;
   updateInputState();

@@ -11,7 +11,7 @@
         }
       },
       "id": "686810ba-a70b-4eb0-90bc-c012f251e9ae",
-      "name": "Script or Background Webhook",
+      "name": "Storyboard and Background Pipeline Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
       "position": [
@@ -160,13 +160,13 @@
     },
     {
       "parameters": {
-        "content": "## Fred Script → Backgrounds · Simple\n\n**One input: the full script.** The browser sends one script to this webhook with `action: plan`. A text model builds every scene in Fred’s eight-column storyboard format. The workflow reads the read-only `Planner Context` tab once; it contains the current style guide, reference index, and both CSV examples. It returns the first 10 unique Background descriptions and the count left for later.\n\n**Image phase.** The browser sends each selected Background back to this same webhook with `action: image`, one at a time. n8n loads the shared Drive style reference and calls OpenRouter `openai/gpt-image-2.5-flare`, low quality, one 16:9 image. The model generates backgrounds only; animators add characters, props, text, diagrams, and motion.\n\nNo per-scene prompt input, no sheet writes, n8n tables/memory, job storage, server-side image loop, Drive upload, status polling, CSV/SVG export, or email delivery.",
+        "content": "## Deterministic script → storyboard → backgrounds pipeline\n\n**One user submission always produces both deliverables in order.** The UI sends the complete script to Stage 1. The text planner returns the full storyboard in Fred’s eight-column CSV schema, plus up to 10 unique values from its `Background` column.\n\n**Stage 2 always follows Stage 1.** Fixed UI code takes those storyboard `Background` values and calls this same webhook once per background, sequentially. The internal `action` field only routes a request to the correct stage; no AI decides whether to create a storyboard or images, and the user never chooses a mode.\n\nThis keeps each n8n execution small for the Heroku host. It avoids holding a full script, reference data, and a batch of up to 10 image payloads in one execution. The final UI shows the complete storyboard and the generated background plates together.\n\nImage requests use OpenRouter `openai/gpt-image-2.5-flare`, low quality, one 16:9 background plate per call, with the Drive style reference. Images contain environments only; animators add characters, props, text, diagrams, and motion. No n8n tables or memory are used.",
         "color": 5,
         "width": 1740,
-        "height": 200
+        "height": 300
       },
       "id": "937e5abf-7bf0-4a75-90d9-12f0e5a0824a",
-      "name": "Sticky Note 5e105651",
+      "name": "Pipeline Architecture — Fixed Sequence",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
@@ -176,7 +176,7 @@
     },
     {
       "id": "98ab681e-0a62-402c-b9d7-90f63aac24c1",
-      "name": "Route Script or Image Request",
+      "name": "Identify Internal Stage (UI-Controlled)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -190,7 +190,7 @@
     },
     {
       "id": "aa810724-639b-4012-87d8-2ebd524c9785",
-      "name": "Plan Request?",
+      "name": "Stage 1 — Storyboard Request?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
@@ -223,7 +223,7 @@
     },
     {
       "id": "87e73010-c0cb-4dd7-b436-11dbaa5271fc",
-      "name": "Image Request?",
+      "name": "Stage 2 — Background Request?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
@@ -492,7 +492,7 @@
       ],
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const raw = $json.output ?? $json;\nconst plan = typeof raw === 'string' ? JSON.parse(raw) : raw;\nif (!Array.isArray(plan.scenes) || !plan.scenes.length) throw new Error('The storyboard planner returned no scenes.');\nconst unique = new Map();\nfor (let index=0; index<plan.scenes.length; index++) {\n  const scene=plan.scenes[index] || {};\n  const description=String(scene.background || '').trim();\n  if (!description) throw new Error('Every storyboard scene needs a Background description.');\n  const key=description.toLowerCase().replace(/\\s+/g,' ');\n  if (!unique.has(key)) unique.set(key,{backgroundPrompt:description,sceneNumbers:[]});\n  const sceneNumber=Number(scene.sceneNumber);\n  unique.get(key).sceneNumbers.push(Number.isInteger(sceneNumber) && sceneNumber>0 ? sceneNumber : index+1);\n}\nconst all=Array.from(unique.values());\nconst limit=10;\nconst remainingBackgrounds=Math.max(0,all.length-limit);\nconst backgrounds=all.slice(0,limit).map((item,index)=>({backgroundId:'BG'+String(index+1).padStart(3,'0'),sceneNumbers:item.sceneNumbers,backgroundPrompt:item.backgroundPrompt}));\nreturn [{json:{ok:true,totalScenes:plan.scenes.length,totalUniqueBackgrounds:all.length,generatedBackgroundLimit:limit,remainingBackgrounds,note:remainingBackgrounds ? 'The complete storyboard is ready. This run generates the first '+limit+' unique backgrounds; '+remainingBackgrounds+' remain for a later batch.' : 'The complete storyboard is ready. Every unique background is included in this image batch.',backgrounds}}];"
+        "jsCode": "const raw = $json.output ?? $json;\nconst plan = typeof raw === 'string' ? JSON.parse(raw) : raw;\nif (!Array.isArray(plan.scenes) || !plan.scenes.length) throw new Error('The storyboard planner returned no scenes.');\nconst unique = new Map();\nfor (let index=0; index<plan.scenes.length; index++) {\n  const scene=plan.scenes[index] || {};\n  const description=String(scene.background || '').trim();\n  if (!description) throw new Error('Every storyboard scene needs a Background description.');\n  const key=description.toLowerCase().replace(/\\s+/g,' ');\n  if (!unique.has(key)) unique.set(key,{backgroundPrompt:description,sceneNumbers:[]});\n  const sceneNumber=Number(scene.sceneNumber);\n  unique.get(key).sceneNumbers.push(Number.isInteger(sceneNumber) && sceneNumber>0 ? sceneNumber : index+1);\n}\nconst all=Array.from(unique.values());\nconst limit=10;\nconst remainingBackgrounds=Math.max(0,all.length-limit);\nconst backgrounds=all.slice(0,limit).map((item,index)=>({backgroundId:'BG'+String(index+1).padStart(3,'0'),sceneNumbers:item.sceneNumbers,backgroundPrompt:item.backgroundPrompt}));\nconst columns=[\n  ['Scene','sceneNumber'],\n  ['Timestamp','timestamp'],\n  ['Voiceover','voiceover'],\n  [\"What's happening\",'whatsHappening'],\n  ['Background','background'],\n  ['Hand-drawn characters & props','handDrawnCharactersAndProps'],\n  ['On-screen text','onScreenText'],\n  ['Transitions/Motion','transitionsMotion']\n];\nconst csvCell=value=>'\"'+String(value ?? '').replace(/\"/g,'\"\"')+'\"';\nconst storyboardCsv=[\n  columns.map(([header])=>csvCell(header)).join(','),\n  ...plan.scenes.map(scene=>columns.map(([,key])=>csvCell(scene?.[key])).join(','))\n].join('\\r\\n');\nreturn [{json:{\n  ok:true,\n  totalScenes:plan.scenes.length,\n  totalUniqueBackgrounds:all.length,\n  generatedBackgroundLimit:limit,\n  remainingBackgrounds,\n  note:remainingBackgrounds ? 'The complete storyboard is ready. This run generates the first '+limit+' unique backgrounds; '+remainingBackgrounds+' remain for a later batch.' : 'The complete storyboard is ready. Every unique background is included in this image batch.',\n  scenes:plan.scenes,\n  storyboardCsv,\n  backgrounds\n}}];"
       }
     },
     {
@@ -634,64 +634,6 @@
         ]
       ]
     },
-    "Script or Background Webhook": {
-      "main": [
-        [
-          {
-            "node": "Route Script or Image Request",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Route Script or Image Request": {
-      "main": [
-        [
-          {
-            "node": "Plan Request?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Plan Request?": {
-      "main": [
-        [
-          {
-            "node": "Validate Full Script",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Image Request?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Image Request?": {
-      "main": [
-        [
-          {
-            "node": "Prepare Image Request",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Return Invalid Action",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Validate Full Script": {
       "main": [
         [
@@ -815,6 +757,64 @@
           }
         ]
       ]
+    },
+    "Storyboard and Background Pipeline Webhook": {
+      "main": [
+        [
+          {
+            "node": "Identify Internal Stage (UI-Controlled)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Identify Internal Stage (UI-Controlled)": {
+      "main": [
+        [
+          {
+            "node": "Stage 1 — Storyboard Request?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stage 1 — Storyboard Request?": {
+      "main": [
+        [
+          {
+            "node": "Validate Full Script",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Stage 2 — Background Request?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stage 2 — Background Request?": {
+      "main": [
+        [
+          {
+            "node": "Prepare Image Request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return Invalid Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": false,
@@ -825,4 +825,3 @@
   },
   "versionId": "3ada72cf-57a0-407c-8fd3-5ceb0084b0d4"
 }
-

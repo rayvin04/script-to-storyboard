@@ -4,7 +4,9 @@ Current n8n workflow ID: `QRPeaK5ayX9ZC5Zx`
 Editor: [open in n8n](https://n8n-rayv-742595626609.herokuapp.com/workflow/QRPeaK5ayX9ZC5Zx)  
 Production webhook: `POST /webhook/fred-image-generation-stage-1`
 
-The workflow accepts **one full script** with `action: "plan"`, creates a complete scene storyboard from Fred’s examples, and returns the first 10 distinct `Background` settings. The browser then sends each setting back to the same webhook with `action: "image"`, one at a time. There is no separate prompt per scene.
+The workflow accepts **one full script** from the UI’s single Generate action. The fixed sequence is always: (1) create the complete storyboard, then (2) generate up to 10 unique background plates from the storyboard’s `Background` values. The browser automatically orchestrates the two stages through lightweight calls to this same webhook; the user does not choose a mode, and no AI decides whether to storyboard or generate images.
+
+The two internal request types are intentional: `action: "plan"` is always the first call, and `action: "image"` is sent only after the planner returns the storyboard. Each image call is sequential and contains one background so the Heroku host does not have to hold a full storyboard run and a batch of image payloads in one execution.
 
 ## Routes
 
@@ -14,7 +16,7 @@ The workflow accepts **one full script** with `action: "plan"`, creates a comple
 {"action":"plan","script":"Paste the complete voiceover script here..."}
 ```
 
-The planner reads the external `Planner Context` tab once, ranks example CSV rows, and uses Vercel AI Gateway `openai/gpt-5-mini` with a structured parser. It returns `totalScenes`, `totalUniqueBackgrounds`, `remainingBackgrounds`, and up to 10 background objects with IDs, linked scene numbers, and background descriptions. It does not call the image model.
+The planner reads the external `Planner Context` tab once, ranks example CSV rows, and uses Vercel AI Gateway `openai/gpt-5-mini` with a structured parser. It returns `scenes`, `storyboardCsv`, `totalScenes`, `totalUniqueBackgrounds`, `remainingBackgrounds`, and up to 10 background objects with IDs, linked scene numbers, and background descriptions. The UI displays the complete storyboard in a table and provides the returned CSV for download. Planning does not call the image model.
 
 ### Generate one background image
 
@@ -30,11 +32,11 @@ The workflow reads the `Planner Context` tab in [Fred Storyboard Style and Refer
 
 ## Guardrails
 
-- Full storyboard first; image count is capped at 10 unique Background values.
+- Full storyboard and CSV first; image count is capped at 10 unique Background values.
 - Browser loop is sequential; one image per n8n execution.
 - Only the `Background` field supplies scene-specific image content.
 - No characters, animals, body parts, movable props, text, diagrams, logos, or motion are generated.
-- No n8n Data Tables, n8n Memory, script/job storage, Drive upload, CSV/SVG export, notifications, or feedback loop.
+- No n8n Data Tables, n8n Memory, script/job storage, Drive upload, SVG export, notifications, or feedback loop. The CSV comes from the planner response and is not stored.
 - `Read Planner Context` has bounded retry settings for transient Sheets errors.
 
 The published graph is authoritative. Import snapshots should be inactive to avoid registering a duplicate webhook. Reconnect saved credentials in n8n after importing on another instance.
