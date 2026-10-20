@@ -1,19 +1,19 @@
 # Fred's Background Storyboard Visual Brief
 
-**Version:** background-first prototype v4 · **Updated:** 20 October 2026
+**Version:** simplified one-script prototype · **Updated:** 20 October 2026
 
 ## Product contract
 
-The user pastes a full script. AI 1 builds the complete, scene-by-scene storyboard using Fred's eight-column CSV format. AI 2 makes **background plates only** for selected storyboard rows. This prototype can generate at most **10 distinct background plates per batch**; a longer storyboard remains complete, and any remaining plates are clearly marked for a later batch.
+The user pastes one full script once. AI 1 plans the complete, scene-by-scene storyboard using Fred's eight-column format. AI 2 makes **background plates only** for up to **10 distinct settings**, serially. If the complete plan has more than 10 unique settings, the UI reports how many remain for a later run; this prototype does not export or persist the storyboard.
 
 The goal is to remove the animator's manual work of figuring out where each beat happens and painting its environment. Animators still draw every character, body part, prop that moves, overlay, and animation layer.
 
 ## Two-stage sequence
 
-1. **Storyboard planner (text model):** read the style guide, reference index, and both imported example sheets; segment the entire supplied script into visual beats; return the full CSV-shaped storyboard. Preserve exact script excerpts and supplied timecodes. For script-only input, leave timestamps empty.
-2. **Background generator (image model):** after the plan is available for review, use only each selected row's `Background` field plus the shared art-style rules. Generate no more than 10 distinct plates in one batch. Save the image file to Drive and record its ID and status in Google Sheets.
+1. **Storyboard planner (text model):** read the consolidated `Planner Context` reference tab once; segment the entire supplied script into visual beats; build the full eight-column storyboard. Preserve exact script excerpts and supplied timecodes. For script-only input, leave timestamps empty.
+2. **Background generator (image model):** use only each selected row's `Background` field plus the shared art-style rules. Generate no more than 10 distinct plates, one request at a time. Return each image to the browser; do not store it in this prototype.
 
-GPT Image 2.5 Flare is for images only. Text planning, retrieval, CSV creation, validation, and cost/scene bookkeeping use the text model or deterministic code.
+GPT Image 2.5 Flare is for images only. Text planning and reference retrieval use the text model or deterministic code.
 
 ## Fred's scene CSV contract
 
@@ -30,7 +30,7 @@ Keep these source fields, in this exact order:
 | `On-screen text` | Exact overlay copy, otherwise blank. | Excluded completely; no letters, labels, captions, or UI in the plate. |
 | `Transitions/Motion` | Preserve edit cues such as hard cut, zoom, fade, or movement. | Excluded completely; render a static environment. |
 
-Workflow-only fields may follow the eight source fields: `Background ID`, `Background image status`, and `Generation batch note`. Keep the original eight columns intact so the team can review or export the plan in Fred's format.
+These eight fields are the planner's internal structured output. The current UI displays generated backgrounds only and does not offer a storyboard table or CSV export.
 
 ## What the references show
 
@@ -65,23 +65,18 @@ The prompt is intentionally built from `Background` alone. Never concatenate `Wh
 
 - The storyboard always covers the full script. Do not truncate it to fit an image quota.
 - Identify a background plate for each scene. Reuse a plate only when both setting and framing truly match; do not merge scenes just because both say “yellow wall.”
-- Assign stable IDs (`BG001`, `BG002`, …) to distinct plates and attach them to all scenes that use them.
-- The first generation batch contains at most 10 unique IDs. Any further distinct plates keep their complete storyboard rows and are marked `deferred`.
-- Show this message in the UI and in the CSV's batch-note column: **“This is the full storyboard. More background plates remain for a later batch.”** Include the actual deferred count when known.
-- A later batch may request another set of at most 10 deferred IDs. Never exceed 10 image calls for one generation request.
-- Generate sequentially, save each result to Google Drive, and write its status before moving to the next plate. One failure should not discard successful images or storyboard rows.
+- Assign temporary IDs (`BG001`, `BG002`, …) to distinct plates and attach their scene numbers.
+- Generate at most the first 10 unique backgrounds per script. Report the remaining count in the UI when one is known.
+- The browser requests one image at a time. One failure should not remove images already shown; stop the remaining requests and display the error.
+- Do not claim that a later batch, file export, or image persistence is implemented in this prototype.
 
 ## Retrieval and persistence
 
-On every planning run, read these external references:
+The current workflow reads the consolidated external reference data on every planning run:
 
-1. [Fred Storyboard Style and Reference Index](https://docs.google.com/spreadsheets/d/1RL7C_3kg7Ua47R7BnQFi4YvsgDyecIQS7yi1uCAT-gg/edit?ouid=112934907610360798465): `Style Guide` and `Reference Index` tabs.
-2. [Storyboard example 01](https://docs.google.com/spreadsheets/d/1LTU3tWF92dzKXzMDPZtV09uQhTqeBGFfDj3TxhJ-xq0/edit?usp=drivesdk): `01_every_weird_body_glitch`.
-3. [Storyboard example 03](https://docs.google.com/spreadsheets/d/1z3zC8r8Ew93j22QvGRQXcqfeHF-vEMlUa9hDsA_5QOc/edit?usp=drivesdk): `03_strangest_things_your_body_d`.
+1. [Fred Storyboard Style and Reference Index](https://docs.google.com/spreadsheets/d/1RL7C_3kg7Ua47R7BnQFi4YvsgDyecIQS7yi1uCAT-gg/edit): the `Planner Context` tab contains 17 style-guide rows, 18 reference-index rows, 81 example-01 rows, and 166 example-03 rows.
 
-Use Google Sheets for style, source index, storyboard, and job/status rows; use Google Drive for image files. **Do not use n8n Data Tables, n8n Memory, or n8n storage as the database.** A CSV download must be assembled by a node in the same n8n workflow, then returned to the UI.
-
-The first retrieval version is an auditable sheet-backed reference lookup with a small number of relevant source rows. It is not vector RAG. Add embeddings/vector search only if tested retrieval misses useful examples. Feedback can later become human-approved prompt examples; it is not model-weight training.
+Use Google Sheets only as read-only reference material in this stage. Do not write scripts or generated results to any database. This is an auditable sheet-backed retrieval step, not vector RAG; the two matching CSV examples are ranked by keyword overlap before being passed to the text model.
 
 ## Acceptance checklist
 
@@ -92,8 +87,9 @@ The first retrieval version is an auditable sheet-backed reference lookup with a
 - [ ] The output art style looks consistent while environments vary appropriately.
 - [ ] Generated plates contain no people, animals, bodies, props, overlays, or motion.
 - [ ] One batch produces no more than 10 distinct images.
-- [ ] Deferred plates are named in the UI and in the downloaded CSV.
-- [ ] Images reach Google Drive and are previewable through the UI without publishing the Drive files publicly.
+- [ ] If more than 10 unique settings exist, the UI reports the remaining count.
+- [ ] Each generated background appears in the UI as soon as its serial request succeeds.
+- [ ] No storage, export, or delivery action is implied by the UI.
 - [ ] Image cost is visible when the provider returns usage data; no image model call is used for text.
 
 ## Source ledger

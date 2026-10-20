@@ -1,63 +1,36 @@
-# Agent Context — Fred's Background Storyboard Demo
+# Agent Context — Fred’s Script-to-Backgrounds Demo
 
-Updated 20 October 2026. This file is the implementation source of truth for future AI agents working in this repository. Apply it together with [`fred-style-guide.md`](fred-style-guide.md).
+Updated 20 October 2026. This is the current implementation brief for agents working in this repository. It replaces the older multi-route, job-storage architecture. Pair it with [`fred-style-guide.md`](fred-style-guide.md) for the source analysis.
 
-## User's confirmed scope
+## Product contract
 
-- User pastes the **full script**.
-- AI 1 creates the **full scene-by-scene storyboard** first, following Fred's exact CSV format.
-- AI 2 creates **background plates only**, at most **10 distinct background images per generation batch**.
-- Fred's drawing style is consistent across scenes, while settings vary to fit each scene. Do not lock every scene to the sample yellow living room.
-- Do not generate people, characters, animals, bodies, organs, hands, loose props, overlay text, or motion. Animators draw and animate those.
-- Show in the UI and downloaded CSV: **“This is the full storyboard. More background plates remain for a later batch.”** Add the actual deferred plate count when known.
-- Every n8n node for this feature belongs to the same workflow. Use sticky notes to label its stages/routes.
-- Use external Google Sheets/Drive for reference, storyboard, status, and image-file storage. Never use n8n Data Tables, n8n Memory, or n8n storage as the project's database.
-- Use a text model for planning and OpenRouter `openai/gpt-image-2.5-flare` only for image generation. Do not spend image credits on retrieval, planning, or CSV work.
+- The user pastes **one complete narration script once**. They do not write a separate prompt for each image.
+- The text planner covers the whole script with a scene-by-scene storyboard in Fred’s original eight-column format.
+- The image stage reads only each scene group’s `Background` description and creates up to **10 unique background plates** for that script, one request at a time.
+- Keep Fred’s drawing treatment consistent while letting each scene’s location, palette, and composition fit its narration.
+- Generate environment backgrounds only. Animators add characters, animals, anatomy, handheld or loose props, diagrams, text, and all movement.
+- If more than 10 unique settings are planned, tell the user how many remain for a later run. Never send a per-scene prompt form to the user.
 
-## Live/current workflows
+## Current workflow
 
-### Proven image-only fallback
+- n8n workflow: **Fred Script-to-Backgrounds — Simple**, ID `QRPeaK5ayX9ZC5Zx` ([open in n8n](https://n8n-rayv-742595626609.herokuapp.com/workflow/QRPeaK5ayX9ZC5Zx)).
+- One production webhook: `POST /webhook/fred-image-generation-stage-1`.
+- `{"action":"plan","script":"..."}` validates one full script, reads the external reference tab once, plans all storyboard scenes, and returns at most 10 distinct backgrounds plus counts.
+- `{"action":"image","background":"...","backgroundId":"BG001","sceneNumbers":[1]}` makes one image. The browser waits for that result before sending the next image request to the same webhook.
+- Text planning uses Vercel AI Gateway `openai/gpt-5-mini` and the structured storyboard parser. GPT Image 2.5 Flare is used **only** for image generation through OpenRouter’s Images API, at low quality, 16:9, `n: 1`.
+- Current fixed image style reference: Google Drive image `19_rZZhpt3du495njrjnO5nuPWQjxnMAQ`. It guides linework and color treatment; the reference subject, setting, and composition are not copied.
 
-- **Fred Image Generation - Stage 1**, workflow ID `QRPeaK5ayX9ZC5Zx`, active: [open in n8n](https://n8n-rayv-742595626609.herokuapp.com/workflow/QRPeaK5ayX9ZC5Zx).
-- One prompt generates one full character scene using a character reference. It does **not** meet Fred's new background-only brief. Keep it intact as a known-good provider test/fallback; do not point the new UI at it.
+## Reference retrieval
 
-### Background-first storyboard workflow
+The read-only tab `Planner Context` is in the external workbook [Fred Storyboard Style and Reference Index](https://docs.google.com/spreadsheets/d/1RL7C_3kg7Ua47R7BnQFi4YvsgDyecIQS7yi1uCAT-gg/edit). It consolidates the two CSV examples, style guide, and Drive reference index so the planner makes one Sheets read per script.
 
-The new workflow is **Fred Storyboard — Full Plan + Background Batches**, ID `NO5b5a1P44wvK4U7`: [open in n8n](https://n8n-rayv-742595626609.herokuapp.com/workflow/NO5b5a1P44wvK4U7). It is a separate workflow from Stage 1 and uses these fixed routes:
+Its columns are `recordType`, `source`, and `payloadJson`. It currently has 17 style guide records, 18 reference-index records, 81 rows from example 01, and 166 rows from example 03. The workflow ranks the examples against the submitted script and passes a compact sample, the style guide, and the index to the text model.
 
-| Route | Purpose |
-| --- | --- |
-| `POST /webhook/fred-storyboard-plan-v4` | Retrieve style/CSV references, produce and save the full storyboard. |
-| `POST /webhook/fred-storyboard-generate-v4` | Accept a job ID and up to 10 background IDs; acknowledge quickly, then generate sequentially. |
-| `GET /webhook/fred-storyboard-status-v4?jobId=...` | Return all scene rows, unique plate statuses, counts, and private image-proxy URLs. |
-| `GET /webhook/fred-storyboard-image-v4?jobId=...&backgroundId=...` | Validate against the sheet and stream one private Drive image as binary to the UI. |
-| `GET /webhook/fred-storyboard-csv-v4?jobId=...` | Build and download the complete Fred-format CSV inside n8n. |
+Do not save submitted scripts, generated prompts, job state, or image binaries to this reference sheet. It is reference context only. No n8n Data Tables, n8n Memory, or internal n8n storage may be introduced.
 
-The public page is `https://script-to-storyboard-six.vercel.app/`. The source is `public/`; routes are fixed in `public/workflow-api.js`. The workflow uses external Google Sheets and Drive for persistent data and files. The browser can build the visual SVG export locally. Do not add n8n Data Tables or Memory.
+## Fred’s storyboard fields
 
-The same workflow now has POST /webhook/fred-storyboard-deliver-v4, connected to the UI Send to editors action. It checks Sheets settings and the Delivery Log, moves up to 10 completed files, sends a Gmail notification to editingTeamEmail, and records a successful delivery. The recipient setting remains blank until Rayvin fills it in; the Drive credential write access to the destination is unverified. Do not take the destination or recipient from public webhook input.
-
-## Reference data and credentials
-
-All numeric IDs below are exact resources established in the connected accounts; do not replace or invent values.
-
-- Main style/reference spreadsheet: `1RL7C_3kg7Ua47R7BnQFi4YvsgDyecIQS7yi1uCAT-gg` — `Fred Storyboard Style and Reference Index`; tabs include `Reference Index`, `Style Guide`, `Job Results`, and `Storyboard Jobs`.
-- Example sheet 01: `1LTU3tWF92dzKXzMDPZtV09uQhTqeBGFfDj3TxhJ-xq0`, tab `01_every_weird_body_glitch`, 81 source rows.
-- Example sheet 03: `1z3zC8r8Ew93j22QvGRQXcqfeHF-vEMlUa9hDsA_5QOc`, tab `03_strangest_things_your_body_d`, 166 source rows.
-- Fred's style source folder: `1KLTxXSsptR9OguL30DCBLX72GX2rtUBo`. Its character PNGs are style evidence, never image subjects. The tagged environment example also contains a person; if used as an image reference, say to ignore and omit that person.
-- Private image staging folder: `1CcdOgXEwhyXJ1Dnonzv4AVFWloztgTGn`.
-- Shared editing-team delivery folder supplied by the user: 153VPM-IBR1T5UIq-TthqtpklyAGwi-UU (Demo Test Upload). The route is configured for it; verify the n8n Drive credential write permission during the first delivery.
-- The main workbook has a Workflow Settings tab. editingTeamEmail is blank for the user to fill in; teamDriveFolderId, stagingFolderId, and maxFilesPerDelivery are recorded there. It also has a Delivery Log tab for job-level delivery history.
-- Google Sheets credential: `giananrayvin@gmail.com`, ID `uhpKISQ818MUREdV`.
-- Google Drive credential: `giananrayvin@gmail.com GDRIVE`, ID `PWL6ap3LIUEv75px`.
-- Vercel text-model credential: `Vercel AI Gateway account`, ID `FulgOrYzN8KoCQ7j`; model `openai/gpt-5-mini`.
-- OpenRouter image credential: `GPT 2.5 Image Flare`, ID `5gcKsflkw4r3rGS8`; model `openai/gpt-image-2.5-flare`, `quality: low`, 16:9.
-
-Use existing saved credentials in workflow nodes; never place secrets in code, the UI, markdown, workflow JSON, or execution outputs.
-
-## Storyboard record
-
-The first eight columns and their exact order:
+Preserve the source columns, in this exact order and spelling:
 
 1. `Scene`
 2. `Timestamp`
@@ -68,66 +41,24 @@ The first eight columns and their exact order:
 7. `On-screen text`
 8. `Transitions/Motion`
 
-The text model outputs every scene for the full script. Keep `Voiceover` as an exact excerpt; timestamp only when supplied; split narration into visual beats; keep editor/animation notes in their own fields. The image generation request must use only the `Background` field with the shared style rules. Derive all generated prompt text deterministically; do not let a scene's other fields leak into the prompt.
+Keep voiceover as a close, faithful excerpt; use exact supplied timestamps and leave timestamps blank when none were provided. Split visual beats when the narration or location changes. Keep animator directions, text, and motion in their own columns. Do not generate image prompts or images during the planning stage.
 
-Workflow tracking fields may follow the eight CSV columns: `Background ID`, `Background image status`, and `Generation batch note`. Assign a stable `BG001` etc. for genuinely shared background setups. Only deduplicate if setting and framing match. First 10 distinct backgrounds are `pending`; later backgrounds remain `deferred`, with full scene records retained.
+Only `Background` can contribute scene-specific content to an image request. Never concatenate voiceover, actions, characters/props, on-screen text, transitions, feedback, or inferred objects into the image prompt.
 
-## Workflow design
+## UI and scope
 
-### 1. Plan route — synchronous, no image calls
+The static UI is in `public/`. It has one full-script textarea, a generate action, simple progress, and a gallery of completed backgrounds. It displays each result as soon as it arrives and preserves already completed images if a later image fails.
 
-1. Webhook validates a non-empty script (maximum 30,000 characters) and creates an opaque job ID.
-2. Read the style guide, reference index, and both example sheets using Google Sheets. Select a compact set of matching CSV examples for planning; keep external source data outside n8n storage.
-3. A Basic LLM Chain + Vercel AI Gateway + Structured Output Parser create the full storyboard, following the exact eight-column schema. The planner does not need agent tools because the workflow retrieves and supplies the live references before prompting; this reduces execution overhead on the 512 MB host.
-4. Code validates fields, assigns distinct background IDs, chooses a maximum of 10 initial plate IDs, creates background-only prompt strings, and creates a standards-compliant CSV string.
-5. Google Sheets appends one row per storyboard scene to `Job Results`. The CSV and all storyboard rows are returned by the webhook so the UI can display and download the CSV that the workflow created.
+Current demo deliberately omits full storyboard preview, CSV/SVG export, Drive upload, email delivery, review feedback, job/status persistence, and automatic retries. Do not add these to the simplified path without a new user request. Keep every AI/node step for this product in the same n8n workflow.
 
-### 2. Generate route — fast acknowledgement, sequential work
+## Reliability and known test state
 
-1. Validate `jobId` and the requested IDs. Enforce a strict maximum of 10 unique IDs on every request.
-2. Send HTTP 202/accepted before image calls so the browser does not wait for a 10-image generation run.
-3. Read rows for that job from Sheets. Select only `pending`/explicitly requested `deferred` backgrounds.
-4. Call OpenRouter's dedicated Images API once per background using only `Background` + retrieved style rules. Keep generation sequential to protect the 512 MB Heroku process and keep cost predictable.
-5. Upload each binary to the private batch folder in Drive; update all scene rows that reference that background with status, file ID/name/MIME type, image proxy URL, prompt, and provider cost when available. Continue after a single plate failure and record the failure.
+- The image branch succeeded in n8n execution `2546` on 20 October 2026. OpenRouter returned an image data URL for a custom-fit jewelry-shop background; reported provider cost was about `$0.0168`.
+- Planner execution `2547` previously stopped on Google Sheets `429` rate limiting. The references have since been consolidated into one tab and one read.
+- The later one-script planner execution `2548` was marked `crashed` before any workflow node began. The n8n/Heroku host then returned HTTP 503. The full planner path and deployed UI have **not** yet passed an end-to-end check.
+- The older complex workflow `NO5b5a1P44wvK4U7` is unpublished. Preserve it as a reference; do not use its old UI routes or activate it alongside this workflow.
+- Do not issue duplicate image calls after timeouts. Check the matching n8n execution first; a retry can incur another image charge.
 
-### 3. Status/image routes
+## Security
 
-- Status route reads the job's rows from Google Sheets and returns counts for planned, generating, completed, failed, and deferred scenes/backgrounds. It does not return image base64.
-- Image route accepts a random job ID and background ID, verifies the combination in Google Sheets, downloads the Drive file with the saved credential, then returns one binary image. Do not make Drive images public merely to preview them.
-- The UI polls status and renders each background through its image-proxy URL. It can download images or a ZIP on the client after they load; never send a large array of base64 images in one n8n response.
-
-### Sticky-note labels
-
-Add sticky notes to the same workflow for: (1) full storyboard planning + sheet-backed retrieval; (2) background-only image generation, 10-image cap, private Drive upload; (3) status/image proxy routes; (4) failure/status handling. Do not add Data Table or memory nodes.
-
-## UI contract
-
-- Page title `Fred's Storyboard Lab`; consistent cartoon palette and readable Lexend type.
-- Script field and `Build full storyboard` action.
-- Display full scene table before image spend; CSV download must contain the exact eight source columns plus workflow columns and batch notes.
-- Provide both a workflow-generated CSV and a browser-generated SVG visual review board. The SVG includes all storyboard fields and plate status but does not embed image binaries.
-- `Generate first batch` and `Generate next batch` actions each send no more than 10 distinct background IDs.
-- Progress state is polled from n8n. Display successful images, failures, costs, and deferred count. Gallery cards represent unique backgrounds, not duplicate storyboard scenes.
-- Display clearly: **“This is the full storyboard. More background plates remain for a later batch.”** The UI/CSV must make the remaining count explicit when the plan has more than 10 unique plates.
-- Do not show character preview placeholders as generated assets; do not imply image calls happen during planning.
-
-## Failure, privacy, and cost
-
-- The n8n host has a 512 MB Heroku memory limit and has previously crashed while several workflows were enabled. Preserve all other workflows. The new batch is serial and capped at 10. Do not restart, pause, or change Heroku configuration without an explicit user request.
-- Use no more than 10 image calls per generation request. No automatic regeneration loops. Record provider failures and continue to the next background when possible.
-- The webhook has no caller auth. CORS limits browsers but does not authenticate requests. Keep model keys on n8n; validate and clamp every request. Do not expose Drive file IDs or public links unnecessarily.
-- A one-image production smoke check may consume image credits. Use low quality. Confirm a successful image response and provider cost before testing a larger batch.
-- A same-workflow error path was previously selected; keep failure recording inside this workflow. Do not create a separate error workflow unless the user explicitly changes that decision.
-- Use scene-aware file names in the format `fred-{job-random-suffix}-BG001-SC-001-007.png`. The same name must be used for binary metadata, the Drive file, Sheets `imageFileName`, UI single-image download, and ZIP download. For more than four scene numbers, keep the first four in the name and append `PLUS-NN`; Sheets holds the complete mapping.
-- Keep Drive delivery separate from generation. Stage files privately for UI preview, and move them into the user-supplied team folder only after the user clicks Send to editors. The route uses Google Drive and Gmail; no image API calls occur during delivery. It checks for a successful row in Delivery Log to prevent a second recorded send. A Gmail-success/Sheets-failure window may require reviewing the execution before retrying.
-- The existing Heroku host has a 512 MB quota and has crashed during earlier runs. Do not increase delivery or generation concurrency; move files without loading their binary data into n8n, and cap each delivery execution at 10 files.
-
-## History to retain
-
-- The older 79-node workflow is preserved inactive as `Script to Image Paid Demo - Reference Backup`, ID `wGOMRtREoqFDUgqj`; it contains n8n Data Tables and character-frame assumptions. Do not use or activate it.
-- The original workflow ID `rV2JjknCieGGXRNL` remains inactive.
-- The user's accepted shift is background-only. Do not revert to full character image generation.
-
-## Sources
-
-See [`fred-style-guide.md`](fred-style-guide.md) for analysis of channels, both sample workbooks, the art direction, and the background prompt contract. The workbooks are available as native Sheets under the IDs above. URLs for the supplied videos, scripts, Drive folder, portfolio, and UI repo are recorded in the source ledger in that guide.
+Keep Google Sheets, Google Drive, Vercel Gateway, and OpenRouter credentials in n8n only. The webhook is public and CORS is not authentication. Validate/clamp the full script and background string, limit each image request to one, and do not log or expose credentials.
