@@ -6,6 +6,7 @@ This is the deliberately small first working slice of the storyboard demo. It ac
 
 - Name: **Fred Image Generation - Stage 1**
 - Workflow ID: **QRPeaK5ayX9ZC5Zx**
+- Status: **Active**
 - n8n editor: https://n8n-rayv-742595626609.herokuapp.com/workflow/QRPeaK5ayX9ZC5Zx
 - Production webhook: POST /webhook/fred-image-generation-stage-1
 - Public UI: https://script-to-storyboard-six.vercel.app/
@@ -41,7 +42,9 @@ The web page submits one image prompt, shows the returned image, and downloads t
 
 ## Verified test
 
-Manual execution 2340 succeeded on 20 October 2026. Both Drive references were downloaded; OpenRouter returned HTTP 200 from provider OpenAI with a PNG. n8n created a 1.29 MB binary preview and returned a base64 PNG data URL to the response node. Reported provider cost: **$0.028384** for that image.
+Manual execution 2340 succeeded on 20 October 2026. Both Drive references were downloaded; OpenRouter returned HTTP 200 from provider OpenAI with a PNG. n8n created a 1.29 MB binary preview and returned a base64 PNG data URL to the response node. Reported provider cost: **$0.028384**.
+
+Production UI execution 2341 also succeeded. The generated PNG appeared in the public page, and the Download image button confirmed the PNG download. Reported provider cost: **$0.028414**. The stable Vercel alias now points to this tested UI build.
 
 Manual execution 2339 did not generate an image. It surfaced the unsupported optional compression parameter; the workflow was corrected before execution 2340.
 
@@ -51,5 +54,5 @@ Credentials remain saved inside n8n and are not included as secrets in this repo
 
 ## Import
 
-workflow.json is the latest n8n export for this stage. Import it into n8n and select the saved Google Drive and OpenRouter credentials if n8n does not map their credential IDs on import. The workflow is kept in its own folder so it can be managed separately from the reference backup and the older storyboard workflow.
+workflow.json is the latest n8n export for this stage and stays inactive on import to avoid registering a duplicate public webhook. The live workflow is active. Import the file into n8n and select the saved Google Drive and OpenRouter credentials if n8n does not map their credential IDs on import. The workflow is kept in its own folder so it can be managed separately from the reference backup and the older storyboard workflow.
 

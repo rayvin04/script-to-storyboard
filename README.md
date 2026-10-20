@@ -8,9 +8,9 @@ The live n8n workflow is **Fred Image Generation - Stage 1**, ID **QRPeaK5ayX9ZC
 
 This workflow creates one low-quality 16:9 image per request. It reads the approved character and room references from Google Drive, calls OpenRouter's dedicated Images API for image generation only, and returns a PNG data URL plus an n8n binary preview. It does not use n8n Data Tables or other n8n storage.
 
-Manual execution 2340 succeeded and returned a PNG. OpenRouter reported a generation cost of $0.028384 for that image. The web UI has been simplified to one scene description, one image preview, and a PNG download action.
+Manual execution 2340 returned a PNG at a reported cost of $0.028384. The production UI test (execution 2341) also succeeded: the page displayed the generated PNG and confirmed the download action, at a reported cost of $0.028414. The stable URL now points to the Stage 1 UI.
 
-The old 79-node workflow was duplicated as **Script to Image Paid Demo - Reference Backup**, ID **wGOMRtREoqFDUgqj**. It is preserved as a guide and remains inactive. The older production workflow is separate and is not the Stage 1 endpoint.
+The old 79-node workflow was duplicated as **Script to Image Paid Demo - Reference Backup**, ID **wGOMRtREoqFDUgqj**. Both it and the original complex workflow (**rV2JjknCieGGXRNL**) are inactive. The original is preserved unchanged; the new 8-node Stage 1 workflow is the only active storyboard workflow.
 
 ## What comes later
 
