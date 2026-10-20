@@ -4,8 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#fff7e8" />
-    <meta name="description" content="Turn a full script into Fred-style storyboard scenes and generate background plates in batches." />
-    <title>Fred's Storyboard Lab</title>
+    <meta name="description" content="Turn one full script into a storyboard-guided batch of cartoon background images." />
+    <title>Fred's Background Lab</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
@@ -23,126 +23,84 @@
   <body>
     <div class="page-shell">
       <header class="topbar">
-        <a class="brand" href="#top" aria-label="Fred's Storyboard Lab home">
+        <a class="brand" href="#top" aria-label="Fred's Background Lab home">
           <span class="brand-mark" aria-hidden="true">
             <svg viewBox="0 0 40 40"><path d="M7 9.5 32 6l2 25-24 3Z" fill="#ffd166" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"/><path d="m16 15 10 5.2-9 6Z" fill="#ef674d" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M7 12 4 13M34 9l3-1M31 34l2 2" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
           </span>
-          <span class="brand-copy"><strong>STORYBOARD LAB</strong><small>for Fred's team</small></span>
+          <span class="brand-copy"><strong>BACKGROUND LAB</strong><small>for Fred's team</small></span>
         </a>
         <div class="topbar-right">
           <a class="github-link" href="https://github.com/rayvin04/script-to-storyboard" target="_blank" rel="noopener noreferrer" aria-label="Open the script-to-storyboard GitHub repository">
             <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 .297a12 12 0 0 0-3.795 23.384c.6.111.82-.261.82-.577v-2.234c-3.338.726-4.043-1.416-4.043-1.416-.546-1.387-1.333-1.757-1.333-1.757-1.09-.745.083-.73.083-.73 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.108-.775.418-1.305.762-1.605-2.665-.304-5.466-1.333-5.466-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.536-1.524.117-3.176 0 0 1.008-.322 3.301 1.23a11.5 11.5 0 0 1 6.007 0c2.292-1.552 3.298-1.23 3.298-1.23.655 1.652.243 2.873.12 3.176.77.84 1.235 1.91 1.235 3.22 0 4.61-2.804 5.625-5.475 5.922.43.37.823 1.102.823 2.222v3.293c0 .319.216.694.825.576A12.001 12.001 0 0 0 12 .297z"/></svg><span>GitHub</span>
           </a>
-          <span class="mode-pill"><span class="live-dot"></span><span id="mode-label">N8N WORKFLOW</span></span>
+          <span class="mode-pill"><span class="live-dot"></span><span>BACKGROUND ONLY</span></span>
           <button class="icon-button theme-toggle" id="theme-toggle" type="button" aria-label="Switch to dark mode" aria-pressed="false" title="Switch to dark mode">
             <svg class="theme-icon theme-icon-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.2 15.4A8.4 8.4 0 0 1 8.6 3.8 8.5 8.5 0 1 0 20.2 15.4Z"/></svg>
             <svg class="theme-icon theme-icon-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/></svg>
           </button>
-          <div class="avatar" aria-label="Storyboard editor">R</div>
         </div>
       </header>
 
       <main id="top">
-        <section class="intro-row storyboard-intro" aria-labelledby="page-title">
+        <section class="intro-row image-only-intro" aria-labelledby="page-title">
           <div>
-            <p class="eyebrow"><span class="eyebrow-star">✦</span> BACKGROUND-FIRST PROTOTYPE <span class="eyebrow-divider"></span> FULL SCRIPT</p>
-            <h1 id="page-title">Script in.<br /><span>Storyboard out.</span></h1>
-            <p class="intro-copy">Build every scene first, then create up to 10 custom-fit background plates at a time. Animators still draw the characters, props, text, and motion.</p>
-          </div>
-          <div class="step-strip" aria-label="Workflow steps">
-            <div class="step-chip is-current" id="step-plan"><span class="step-number">01</span><span>Storyboard</span></div><span class="step-line" aria-hidden="true"></span>
-            <div class="step-chip" id="step-images"><span class="step-number">02</span><span>Backgrounds</span></div><span class="step-line" aria-hidden="true"></span>
-            <div class="step-chip" id="step-export"><span class="step-number">03</span><span>Export</span></div>
+            <p class="eyebrow"><span class="eyebrow-star">✦</span> ONE SCRIPT · SCENE-AWARE ART</p>
+            <h1 id="page-title">Script in.<br /><span>Backgrounds out.</span></h1>
+            <p class="intro-copy">The planner breaks the full script into animator-style scenes. GPT Image then paints up to 10 matching background plates, one at a time.</p>
           </div>
         </section>
 
-        <div class="workspace-grid storyboard-workspace">
-          <aside class="script-panel panel" aria-labelledby="script-title">
+        <div class="workspace-grid image-only-layout">
+          <form class="script-panel panel image-only-form" id="generate-form">
             <div class="panel-heading">
-              <div class="heading-title"><span class="heading-icon icon-sun" aria-hidden="true">✎</span><div><p class="section-kicker">START WITH THE WHOLE SCRIPT</p><h2 id="script-title">Create a storyboard</h2></div></div>
+              <div class="heading-title"><span class="heading-icon icon-sun" aria-hidden="true">✎</span><div><p class="section-kicker">PASTE ONCE</p><h2 id="script-title">Your full script</h2></div></div>
               <button class="text-button" id="load-sample" type="button">Load sample</button>
             </div>
-            <label class="field-label" for="title-input">Working title <span class="optional-label">optional</span></label>
-            <input id="title-input" type="text" maxlength="120" placeholder="e.g. Every Weird Body Glitch" />
-            <label class="field-label script-label" for="script-input">Full script</label>
-            <textarea id="script-input" maxlength="30000" spellcheck="true" aria-describedby="script-help script-count" placeholder="Paste the complete voiceover script here…"></textarea>
-            <div class="field-meta"><span id="script-help">The entire script becomes a scene-by-scene plan.</span><span id="script-count">0 / 30,000</span></div>
+            <label class="field-label" for="script-input">Narration script</label>
+            <textarea id="script-input" maxlength="30000" required spellcheck="true" aria-describedby="script-help script-count" placeholder="Paste the complete voiceover script here…"></textarea>
+            <div class="field-meta"><span id="script-help">One script becomes scene beats; each distinct Background setting becomes an image prompt.</span><span id="script-count">0 / 30,000</span></div>
 
             <div class="style-lock">
-              <div class="style-lock-top"><span class="style-lock-icon" aria-hidden="true">✦</span><div><p class="section-kicker">SHARED ART STYLE</p><strong>Settings change. Style stays.</strong></div><span class="lock-label">LOCKED</span></div>
-              <div class="style-tags"><span>hand-drawn ink</span><span>flat 2D color</span><span>custom-fit scenes</span></div>
-              <p class="style-description">The workflow reads Fred’s style guide and storyboard references from Google Sheets before planning and again before image generation.</p>
+              <div class="style-lock-top"><span class="style-lock-icon" aria-hidden="true">✦</span><div><p class="section-kicker">STYLE STAYS CONSISTENT</p><strong>Settings follow the story</strong></div><span class="lock-label">LOCKED</span></div>
+              <div class="style-tags"><span>hand-drawn 2D</span><span>bold ink outlines</span><span>backgrounds only</span></div>
+              <p class="style-description">The planner reads Fred's example storyboards. The image model reads the Drive style reference. No characters, movable props, lettering, or animation marks are generated.</p>
             </div>
 
-            <button class="primary-button" id="plan-button" type="button">
-              <span id="plan-button-label">Build full storyboard</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6"/></svg>
+            <button class="primary-button" id="generate-button" type="submit" disabled>
+              <span id="generate-button-label">Generate backgrounds</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6"/></svg>
             </button>
-            <p class="privacy-note"><span aria-hidden="true">◉</span> Planning uses the text model. GPT Image Flare is reserved for background images.</p>
-          </aside>
+            <p class="privacy-note"><span aria-hidden="true">◉</span> Images run sequentially to keep each n8n execution small. Nothing is saved between runs.</p>
+          </form>
 
-          <section class="board-panel panel storyboard-board" aria-labelledby="board-title">
+          <section class="board-panel panel image-only-results" aria-labelledby="results-title">
             <div class="board-header">
               <div>
-                <div class="board-title-row"><span class="heading-icon icon-film" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5.5h16v13H4zM4 9h3M4 15h3M17 9h3M17 15h3M9 5.5v3M15 5.5v3M9 15.5v3M15 15.5v3"/></svg></span><h2 id="board-title">Storyboard workspace</h2><span class="board-count" id="board-count">READY</span></div>
-                <p class="board-subtitle" id="board-subtitle">Generated background plates appear here. The complete scene plan is available as a CSV.</p>
-              </div>
-              <div class="board-actions">
-                <button class="outline-button" id="download-csv" type="button" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v11m0 0 4-4m-4 4-4-4M4 16v4h16v-4"/></svg>Download CSV</button>
-                <button class="outline-button" id="download-svg" type="button" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v16H4zM8 9h8M8 13h5M8 17h8"/></svg>Download SVG</button>
+                <div class="board-title-row"><span class="heading-icon icon-film" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5.5h16v13H4zM4 9h3M4 15h3M17 9h3M17 15h3M9 5.5v3M15 5.5v3M9 15.5v3M15 15.5v3"/></svg></span><h2 id="results-title">Generated backgrounds</h2><span class="board-count" id="result-count">0 / 10</span></div>
+                <p class="board-subtitle" id="result-summary">Your scene-specific images will appear here as each one finishes.</p>
               </div>
             </div>
 
             <div class="progress-wrap" id="progress-wrap" hidden>
-              <div class="progress-labels"><span id="progress-copy">Preparing your storyboard…</span><span id="progress-value">WORKING</span></div><div class="progress-track"><span id="progress-fill"></span></div>
+              <div class="progress-labels"><span id="progress-copy">Waiting to start…</span><span id="progress-value">READY</span></div><div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="progress-fill"></span></div>
             </div>
 
-            <div class="notice-bar storyboard-note" id="notice-bar" role="status" hidden>
-              <span class="notice-mark" aria-hidden="true">✦</span><span id="notice-copy"></span><button id="dismiss-notice" type="button" aria-label="Dismiss note">×</button>
+            <div class="notice-bar image-only-notice" id="notice-bar" role="status" hidden>
+              <span class="notice-mark" aria-hidden="true">✦</span><span id="notice-copy"></span>
             </div>
 
-            <div class="workspace-empty" id="workspace-empty">
-              <div class="empty-illustration" aria-hidden="true"><span>1</span><i>→</i><span>∞</span></div>
-              <div><h3>Plan all the scenes first</h3><p>The storyboard covers the complete script. Image generation is a separate step, limited to 10 distinct backgrounds per batch.</p></div>
-            </div>
-
-            <section class="results-section" id="results-section" hidden>
-              <div class="job-summary" id="job-summary"></div>
-              <div class="deferred-callout" id="deferred-callout" hidden><span class="callout-icon">↗</span><div><strong>This is the full storyboard.</strong><p id="deferred-copy">More background plates remain for a later batch.</p></div></div>
-              <div class="batch-toolbar">
-                <div><p class="section-kicker">BACKGROUND PLATES</p><h3>Generate from the storyboard</h3><p class="batch-help">One image per unique setting, up to 10 plates per batch.</p></div>
-                <div class="batch-buttons">
-                  <button class="primary-button compact-button" id="generate-first" type="button" disabled>Generate first batch <span class="button-count" id="first-batch-count">0</span></button>
-                  <button class="outline-button" id="generate-next" type="button" hidden>Generate next batch <span class="button-count" id="next-batch-count">0</span></button>
-                  <button class="outline-button" id="retry-failed" type="button" hidden>Retry failed</button>
-                  <button class="outline-button" id="download-images" type="button" disabled>Download generated plates</button>
-                  <button class="send-button" id="send-to-editors" type="button" disabled><span id="send-to-editors-label">Send to editors</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12.5 20 4l-5.5 16-2.8-6.2L4 12.5Z"/><path d="m11.7 13.8 4.5-5"/></svg></button>
-                </div>
+            <div class="image-grid" id="image-grid" aria-live="polite">
+              <div class="image-empty" id="empty-state">
+                <div class="empty-illustration" aria-hidden="true"><svg viewBox="0 0 48 40"><rect x="3" y="3" width="42" height="34" rx="6" fill="#fffdf7" stroke="currentColor" stroke-width="2.5"/><path d="m9 29 10-10 7 7 5-5 8 8" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="15" cy="12" r="3" fill="#ef674d" stroke="currentColor" stroke-width="2"/></svg></div>
+                <div><h3>Background plates will show up here</h3><p>Paste one full script to plan its scenes and generate the first set of custom-fit backgrounds.</p></div>
               </div>
-              <p class="delivery-help">When ready, this moves completed plates to the shared Drive folder and emails the editors. Add the recipient in <a href="https://docs.google.com/spreadsheets/d/1RL7C_3kg7Ua47R7BnQFi4YvsgDyecIQS7yi1uCAT-gg/edit#gid=2026102001" target="_blank" rel="noreferrer">Workflow Settings</a>.</p>
-              <div class="batch-status" id="batch-status" role="status" hidden></div>
-
-              <div class="section-divider"><span>Generated backgrounds</span><small id="background-count-label">0 plates</small></div>
-              <div class="background-grid" id="background-grid" aria-live="polite"></div>
-
-              <p class="table-hint">This workspace focuses on the background plates. Download the CSV for every scene, or the SVG for a visual review copy.</p>
-            </section>
-
-            <div class="board-footer"><div class="footer-status"><span class="status-dot"></span><span id="footer-status-copy">Paste a script to begin.</span></div><span class="footer-job-id" id="footer-job-id"></span></div>
+            </div>
+            <div class="deferred-callout image-deferred-callout" id="deferred-note" hidden><span class="callout-icon">↗</span><div><strong>More backgrounds remain.</strong><p id="deferred-copy">The storyboard includes additional distinct settings.</p></div></div>
           </section>
         </div>
-
-        <section class="bottom-strip" aria-label="Workflow notes">
-          <div class="bottom-note"><span class="note-icon note-orange">1</span><div><strong>Full scene plan</strong><small>Every beat stays in the storyboard and downloadable CSV.</small></div></div>
-          <div class="bottom-note"><span class="note-icon note-blue">10</span><div><strong>Ten backgrounds per batch</strong><small>Generate the next set when the first batch is reviewed.</small></div></div>
-          <div class="bottom-note"><span class="note-icon note-green">✎</span><div><strong>Animator-ready separation</strong><small>Characters, props, text, and motion remain in their own columns.</small></div></div>
-        </section>
       </main>
-
-      <footer class="page-footer"><span>STORYBOARD LAB <span class="footer-spark">✦</span> A working demo for Fred's YouTube team</span><span>Full storyboard · background-only batches · private Drive previews</span></footer>
+      <footer class="page-footer"><span>BACKGROUND LAB <span class="footer-spark">✦</span> A working demo for Fred's YouTube team</span><span>One full script · Storyboard-led · Animator-drawn characters</span></footer>
     </div>
-    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js" defer></script>
     <script src="./workflow-api.js" defer></script>
-    <script src="./storyboard-svg.js" defer></script>
     <script src="./app.js" defer></script>
   </body>
 </html>
