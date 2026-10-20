@@ -3,6 +3,8 @@ const SAMPLE_SCRIPT = `Your phone buzzes in your pocket. You reach for it. Nothi
 const MAX_SCRIPT_LENGTH = 30000;
 const BATCH_LIMIT = 10;
 const STATUS_POLL_INTERVAL_MS = 30000;
+const PLAN_FIRST_POLL_DELAY_MS = 75000;
+const PLAN_POLL_INTERVAL_MS = 60000;
 const PLAN_STALE_AFTER_MS = 3 * 60 * 1000;
 const STATUS_RETRY_BASE_MS = 15000;
 const STATUS_RETRY_MAX_MS = 60000;
@@ -238,7 +240,8 @@ async function pollOnce() {
     state.pollFailures = 0;
     renderStatus(job);
     if (shouldKeepPolling(job)) {
-      state.pollTimer = window.setTimeout(pollOnce, STATUS_POLL_INTERVAL_MS);
+      const nextPollDelay = state.isPlanning ? PLAN_POLL_INTERVAL_MS : STATUS_POLL_INTERVAL_MS;
+      state.pollTimer = window.setTimeout(pollOnce, nextPollDelay);
     } else {
       stopPolling();
       state.isPlanning = false;
@@ -319,7 +322,7 @@ async function createStoryboard() {
     els.mode.textContent = "STORYBOARD JOB";
     els.jobId.textContent = `JOB ${state.jobId.slice(0, 8).toUpperCase()}`;
     setFooter("Full script accepted. Waiting for the complete storyboard plan…");
-    startPolling(5000);
+    startPolling(PLAN_FIRST_POLL_DELAY_MS);
   } catch (error) {
     state.isPlanning = false;
     setWorkspaceVisible(false);
@@ -352,7 +355,7 @@ async function generateBatch(items, label) {
     const accepted = await window.storyboardWorkflow.generate(state.jobId, ids);
     if (accepted.ok === false) throw new Error(accepted.error || "n8n could not start this batch.");
     setFooter(`Batch accepted by n8n · ${ids.length} background ${ids.length === 1 ? "plate" : "plates"} queued.`);
-    startPolling(2500);
+    startPolling(15000);
   } catch (error) {
     state.isGenerating = false;
     state.expectedBatchIds = [];
@@ -621,6 +624,6 @@ try {
     els.mode.textContent = "RECONNECTING";
     els.jobId.textContent = `JOB ${savedJobId.slice(0, 8).toUpperCase()}`;
     setProgress("Reconnecting to the saved storyboard job…", "LOADING", 35, true);
-    startPolling(0);
+    startPolling(PLAN_POLL_INTERVAL_MS);
   }
 } catch {}

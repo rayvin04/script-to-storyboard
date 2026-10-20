@@ -35,7 +35,7 @@ The UI Send to editors button calls this route with a job ID. It rejects missing
 - Persistent jobs, storyboard rows, and references use Google Sheets. Image binaries use private Google Drive.
 - Background names include a short job suffix, unique background ID, and linked scene numbers. The name is shared by the binary, Drive file, and Sheets `imageFileName` value.
 - The UI displays background plates only. CSV remains the structured animator source; SVG is built on demand from that CSV and does not contain image binaries.
-- The UI polls every 30 seconds while planning or generating to reduce repeated status executions.
+- During planning, the UI waits 75 seconds before its first status check, then checks once per minute. During background generation it checks every 30 seconds.
 - The delivery destination is the shared team folder 153VPM-IBR1T5UIq-TthqtpklyAGwi-UU; the saved n8n Drive credential write access remains unverified.
 - Delivery must stay serial and capped at 10 Drive files per execution. The email recipient comes from the `editingTeamEmail` cell in the Google Sheet, never from a public webhook field.
 - No n8n Data Tables, n8n Memory, or internal n8n storage for project data.
