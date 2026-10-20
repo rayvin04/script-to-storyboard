@@ -2,6 +2,9 @@ const SAMPLE_TITLE = "Why Your Brain Invents Phantom Phone Vibrations";
 const SAMPLE_SCRIPT = `Your phone buzzes in your pocket. You reach for it. Nothing. No text, no call, no notification. Almost everyone has felt this, and it has a name: phantom vibration syndrome.\n\nYour brain is a prediction machine, constantly scanning for signals that matter. After thousands of checks, it starts treating every tiny muscle twitch or shift of fabric as a possible phone notification. The sensation feels real, even though the phone never moved.\n\nThe fix is simple: give your attention a break. The more you expect a notification, the more likely your brain is to invent one.`;
 const MAX_SCRIPT_LENGTH = 30000;
 const BATCH_LIMIT = 10;
+const STATUS_POLL_INTERVAL_MS = 12000;
+const STATUS_RETRY_BASE_MS = 15000;
+const STATUS_RETRY_MAX_MS = 60000;
 const JOB_STORAGE_KEY = "fredStoryboardJobId";
 const DEFERRED_NOTE = "This is the full storyboard. More background plates remain for a later batch.";
 
@@ -164,20 +167,23 @@ function updateActions(job) {
     const remaining = deferred.length || Number(job.deferredCount) || 0;
     els.deferredCopy.textContent = `${DEFERRED_NOTE} ${remaining} unique background ${remaining === 1 ? "plate remains" : "plates remain"} for a later batch.`;
   }
-  els.boardCount.textContent = state.isPlanning ? "PLANNING" : state.isGenerating ? "GENERATING" : statuses.includes("failed") ? "REVIEW" : "READY";
+  const jobStatus = String(job.status || "").toLowerCase();
+  els.boardCount.textContent = state.isPlanning ? "PLANNING" : state.isGenerating ? "GENERATING" : ["failed", "error", "crashed"].includes(jobStatus) ? "FAILED" : statuses.includes("failed") ? "REVIEW" : "READY";
 }
 
 function renderStatus(job) {
   state.job = job;
   state.scenes = Array.isArray(job.scenes) ? job.scenes : [];
   state.backgrounds = Array.isArray(job.backgrounds) ? job.backgrounds : [];
-  state.isPlanning = String(job.status).toLowerCase() === "planning";
+  const jobStatus = String(job.status || "").toLowerCase();
+  const jobFailed = ["failed", "error", "crashed"].includes(jobStatus);
+  state.isPlanning = jobStatus === "planning";
   const backgroundById = new Map(state.backgrounds.map(item => [item.backgroundId, String(item.status || "").toLowerCase()]));
   for (const id of state.expectedBatchIds) {
     if (backgroundById.get(id) === "generating") state.seenBatchIds.add(id);
   }
   const waitingTooLong = state.expectedBatchAt && Date.now() - state.expectedBatchAt > 30 * 60 * 1000;
-  state.isGenerating = !waitingTooLong && (state.backgrounds.some(item => String(item.status).toLowerCase() === "generating") || state.expectedBatchIds.some(id => {
+  state.isGenerating = !jobFailed && !waitingTooLong && (state.backgrounds.some(item => String(item.status).toLowerCase() === "generating") || state.expectedBatchIds.some(id => {
     const status = backgroundById.get(id);
     if (status === "completed") return false;
     if (status === "failed") return !state.seenBatchIds.has(id) && Date.now() - state.expectedBatchAt < 45000;
@@ -208,6 +214,9 @@ function renderStatus(job) {
     const generated = state.backgrounds.filter(item => item.status === "completed").length;
     const failed = state.backgrounds.filter(item => item.status === "failed").length;
     setFooter(failed ? `${generated} background plates ready · ${failed} failed and available to retry.` : `${generated} of ${state.backgrounds.length} background plates ready.`);
+  } else {
+    hideProgress();
+    if (jobFailed) setFooter(job.error || "Storyboard planning failed before any scenes were created.");
   }
 }
 
@@ -223,7 +232,7 @@ async function pollOnce() {
     state.pollFailures = 0;
     renderStatus(job);
     if (shouldKeepPolling(job)) {
-      state.pollTimer = window.setTimeout(pollOnce, 3500);
+      state.pollTimer = window.setTimeout(pollOnce, STATUS_POLL_INTERVAL_MS);
     } else {
       stopPolling();
       state.isPlanning = false;
@@ -234,13 +243,17 @@ async function pollOnce() {
       state.expectedBatchAt = 0;
       renderStatus(job);
       if (timedOut) showNotice("The batch did not reach a finished state within 30 minutes. Check the n8n execution before retrying.", "error");
+      else if (["failed", "error", "crashed"].includes(String(job.status || "").toLowerCase())) showNotice(job.error || "Storyboard planning failed before any images were generated. Check the n8n execution details.", "error");
       else if (state.scenes.length) showNotice(job.batchNote || job.note || "The full storyboard is ready. Review the CSV, then generate background plates in batches of up to 10.");
     }
   } catch (error) {
     state.pollFailures += 1;
-    showNotice(error instanceof Error ? error.message : String(error), "error");
-    setFooter("Could not refresh the job status. Retrying automatically…");
-    if (state.pollFailures < 8) state.pollTimer = window.setTimeout(pollOnce, Math.min(15000, 3500 * state.pollFailures));
+    if (state.pollFailures === 1) showNotice(error instanceof Error ? error.message : String(error), "error");
+    setFooter("Could not refresh the job status. Retrying with a longer interval to let the workflow host recover…");
+    if (state.pollFailures < 8) {
+      const retryDelay = Math.min(STATUS_RETRY_MAX_MS, STATUS_RETRY_BASE_MS * (2 ** (state.pollFailures - 1)));
+      state.pollTimer = window.setTimeout(pollOnce, retryDelay);
+    }
     else {
       stopPolling();
       setFooter("Status polling stopped after repeated errors. Use the page refresh button to reconnect to this saved job.");

@@ -74,7 +74,7 @@ Workflow tracking fields may follow the eight CSV columns: `Background ID`, `Bac
 
 1. Webhook validates a non-empty script (maximum 30,000 characters) and creates an opaque job ID.
 2. Read the style guide, reference index, and both example sheets using Google Sheets. Select a compact set of matching CSV examples for planning; keep external source data outside n8n storage.
-3. AI Agent + Vercel AI Gateway + Structured Output Parser create the full storyboard, following the exact eight-column schema.
+3. A Basic LLM Chain + Vercel AI Gateway + Structured Output Parser create the full storyboard, following the exact eight-column schema. The planner does not need agent tools because the workflow retrieves and supplies the live references before prompting; this reduces execution overhead on the 512 MB host.
 4. Code validates fields, assigns distinct background IDs, chooses a maximum of 10 initial plate IDs, creates background-only prompt strings, and creates a standards-compliant CSV string.
 5. Google Sheets appends one row per storyboard scene to `Job Results`. The CSV and all storyboard rows are returned by the webhook so the UI can display and download the CSV that the workflow created.
 

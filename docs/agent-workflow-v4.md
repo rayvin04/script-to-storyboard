@@ -11,6 +11,7 @@
 5. Put durable project records in Google Sheets and image binaries in Google Drive. Do not use n8n Data Tables, n8n Memory, or internal workflow storage.
 6. Make image generation asynchronous from the browser's perspective: acknowledge, generate serially in the workflow, and expose status/image routes. This avoids a long browser request and keeps the Heroku memory use lower.
 7. Create the downloadable CSV inside n8n and return it with the storyboard response. The UI presents a download button for the workflow's CSV.
+8. Set `saveExecutionProgress: false` on this workflow to avoid retaining a snapshot after every node. This reduces execution-history detail, so use the Google Sheets job/scene records and platform logs to diagnose failures.
 
 ## Architecture map
 
@@ -20,7 +21,7 @@ flowchart TD
   subgraph WF[One n8n workflow: Fred Storyboard — Full Plan + Background Batches]
     Plan[Plan webhook]
     Ref[Read Style Guide + Reference Index + 2 example Sheets]
-    Agent[AI Agent: full storyboard]
+    Agent[Basic LLM Chain: full storyboard]
     Norm[Validate rows + assign BG IDs + create CSV]
     SavePlan[Append scene rows to Google Sheets]
     PlanReply[Return storyboard + CSV]
@@ -162,7 +163,7 @@ No image is generated before an explicit generation action. Do not make the UI i
 
 Use sticky notes on the single workflow canvas:
 
-- **Storyboard planning:** plan webhook, request validation, four external sheet reads, compact example selection, AI Agent + text model + parser, schema/CSV validation, Google Sheets append, webhook response.
+- **Storyboard planning:** plan webhook, request validation, four external sheet reads, compact example selection, Basic LLM Chain + text model + parser, schema/CSV validation, Google Sheets append, webhook response. This planner has no need for agent tool dispatch because n8n retrieves and passes the references up front; the simpler chain reduces runtime overhead on the 512 MB Heroku dyno.
 - **Background generation:** generate webhook, 202 response, Sheets read, ID/cap validation, sequential Flare HTTP request, binary conversion, private Drive upload, Sheets update.
 - **Status and preview:** status webhook + sheet read/response; image webhook + sheet verification + Drive download + binary response.
 - **Failure handling:** failed image state and failure response; no silent retries.
