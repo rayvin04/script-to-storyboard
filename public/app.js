@@ -1,136 +1,335 @@
-const SAMPLE_PROMPT = "A young brown-skinned man with a large rounded head and a dark green shirt sits on a green sofa in a warm yellow living room. He glances down at a quiet smartphone in his hand with a puzzled expression after feeling a phantom pocket vibration. Simple room, one potted plant, one clear action, wide 16:9 composition.";
+const SAMPLE_TITLE = "Why Your Brain Invents Phantom Phone Vibrations";
+const SAMPLE_SCRIPT = `Your phone buzzes in your pocket. You reach for it. Nothing. No text, no call, no notification. Almost everyone has felt this, and it has a name: phantom vibration syndrome.\n\nYour brain is a prediction machine, constantly scanning for signals that matter. After thousands of checks, it starts treating every tiny muscle twitch or shift of fabric as a possible phone notification. The sensation feels real, even though the phone never moved.\n\nThe fix is simple: give your attention a break. The more you expect a notification, the more likely your brain is to invent one.`;
+const MAX_SCRIPT_LENGTH = 30000;
+const BATCH_LIMIT = 10;
+const JOB_STORAGE_KEY = "fredStoryboardJobId";
+const DEFERRED_NOTE = "This is the full storyboard. More background plates remain for a later batch.";
 
+const $ = id => document.getElementById(id);
 const els = {
-  prompt: document.getElementById("script-input"),
-  count: document.getElementById("script-count"),
-  grid: document.getElementById("frame-grid"),
-  download: document.getElementById("download-all"),
-  subtitle: document.getElementById("board-subtitle"),
-  footer: document.getElementById("footer-status-copy"),
-  mode: document.getElementById("mode-label"),
-  build: document.getElementById("build-button"),
-  buildLabel: document.getElementById("build-button-label"),
-  progress: document.getElementById("progress-wrap"),
-  progressCopy: document.getElementById("progress-copy"),
-  progressValue: document.getElementById("progress-value"),
-  progressFill: document.getElementById("progress-fill"),
-  themeToggle: document.getElementById("theme-toggle"),
-  notice: document.getElementById("notice-bar"),
-  noticeCopy: document.getElementById("notice-copy"),
+  title: $("title-input"), script: $("script-input"), count: $("script-count"),
+  themeToggle: $("theme-toggle"), mode: $("mode-label"), plan: $("plan-button"), planLabel: $("plan-button-label"),
+  progress: $("progress-wrap"), progressCopy: $("progress-copy"), progressValue: $("progress-value"), progressFill: $("progress-fill"),
+  notice: $("notice-bar"), noticeCopy: $("notice-copy"), empty: $("workspace-empty"), results: $("results-section"),
+  boardCount: $("board-count"), subtitle: $("board-subtitle"), summary: $("job-summary"), deferred: $("deferred-callout"), deferredCopy: $("deferred-copy"),
+  first: $("generate-first"), firstCount: $("first-batch-count"), next: $("generate-next"), nextCount: $("next-batch-count"),
+  retry: $("retry-failed"), downloadCsv: $("download-csv"), downloadImages: $("download-images"),
+  batchStatus: $("batch-status"), backgrounds: $("background-grid"), backgroundCount: $("background-count-label"),
+  table: $("storyboard-table-body"), sceneCount: $("scene-count-label"), footer: $("footer-status-copy"), jobId: $("footer-job-id"),
+  stepPlan: $("step-plan"), stepImages: $("step-images"), stepExport: $("step-export"),
 };
 
-let currentImage = null;
-let isGenerating = false;
-
-function setTheme(theme, persist = false) {
-  const selectedTheme = theme === "dark" ? "dark" : "light";
-  const isDark = selectedTheme === "dark";
-  const label = isDark ? "Switch to light mode" : "Switch to dark mode";
-  document.documentElement.dataset.theme = selectedTheme;
-  els.themeToggle.setAttribute("aria-pressed", String(isDark));
-  els.themeToggle.setAttribute("aria-label", label);
-  els.themeToggle.title = label;
-  document.querySelector('meta[name="theme-color"]').content = isDark ? "#1a2230" : "#fff7e8";
-  if (persist) {
-    try { localStorage.setItem("storyboardTheme", selectedTheme); } catch {}
-  }
-}
+const state = {
+  jobId: "", job: null, scenes: [], backgrounds: [],
+  polling: false, pollTimer: null, isPlanning: false, isGenerating: false, pollFailures: 0,
+  expectedBatchIds: [], seenBatchIds: new Set(), expectedBatchAt: 0,
+};
 
 function escapeHtml(value) {
-  return String(value || "").replace(/[&<>"']/g, char => ({
+  return String(value ?? "").replace(/[&<>"']/g, char => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
   })[char]);
 }
 
-function renderEmpty() {
-  els.grid.innerHTML = '<div class="empty-state"><div class="empty-illustration" aria-hidden="true">✦</div><div><h3>Your image will appear here</h3><p>Describe one scene, then generate a single reference-guided frame.</p></div></div>';
-  els.download.disabled = true;
-}
-
-function renderPending() {
-  els.grid.innerHTML = '<article class="frame-card"><div class="frame-topline"><span class="scene-tag">ONE IMAGE TEST</span><span class="scene-state">WORKING</span></div><div class="frame-art"><div class="image-failure"><span aria-hidden="true">✦</span><strong>Generating your image…</strong><small>Loading the supplied visual references and creating one frame.</small></div></div><h3 class="scene-caption">Your scene is in progress</h3><p class="scene-narration">This first test creates one low-quality image so we can confirm the full image path.</p></article>';
-  els.download.disabled = true;
-}
-
-function renderFailure(message) {
-  const safeMessage = escapeHtml(message);
-  els.grid.innerHTML = '<article class="frame-card"><div class="frame-topline"><span class="scene-tag">ONE IMAGE TEST</span><span class="scene-state is-failed">FAILED</span></div><div class="frame-art"><div class="image-failure" role="status"><span aria-hidden="true">!</span><strong>Image not generated</strong><small>' + safeMessage + '</small></div></div><h3 class="scene-caption">Check the workflow result</h3><p class="scene-narration">The error above came back from the image-generation workflow.</p></article>';
-  els.download.disabled = true;
-}
-
-function renderImage(result) {
-  currentImage = result;
-  const cost = Number.isFinite(Number(result.costUsd)) ? "$" + Number(result.costUsd).toFixed(6) : "single image";
-  els.grid.innerHTML = '<article class="frame-card"><div class="frame-topline"><span class="scene-tag">SCENE 01</span><span class="scene-state">IMAGE READY</span></div><div class="frame-art"></div><h3 class="scene-caption">Generated storyboard frame</h3><p class="scene-narration">One low-quality 16:9 image, guided by Fred’s supplied character and background references.</p><div class="scene-meta"><span class="meta-pill">16:9 frame</span><span class="meta-pill">' + cost + ' generation cost</span></div></article>';
-  const image = document.createElement("img");
-  image.src = result.imageData;
-  image.alt = "Generated storyboard scene in Fred’s reference style";
-  els.grid.querySelector(".frame-art").replaceChildren(image);
-  els.download.disabled = false;
-}
-
-function showError(error) {
-  const message = error instanceof Error ? error.message : String(error);
-  els.footer.textContent = message;
-  els.noticeCopy.innerHTML = "<strong>Workflow message.</strong> " + escapeHtml(message);
-  els.notice.classList.add("is-error");
-  els.notice.hidden = false;
+function setTheme(theme, persist = false) {
+  const selected = theme === "dark" ? "dark" : "light";
+  const isDark = selected === "dark";
+  const label = isDark ? "Switch to light mode" : "Switch to dark mode";
+  document.documentElement.dataset.theme = selected;
+  els.themeToggle.setAttribute("aria-pressed", String(isDark));
+  els.themeToggle.setAttribute("aria-label", label);
+  els.themeToggle.title = label;
+  const themeColor = document.querySelector('meta[name="theme-color"]');
+  if (themeColor) themeColor.content = isDark ? "#1a2230" : "#fff7e8";
+  if (persist) {
+    try { localStorage.setItem("storyboardTheme", selected); } catch {}
+  }
 }
 
 function updateCount() {
-  els.count.textContent = els.prompt.value.length.toLocaleString() + " / 2,500";
+  els.count.textContent = `${els.script.value.length.toLocaleString()} / ${MAX_SCRIPT_LENGTH.toLocaleString()}`;
+  if (els.script.value.trim()) els.script.removeAttribute("aria-invalid");
 }
 
-async function generateImage() {
-  const prompt = els.prompt.value.trim();
-  if (prompt.length < 20 || prompt.length > 2500) {
-    els.prompt.setAttribute("aria-invalid", "true");
-    els.prompt.focus();
-    showError("Enter a scene description between 20 and 2,500 characters.");
+function setProgress(copy, value, percent, loading = false) {
+  els.progress.hidden = false;
+  els.progressCopy.textContent = copy;
+  els.progressValue.textContent = value;
+  els.progressFill.style.width = `${Math.max(0, Math.min(100, percent))}%`;
+  els.progressFill.classList.toggle("is-loading", loading);
+}
+
+function hideProgress() {
+  els.progress.hidden = true;
+  els.progressFill.classList.remove("is-loading");
+}
+
+function showNotice(message, type = "info") {
+  els.noticeCopy.textContent = message;
+  els.notice.classList.toggle("is-error", type === "error");
+  els.notice.hidden = !message;
+}
+
+function setFooter(message) {
+  els.footer.textContent = message;
+}
+
+function setWorkspaceVisible(hasJob) {
+  els.empty.hidden = hasJob;
+  els.results.hidden = !hasJob;
+}
+
+function stopPolling() {
+  state.polling = false;
+  if (state.pollTimer) window.clearTimeout(state.pollTimer);
+  state.pollTimer = null;
+}
+
+function renderSummary(job) {
+  const scenes = Number(job.sceneCount) || state.scenes.length;
+  const backgrounds = Number(job.backgroundCount) || state.backgrounds.length;
+  const generated = state.backgrounds.filter(item => item.status === "completed").length;
+  const failed = state.backgrounds.filter(item => item.status === "failed").length;
+  const deferred = state.backgrounds.filter(item => item.status === "deferred").length;
+  const status = state.isPlanning ? "Planning" : state.isGenerating ? "Generating plates" : String(job.status || "Storyboard ready").replaceAll("_", " ");
+  els.summary.innerHTML = [
+    [scenes, "scenes planned"], [backgrounds, "unique backgrounds"], [generated, "plates ready"],
+    [deferred, "deferred"], [failed, "failed"],
+  ].map(([value, label]) => `<div class="summary-stat"><strong>${escapeHtml(value)}</strong><span>${escapeHtml(label)}</span></div>`).join("") +
+    `<div class="summary-state"><span class="summary-state-dot ${state.isPlanning || state.isGenerating ? "is-working" : ""}"></span>${escapeHtml(status)}</div>`;
+}
+
+function renderBackgrounds() {
+  const items = state.backgrounds;
+  els.backgroundCount.textContent = `${items.length} ${items.length === 1 ? "plate" : "plates"}`;
+  if (!items.length) {
+    els.backgrounds.innerHTML = '<div class="background-empty">Background plates will appear here once the full storyboard is ready.</div>';
     return;
   }
-  if (isGenerating) return;
-  els.prompt.removeAttribute("aria-invalid");
-  isGenerating = true;
-  currentImage = null;
-  els.build.disabled = true;
-  els.download.disabled = true;
-  els.buildLabel.textContent = "Generating one image…";
-  els.mode.textContent = "GENERATING";
-  els.subtitle.textContent = "Preparing the references and asking Flare for one image.";
-  els.footer.textContent = "Generating one image with Fred’s supplied references…";
-  els.notice.classList.remove("is-error");
-  els.notice.hidden = true;
-  els.progress.hidden = false;
-  els.progressCopy.textContent = "Loading references and generating one image…";
-  els.progressValue.textContent = "IN PROGRESS";
-  els.progressFill.classList.add("is-loading");
-  els.progressFill.style.width = "42%";
-  els.grid.setAttribute("aria-busy", "true");
-  renderPending();
+
+  els.backgrounds.innerHTML = items.map(item => {
+    const status = String(item.status || "pending").toLowerCase();
+    const statusLabel = status === "completed" ? "READY" : status === "generating" ? "GENERATING" : status === "deferred" ? "LATER BATCH" : status === "failed" ? "FAILED" : "QUEUED";
+    const image = status === "completed" && item.imageUrl
+      ? `<img src="${escapeHtml(item.imageUrl)}" alt="Generated background plate ${escapeHtml(item.backgroundId)}" loading="lazy" />`
+      : `<div class="plate-placeholder ${status === "generating" ? "is-generating" : ""}" role="img" aria-label="${escapeHtml(statusLabel.toLowerCase())} background plate"><span aria-hidden="true">${status === "failed" ? "!" : status === "deferred" ? "↗" : status === "generating" ? "✦" : "◌"}</span><strong>${escapeHtml(status === "failed" ? "Generation failed" : status === "deferred" ? "More plates remain" : status === "generating" ? "Creating background…" : "Ready for a batch")}</strong></div>`;
+    const scenes = (item.sceneNumbers || []).map(Number).filter(Number.isFinite).sort((a, b) => a - b).join(", ");
+    const error = item.error ? `<p class="plate-error">${escapeHtml(item.error)}</p>` : "";
+    const download = status === "completed" && item.imageUrl
+      ? `<button class="plate-download" type="button" data-download-background="${escapeHtml(item.backgroundId)}">Download plate</button>` : "";
+    const cost = Number(item.costUsd) > 0 ? `<span class="plate-cost">$${Number(item.costUsd).toFixed(4)}</span>` : "";
+    return `<article class="background-card"><div class="background-card-top"><span class="background-id">${escapeHtml(item.backgroundId)}</span><span class="plate-status plate-status-${escapeHtml(status)}">${escapeHtml(statusLabel)}</span></div><div class="plate-art">${image}</div><div class="background-card-copy"><p>${escapeHtml(item.background || "Background setting pending")}</p><small>${scenes ? `Used in scene${scenes.includes(",") ? "s" : ""} ${escapeHtml(scenes)}` : "Not linked to a scene"}</small>${error}</div><div class="background-card-bottom">${cost}${download}</div></article>`;
+  }).join("");
+}
+
+function renderScenes() {
+  els.sceneCount.textContent = `${state.scenes.length} ${state.scenes.length === 1 ? "scene" : "scenes"}`;
+  if (!state.scenes.length) {
+    els.table.innerHTML = '<tr><td class="table-empty" colspan="9">The storyboard plan is being prepared. This page will update automatically.</td></tr>';
+    return;
+  }
+  els.table.innerHTML = state.scenes.map(scene => {
+    const status = String(scene.backgroundImageStatus || "pending").toLowerCase();
+    const plateLabel = `${scene.backgroundId || "—"} · ${status}`;
+    return `<tr>
+      <td>${escapeHtml(scene.sceneNumber)}</td><td>${escapeHtml(scene.timestamp || "—")}</td>
+      <td>${escapeHtml(scene.voiceover || "—")}</td><td>${escapeHtml(scene.whatsHappening || "—")}</td>
+      <td>${escapeHtml(scene.background || "—")}</td><td>${escapeHtml(scene.handDrawnCharactersAndProps || "—")}</td>
+      <td>${escapeHtml(scene.onScreenText || "—")}</td><td>${escapeHtml(scene.transitionsMotion || "—")}</td>
+      <td><span class="table-plate-status plate-status-${escapeHtml(status)}">${escapeHtml(plateLabel)}</span></td>
+    </tr>`;
+  }).join("");
+}
+
+function updateActions(job) {
+  const statuses = state.backgrounds.map(item => String(item.status || "pending").toLowerCase());
+  const pending = state.backgrounds.filter(item => item.status === "pending");
+  const deferred = state.backgrounds.filter(item => item.status === "deferred");
+  const failed = state.backgrounds.filter(item => item.status === "failed");
+  const completed = state.backgrounds.filter(item => item.status === "completed");
+  const busy = state.isPlanning || state.isGenerating;
+  const first = pending.slice(0, BATCH_LIMIT);
+  els.firstCount.textContent = String(first.length);
+  els.first.disabled = busy || first.length === 0;
+  els.next.hidden = deferred.length === 0;
+  els.nextCount.textContent = String(Math.min(deferred.length, BATCH_LIMIT));
+  els.next.disabled = busy || deferred.length === 0;
+  els.retry.hidden = failed.length === 0;
+  els.retry.disabled = busy || failed.length === 0;
+  els.downloadImages.disabled = busy || completed.length === 0;
+  els.downloadCsv.disabled = !state.jobId || state.isPlanning;
+  const hasDeferred = deferred.length > 0 || Number(job.deferredCount) > 0;
+  els.deferred.hidden = !hasDeferred;
+  if (hasDeferred) {
+    const remaining = deferred.length || Number(job.deferredCount) || 0;
+    els.deferredCopy.textContent = `${DEFERRED_NOTE} ${remaining} unique background ${remaining === 1 ? "plate remains" : "plates remain"} for a later batch.`;
+  }
+  els.boardCount.textContent = state.isPlanning ? "PLANNING" : state.isGenerating ? "GENERATING" : statuses.includes("failed") ? "REVIEW" : "READY";
+}
+
+function renderStatus(job) {
+  state.job = job;
+  state.scenes = Array.isArray(job.scenes) ? job.scenes : [];
+  state.backgrounds = Array.isArray(job.backgrounds) ? job.backgrounds : [];
+  state.isPlanning = String(job.status).toLowerCase() === "planning";
+  const backgroundById = new Map(state.backgrounds.map(item => [item.backgroundId, String(item.status || "").toLowerCase()]));
+  for (const id of state.expectedBatchIds) {
+    if (backgroundById.get(id) === "generating") state.seenBatchIds.add(id);
+  }
+  const waitingTooLong = state.expectedBatchAt && Date.now() - state.expectedBatchAt > 30 * 60 * 1000;
+  state.isGenerating = !waitingTooLong && (state.backgrounds.some(item => String(item.status).toLowerCase() === "generating") || state.expectedBatchIds.some(id => {
+    const status = backgroundById.get(id);
+    if (status === "completed") return false;
+    if (status === "failed") return !state.seenBatchIds.has(id) && Date.now() - state.expectedBatchAt < 45000;
+    return true;
+  }));
+  setWorkspaceVisible(true);
+  els.jobId.textContent = state.jobId ? `JOB ${state.jobId.slice(0, 8).toUpperCase()}` : "";
+  els.subtitle.textContent = state.isPlanning
+    ? "The full script is being divided into animator-ready scene beats."
+    : `${Number(job.sceneCount) || state.scenes.length} scenes · ${Number(job.backgroundCount) || state.backgrounds.length} unique backgrounds · up to ${BATCH_LIMIT} plates per batch.`;
+  renderSummary(job);
+  renderBackgrounds();
+  renderScenes();
+  updateActions(job);
+  els.stepPlan.classList.toggle("is-current", state.isPlanning || (!state.isGenerating && !state.backgrounds.some(item => item.status === "completed")));
+  els.stepImages.classList.toggle("is-current", state.isGenerating || state.backgrounds.some(item => item.status === "completed"));
+  els.stepExport.classList.toggle("is-current", !state.isPlanning && !state.isGenerating && state.scenes.length > 0);
+  if (state.isPlanning) {
+    setProgress("Creating the complete scene-by-scene storyboard…", "PLANNING", 36, true);
+    setFooter("Planning the full script. No image credits are being used.");
+  } else if (state.isGenerating) {
+    const done = state.backgrounds.filter(item => item.status === "completed" || item.status === "failed").length;
+    const total = state.backgrounds.filter(item => item.status === "generating" || item.status === "completed" || item.status === "failed").length;
+    setProgress(`Generating background plates one at a time… ${done} of ${total} processed`, "GENERATING", total ? 20 + (done / total) * 75 : 50, true);
+    setFooter("Background batch is running in n8n. This page will refresh as each plate is saved.");
+  } else if (state.scenes.length) {
+    hideProgress();
+    const generated = state.backgrounds.filter(item => item.status === "completed").length;
+    const failed = state.backgrounds.filter(item => item.status === "failed").length;
+    setFooter(failed ? `${generated} background plates ready · ${failed} failed and available to retry.` : `${generated} of ${state.backgrounds.length} background plates ready.`);
+  }
+}
+
+function shouldKeepPolling(job) {
+  return state.isPlanning || state.isGenerating;
+}
+
+async function pollOnce() {
+  if (!state.jobId) return;
   try {
-    const result = await window.storyboardWorkflow.generate(prompt);
-    renderImage(result);
-    els.mode.textContent = "IMAGE READY";
-    els.subtitle.textContent = "One image returned from the Stage 1 workflow.";
-    els.footer.textContent = "Image ready · " + (Number.isFinite(Number(result.costUsd)) ? "$" + Number(result.costUsd).toFixed(6) + " generation cost" : "single image");
-    els.progressCopy.textContent = "Image generated and returned to the UI.";
-    els.progressValue.textContent = "DONE";
-    els.progressFill.style.width = "100%";
+    const job = await window.storyboardWorkflow.status(state.jobId);
+    if (job.ok === false) throw new Error(job.error || "Could not read this storyboard job.");
+    state.pollFailures = 0;
+    renderStatus(job);
+    if (shouldKeepPolling(job)) {
+      state.pollTimer = window.setTimeout(pollOnce, 3500);
+    } else {
+      stopPolling();
+      state.isPlanning = false;
+      const timedOut = state.expectedBatchAt && Date.now() - state.expectedBatchAt > 30 * 60 * 1000;
+      state.isGenerating = false;
+      state.expectedBatchIds = [];
+      state.seenBatchIds.clear();
+      state.expectedBatchAt = 0;
+      renderStatus(job);
+      if (timedOut) showNotice("The batch did not reach a finished state within 30 minutes. Check the n8n execution before retrying.", "error");
+      else if (state.scenes.length) showNotice(job.batchNote || job.note || "The full storyboard is ready. Review the CSV, then generate background plates in batches of up to 10.");
+    }
   } catch (error) {
-    renderFailure(error instanceof Error ? error.message : String(error));
-    els.mode.textContent = "CHECK WORKFLOW";
-    els.subtitle.textContent = "The image did not return. The workflow message has the error.";
-    showError(error);
-    els.progressCopy.textContent = "Image generation failed.";
-    els.progressValue.textContent = "ERROR";
-    els.progressFill.style.width = "100%";
+    state.pollFailures += 1;
+    showNotice(error instanceof Error ? error.message : String(error), "error");
+    setFooter("Could not refresh the job status. Retrying automatically…");
+    if (state.pollFailures < 8) state.pollTimer = window.setTimeout(pollOnce, Math.min(15000, 3500 * state.pollFailures));
+    else {
+      stopPolling();
+      setFooter("Status polling stopped after repeated errors. Use the page refresh button to reconnect to this saved job.");
+    }
+  }
+}
+
+function startPolling(delay = 0) {
+  stopPolling();
+  state.polling = true;
+  state.pollTimer = window.setTimeout(pollOnce, delay);
+}
+
+async function createStoryboard() {
+  const script = els.script.value.trim();
+  const title = els.title.value.trim();
+  if (script.length < 40 || script.length > MAX_SCRIPT_LENGTH) {
+    els.script.setAttribute("aria-invalid", "true");
+    els.script.focus();
+    showNotice(`Paste a complete script between 40 and ${MAX_SCRIPT_LENGTH.toLocaleString()} characters.`, "error");
+    return;
+  }
+  if (state.isPlanning || state.isGenerating) return;
+  state.isPlanning = true;
+  state.jobId = "";
+  state.expectedBatchIds = [];
+  state.seenBatchIds.clear();
+  state.expectedBatchAt = 0;
+  state.scenes = [];
+  state.backgrounds = [];
+  els.plan.disabled = true;
+  els.planLabel.textContent = "Starting storyboard…";
+  els.mode.textContent = "PLANNING";
+  els.subtitle.textContent = "Submitting the complete script to the storyboard planner.";
+  showNotice("");
+  setWorkspaceVisible(true);
+  renderBackgrounds();
+  renderScenes();
+  setProgress("Starting the full storyboard plan…", "STARTING", 12, true);
+  setFooter("Planning uses the text model. The image model is only used after review, for background plates.");
+  try {
+    const result = await window.storyboardWorkflow.plan(script, title);
+    if (!result.jobId) throw new Error("The workflow accepted the request but did not return a job ID.");
+    state.jobId = result.jobId;
+    try { localStorage.setItem(JOB_STORAGE_KEY, state.jobId); } catch {}
+    els.mode.textContent = "STORYBOARD JOB";
+    els.jobId.textContent = `JOB ${state.jobId.slice(0, 8).toUpperCase()}`;
+    setFooter("Full script accepted. Waiting for the complete storyboard plan…");
+    startPolling(2200);
+  } catch (error) {
+    state.isPlanning = false;
+    setWorkspaceVisible(false);
+    hideProgress();
+    showNotice(error instanceof Error ? error.message : String(error), "error");
+    setFooter("Storyboard request failed. Check n8n and try again.");
   } finally {
-    isGenerating = false;
-    els.build.disabled = false;
-    els.buildLabel.textContent = "Generate one image";
-    els.progressFill.classList.remove("is-loading");
-    els.grid.setAttribute("aria-busy", "false");
+    els.plan.disabled = false;
+    els.planLabel.textContent = "Build full storyboard";
+  }
+}
+
+async function generateBatch(items, label) {
+  if (!state.jobId || state.isPlanning || state.isGenerating) return;
+  const ids = [...new Set(items.map(item => typeof item === "string" ? item : item.backgroundId).filter(Boolean))].slice(0, BATCH_LIMIT);
+  if (!ids.length) return;
+  state.isGenerating = true;
+  state.expectedBatchIds = ids;
+  state.seenBatchIds.clear();
+  state.expectedBatchAt = Date.now();
+  updateActions(state.job || {});
+  els.mode.textContent = "GENERATING PLATES";
+  els.batchStatus.hidden = false;
+  els.batchStatus.textContent = `${label}: ${ids.length} background ${ids.length === 1 ? "plate" : "plates"}. Images are generated sequentially and saved to private Drive storage.`;
+  showNotice("");
+  setProgress(`${label}: starting ${ids.length} background ${ids.length === 1 ? "plate" : "plates"}…`, "QUEUED", 12, true);
+  try {
+    const accepted = await window.storyboardWorkflow.generate(state.jobId, ids);
+    if (accepted.ok === false) throw new Error(accepted.error || "n8n could not start this batch.");
+    setFooter(`Batch accepted by n8n · ${ids.length} background ${ids.length === 1 ? "plate" : "plates"} queued.`);
+    startPolling(2500);
+  } catch (error) {
+    state.isGenerating = false;
+    state.expectedBatchIds = [];
+    state.seenBatchIds.clear();
+    state.expectedBatchAt = 0;
+    updateActions(state.job || {});
+    showNotice(error instanceof Error ? error.message : String(error), "error");
+    setFooter("The image batch could not be started. You can retry when n8n is available.");
+    hideProgress();
   }
 }
 
@@ -142,51 +341,126 @@ function downloadBlob(blob, filename) {
   document.body.appendChild(link);
   link.click();
   link.remove();
-  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  window.setTimeout(() => URL.revokeObjectURL(url), 1500);
 }
 
-async function downloadImage() {
-  if (!currentImage?.imageData) return;
-  els.download.disabled = true;
+function safeFilename(value) {
+  return String(value || "storyboard").normalize("NFKD").replace(/[^a-zA-Z0-9_-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 70) || "storyboard";
+}
+
+async function downloadCsv() {
+  if (!state.jobId) return;
+  els.downloadCsv.disabled = true;
+  setFooter("Requesting the storyboard CSV from n8n…");
   try {
-    const response = await fetch(currentImage.imageData);
-    const blob = await response.blob();
-    const extension = currentImage.mimeType === "image/jpeg" ? "jpg" : "png";
-    downloadBlob(blob, "fred-storyboard-scene-01." + extension);
-    els.footer.textContent = "Image downloaded · " + (currentImage.mimeType || "PNG");
+    const blob = await window.storyboardWorkflow.downloadCsv(state.jobId);
+    downloadBlob(blob, `${safeFilename(state.job?.title || "fred-storyboard")}.csv`);
+    els.stepExport.classList.add("is-current");
+    setFooter("Full storyboard CSV downloaded from the workflow.");
   } catch (error) {
-    showError(error);
+    showNotice(error instanceof Error ? error.message : String(error), "error");
+    setFooter("CSV download failed. Check the n8n execution and try again.");
   } finally {
-    els.download.disabled = !currentImage;
+    els.downloadCsv.disabled = !state.jobId || state.isPlanning;
   }
 }
 
-document.getElementById("load-sample").addEventListener("click", () => {
-  els.prompt.value = SAMPLE_PROMPT;
+async function downloadOneBackground(item) {
+  if (!item?.imageUrl) return;
+  const blob = await window.storyboardWorkflow.downloadImage(item.imageUrl);
+  const ext = item.imageMimeType === "image/jpeg" ? "jpg" : "png";
+  downloadBlob(blob, `${safeFilename(item.backgroundId)}.${ext}`);
+}
+
+async function downloadAllBackgrounds() {
+  const ready = state.backgrounds.filter(item => item.status === "completed" && item.imageUrl);
+  if (!ready.length) return;
+  if (!window.JSZip) {
+    showNotice("The ZIP helper did not load. Download each completed plate from its card instead.", "error");
+    return;
+  }
+  els.downloadImages.disabled = true;
+  const zip = new window.JSZip();
+  try {
+    for (let index = 0; index < ready.length; index += 1) {
+      const item = ready[index];
+      setFooter(`Adding background ${index + 1} of ${ready.length} to the download…`);
+      const blob = await window.storyboardWorkflow.downloadImage(item.imageUrl);
+      const ext = item.imageMimeType === "image/jpeg" ? "jpg" : "png";
+      zip.file(`${safeFilename(item.backgroundId)}.${ext}`, blob);
+    }
+    const archive = await zip.generateAsync({ type: "blob" });
+    downloadBlob(archive, `${safeFilename(state.job?.title || "fred-storyboard")}-backgrounds.zip`);
+    setFooter(`${ready.length} generated background ${ready.length === 1 ? "plate" : "plates"} downloaded as a ZIP.`);
+  } catch (error) {
+    showNotice(error instanceof Error ? error.message : String(error), "error");
+    setFooter("The image ZIP could not be created. Individual downloads are still available on each plate.");
+  } finally {
+    els.downloadImages.disabled = state.isGenerating || ready.length === 0;
+  }
+}
+
+function loadSample() {
+  els.title.value = SAMPLE_TITLE;
+  els.script.value = SAMPLE_SCRIPT;
   updateCount();
-  els.footer.textContent = "Sample scene loaded · edit it or generate as written";
-  els.prompt.focus();
+  setFooter("Sample script loaded · edit it or build the storyboard as written.");
+  els.script.focus();
+}
+
+$("load-sample").addEventListener("click", loadSample);
+$("dismiss-notice").addEventListener("click", () => { els.notice.hidden = true; });
+els.script.addEventListener("input", updateCount);
+els.plan.addEventListener("click", createStoryboard);
+els.first.addEventListener("click", () => generateBatch(state.backgrounds.filter(item => item.status === "pending").slice(0, BATCH_LIMIT), "First batch"));
+els.next.addEventListener("click", () => generateBatch(state.backgrounds.filter(item => item.status === "deferred").slice(0, BATCH_LIMIT), "Next batch"));
+els.retry.addEventListener("click", () => generateBatch(state.backgrounds.filter(item => item.status === "failed").slice(0, BATCH_LIMIT), "Retry failed plates"));
+els.downloadCsv.addEventListener("click", downloadCsv);
+els.downloadImages.addEventListener("click", downloadAllBackgrounds);
+els.backgrounds.addEventListener("click", async event => {
+  const button = event.target.closest("[data-download-background]");
+  if (!button) return;
+  const item = state.backgrounds.find(background => background.backgroundId === button.dataset.downloadBackground);
+  if (!item) return;
+  button.disabled = true;
+  try { await downloadOneBackground(item); setFooter(`${item.backgroundId} downloaded.`); }
+  catch (error) { showNotice(error instanceof Error ? error.message : String(error), "error"); }
+  finally { button.disabled = false; }
 });
-els.prompt.addEventListener("input", updateCount);
-els.build.addEventListener("click", generateImage);
-els.download.addEventListener("click", downloadImage);
+els.backgrounds.addEventListener("error", event => {
+  if (!(event.target instanceof HTMLImageElement)) return;
+  event.target.alt = "Could not load this private background image. Try refreshing the job.";
+  const placeholder = document.createElement("div");
+  placeholder.className = "plate-placeholder";
+  placeholder.setAttribute("role", "img");
+  placeholder.setAttribute("aria-label", "Image could not be loaded");
+  placeholder.innerHTML = '<span aria-hidden="true">!</span><strong>Image could not load</strong>';
+  event.target.replaceWith(placeholder);
+}, true);
 els.themeToggle.addEventListener("click", () => {
   setTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark", true);
 });
-els.grid.addEventListener("error", event => {
-  if (!(event.target instanceof HTMLImageElement)) return;
-  currentImage = null;
-  els.download.disabled = true;
-  els.footer.textContent = "The workflow returned an image, but this browser could not display it.";
-}, true);
 
-els.mode.textContent = "IMAGE TEST";
-els.notice.hidden = true;
-els.progress.hidden = true;
-els.download.disabled = true;
 try { setTheme(localStorage.getItem("storyboardTheme") || document.documentElement.dataset.theme); }
 catch { setTheme(document.documentElement.dataset.theme); }
-els.prompt.value = SAMPLE_PROMPT;
 updateCount();
-renderEmpty();
+hideProgress();
+els.notice.hidden = true;
+els.results.hidden = true;
+els.empty.hidden = false;
+els.downloadCsv.disabled = true;
+els.first.disabled = true;
+els.downloadImages.disabled = true;
 
+try {
+  const savedJobId = localStorage.getItem(JOB_STORAGE_KEY);
+  if (savedJobId) {
+    state.jobId = savedJobId;
+    state.isPlanning = true;
+    setWorkspaceVisible(true);
+    els.mode.textContent = "RECONNECTING";
+    els.jobId.textContent = `JOB ${savedJobId.slice(0, 8).toUpperCase()}`;
+    setProgress("Reconnecting to the saved storyboard job…", "LOADING", 35, true);
+    startPolling(0);
+  }
+} catch {}
