@@ -1,7 +1,7 @@
 # Fred Script-to-Backgrounds — MVP
 
 Live n8n workflow: `QRPeaK5ayX9ZC5Zx`
-Editor: [open the workflow](https://n8n-rayv-742595626609.herokuapp.com/workflow/QRPeaK5ayX9ZC5Zx)
+Editor: [open the workflow](https://n8n.47-131-239-128.sslip.io/workflow/QRPeaK5ayX9ZC5Zx)
 Production endpoint: `POST /webhook/fred-image-generation-stage-1`
 
 ## One request, one result
@@ -48,15 +48,15 @@ The UI displays the returned images and provides a CSV download. It does not ren
 
 The workflow reads its reference materials from Google Sheets and Google Drive. It does not use n8n Data Tables or memory, store scripts or results in an application database, upload generated images to Drive, or duplicate the full storyboard inside each loop item. Successful execution payload saving is disabled to avoid retaining image base64 in execution history.
 
-## Validation and current host blocker
+## AWS migration status
 
 - Published graph: active version `1e27e289-e000-4448-b432-e08d87d4b7d6`; 21 nodes, one webhook trigger, and one final response node.
 - Workflow graph validation returned no warnings.
 - Frontend syntax and whitespace checks passed locally.
-- The one-scene manual execution (`2566`) crashed before any workflow node ran. n8n returned `Database is not ready!`; therefore it produced no storyboard or image. The one-image and three-image end-to-end tests, and live UI image rendering, remain unverified until the host can start executions.
-- This MVP keeps the existing hosting plan within the approved $13/month cap. No upgrade or purchase was made.
-
-Heroku documents a 30-second limit for a non-streaming request to begin returning response data. This workflow returns only after the storyboard and selected images are ready, so longer jobs may hit Heroku’s H12 timeout even when n8n remains healthy. See [Heroku request timeout](https://devcenter.heroku.com/articles/request-timeout) and [HTTP routing](https://devcenter.heroku.com/articles/http-routing).
+- The existing Heroku Postgres database was dumped and restored into the AWS-hosted Postgres instance. The restored database contains 30 workflows and 45 credentials; the original Heroku app and database remain untouched as rollback.
+- The AWS n8n service is healthy at the HTTPS editor URL above. Its matching 2.44.4 external JavaScript/Python task runner has registered with the n8n task broker.
+- The Caddy HTTPS health endpoint returned HTTP 200. A full storyboard-to-image request and the deployed UI image display still require an end-to-end check.
+- AWS hosting is the approved $24/month Lightsail plan. The AWS deployment is temporary; Heroku remains available for rollback.
 
 ## Importing the snapshot
 

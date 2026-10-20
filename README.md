@@ -1,13 +1,13 @@
 # Fred’s Script-to-Backgrounds Demo
 
-The demo takes **one complete voiceover script** in one submission. A text model plans the full script into Fred-style scenes, then the UI automatically generates up to 10 distinct environment plates from the storyboard’s `Background` descriptions. The finished result contains the full storyboard and the background images.
+The demo takes **one complete voiceover script** in one submission. A text model plans the full script into Fred-style scenes, then the workflow generates up to three distinct environment plates from the storyboard’s `Background` descriptions. The complete storyboard and its CSV remain available even when the MVP image limit is reached; the broader target is up to ten plates.
 
 Only backgrounds are generated. Animators add all characters, props, labels, diagrams, and movement by hand. Fred’s art treatment stays consistent across settings, while each background changes to fit its scene.
 
 ## Current architecture
 
 - UI: static Vercel site in `public/`.
-- n8n: **Fred Script-to-Backgrounds — Simple**, ID `QRPeaK5ayX9ZC5Zx` ([open in n8n](https://n8n-rayv-742595626609.herokuapp.com/workflow/QRPeaK5ayX9ZC5Zx)). One Generate action always starts with the complete storyboard; the UI then automatically calls the same workflow once per background. The internal `action` field marks the stage and is never a user choice.
+- n8n: **Fred Script-to-Backgrounds — Simple**, ID `QRPeaK5ayX9ZC5Zx` ([open in AWS n8n](https://n8n.47-131-239-128.sslip.io/workflow/QRPeaK5ayX9ZC5Zx)). One Generate action sends the title and full script once; n8n plans the storyboard first, then generates the selected backgrounds sequentially, and returns both.
 - Storyboard planning: Vercel AI Gateway `openai/gpt-5-mini`, with read-only Google Sheets reference context.
 - Image generation: OpenRouter `openai/gpt-image-2.5-flare`, low quality, 16:9, one image per request. The image model is used only for images.
 - The workflow returns every storyboard row and Fred-format CSV data. The UI displays the full storyboard and downloads the CSV on request. Background images are generated sequentially and shown as they arrive. Scripts and generated images are not saved.
