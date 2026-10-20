@@ -25,7 +25,6 @@ const els = {
   emptyState: $("empty-state"),
   storyboardDisclosure: $("storyboard-disclosure"),
   storyboardCount: $("storyboard-count"),
-  storyboardBody: $("storyboard-body"),
   downloadStoryboard: $("download-storyboard"),
   deferredNote: $("deferred-note"),
   deferredCopy: $("deferred-copy"),
@@ -89,9 +88,7 @@ function clearResults() {
   els.resultCount.textContent = "0 / " + MAX_BACKGROUND_IMAGES;
   els.resultSummary.textContent = "The storyboard and its scene-specific background images will appear here.";
   els.storyboardDisclosure.hidden = true;
-  els.storyboardDisclosure.open = false;
   els.storyboardCount.textContent = "0 scenes";
-  els.storyboardBody.replaceChildren();
   els.downloadStoryboard.disabled = true;
   els.deferredNote.hidden = true;
   els.deferredCopy.textContent = "";
@@ -112,25 +109,29 @@ function createImageCard(image, index) {
   top.className = "image-card-top";
   const label = document.createElement("span");
   label.className = "image-card-index";
-  label.textContent = "BACKGROUND " + String(index + 1).padStart(2, "0");
+  label.textContent = image.backgroundId || "BACKGROUND " + String(index + 1).padStart(2, "0");
   const scenes = document.createElement("span");
   scenes.className = "image-card-scenes";
   scenes.textContent = sceneLabel(image.sceneNumbers);
   top.append(label, scenes);
 
-  const figure = document.createElement("figure");
-  figure.className = "image-card-art";
-  const img = document.createElement("img");
-  img.src = image.imageData;
-  img.alt = "Generated cartoon background for " + sceneLabel(image.sceneNumbers).toLowerCase();
-  img.loading = "eager";
-  figure.appendChild(img);
+  const preview = document.createElement(image.imageData ? "figure" : "div");
+  preview.className = image.imageData ? "image-card-art" : "image-card-failure";
+  if (image.imageData) {
+    const img = document.createElement("img");
+    img.src = image.imageData;
+    img.alt = "Generated cartoon background for " + sceneLabel(image.sceneNumbers).toLowerCase();
+    img.loading = "eager";
+    preview.appendChild(img);
+  } else {
+    preview.textContent = "This background failed: " + String(image.error || "The workflow did not return an image.").slice(0, 280);
+  }
 
   const caption = document.createElement("p");
   caption.className = "image-card-caption";
   caption.textContent = image.backgroundPrompt;
 
-  card.append(top, figure, caption);
+  card.append(top, preview, caption);
   return card;
 }
 
@@ -138,12 +139,13 @@ function appendImage(image) {
   els.emptyState.hidden = true;
   state.images.push(image);
   els.imageGrid.appendChild(createImageCard(image, state.images.length - 1));
-  els.resultCount.textContent = state.images.length + " / " + MAX_BACKGROUND_IMAGES;
+  const successfulImages = state.images.filter(item => item.imageData).length;
+  els.resultCount.textContent = successfulImages + " / " + MAX_BACKGROUND_IMAGES;
 }
 
 function validatePlan(plan) {
-  if (!plan || !Array.isArray(plan.scenes) || !Array.isArray(plan.backgrounds)) {
-    throw new Error("The planner response must include the complete storyboard and its background settings.");
+  if (!plan || !Array.isArray(plan.backgrounds)) {
+    throw new Error("The planner response did not include the background settings.");
   }
   if (typeof plan.storyboardCsv !== "string" || !plan.storyboardCsv) {
     throw new Error("The planner response did not include the storyboard CSV data.");
@@ -151,31 +153,15 @@ function validatePlan(plan) {
   if (plan.backgrounds.length === 0) {
     throw new Error("The storyboard did not contain any usable Background descriptions. Check the planner's Background column.");
   }
-  return plan.backgrounds.slice(0, MAX_BACKGROUND_IMAGES);
+  if (plan.backgrounds.length > MAX_BACKGROUND_IMAGES) {
+    throw new Error("The planner returned more than " + MAX_BACKGROUND_IMAGES + " backgrounds. The batch limit was exceeded.");
+  }
+  return plan.backgrounds;
 }
 
-function renderStoryboard(scenes, csvText) {
-  const columns = [
-    ["sceneNumber", "Scene"],
-    ["timestamp", "Timestamp"],
-    ["voiceover", "Voiceover"],
-    ["whatsHappening", "What's happening"],
-    ["background", "Background"],
-    ["handDrawnCharactersAndProps", "Hand-drawn characters & props"],
-    ["onScreenText", "On-screen text"],
-    ["transitionsMotion", "Transitions/Motion"]
-  ];
-  const rows = scenes.map(scene => {
-    const row = document.createElement("tr");
-    for (const [key] of columns) {
-      const cell = document.createElement("td");
-      cell.textContent = scene && scene[key] != null && String(scene[key]).trim() ? String(scene[key]) : "—";
-      row.appendChild(cell);
-    }
-    return row;
-  });
-  els.storyboardBody.replaceChildren(...rows);
-  els.storyboardCount.textContent = scenes.length + (scenes.length === 1 ? " scene" : " scenes");
+function showStoryboardCsv(sceneCount, csvText) {
+  const count = Number(sceneCount);
+  els.storyboardCount.textContent = (Number.isFinite(count) && count > 0 ? count + (count === 1 ? " scene" : " scenes") : "Full storyboard") + " · CSV ready";
   state.storyboardCsv = csvText;
   els.downloadStoryboard.disabled = false;
   els.storyboardDisclosure.hidden = false;
@@ -216,13 +202,14 @@ async function generateFromScript(event) {
 
   let targetImages = [];
   let completed = 0;
+  let failed = 0;
   try {
     const plan = await window.storyboardWorkflow.plan(script);
     targetImages = validatePlan(plan);
-    renderStoryboard(plan.scenes, plan.storyboardCsv);
+    showStoryboardCsv(plan.totalScenes, plan.storyboardCsv);
     const sceneCount = Number(plan.totalScenes) || 0;
     const totalUnique = Number(plan.totalUniqueBackgrounds) || targetImages.length;
-    const deferred = Number(plan.remainingBackgrounds) || 0;
+    const deferred = Number(plan.deferredBackgrounds ?? plan.remainingBackgrounds) || 0;
 
     els.resultSummary.textContent =
       "Storyboard planned: " + sceneCount + " scene beats · " +
@@ -244,45 +231,58 @@ async function generateFromScript(event) {
         true
       );
 
-      const result = await window.storyboardWorkflow.generateBackground(background);
-      if (typeof result.imageData !== "string" || !result.imageData.startsWith("data:image/")) {
-        throw new Error("n8n returned no displayable image for " + label + ". Check that the image response includes imageData.");
+      try {
+        const result = await window.storyboardWorkflow.generateBackground(background);
+        if (typeof result.imageData !== "string" || !result.imageData.startsWith("data:image/")) {
+          throw new Error("n8n returned no displayable image for " + label + ". Check that the image response includes imageData.");
+        }
+        appendImage({
+          backgroundId: result.backgroundId || background.backgroundId || "BG" + String(index + 1).padStart(3, "0"),
+          sceneNumbers: result.sceneNumbers || background.sceneNumbers || [],
+          backgroundPrompt: background.backgroundPrompt || background.background || "Custom-fit background plate",
+          imageData: result.imageData,
+          mimeType: result.mimeType || "image/png"
+        });
+        completed += 1;
+      } catch (imageError) {
+        failed += 1;
+        appendImage({
+          backgroundId: background.backgroundId || "BG" + String(index + 1).padStart(3, "0"),
+          sceneNumbers: background.sceneNumbers || [],
+          backgroundPrompt: background.backgroundPrompt || background.background || "Custom-fit background plate",
+          error: imageError && typeof imageError.message === "string" ? imageError.message : "Background generation failed."
+        });
+        if (imageError && imageError.stopBatch) throw imageError;
       }
 
-      appendImage({
-        backgroundId: background.backgroundId || "BG" + String(index + 1).padStart(3, "0"),
-        sceneNumbers: background.sceneNumbers || [],
-        backgroundPrompt: background.backgroundPrompt || background.background || "Custom-fit background plate",
-        imageData: result.imageData,
-        mimeType: result.mimeType || "image/png"
-      });
-
-      completed += 1;
-      const percent = Math.round((completed / targetImages.length) * 100);
+      const attempted = completed + failed;
+      const percent = Math.round((attempted / targetImages.length) * 100);
       setProgress(
-      completed === targetImages.length ? "Storyboard complete · All selected backgrounds are ready." : completed + " of " + targetImages.length + " backgrounds ready.",
+      attempted === targetImages.length ? "Background batch finished." : attempted + " of " + targetImages.length + " backgrounds processed.",
         percent,
-        completed + " / " + targetImages.length,
-        false
+        completed + " ready · " + failed + " failed",
+        attempted < targetImages.length
       );
-      els.resultSummary.textContent = completed + " of " + targetImages.length +
-        " backgrounds ready · " + sceneLabel(background.sceneNumbers) + " just finished.";
+      els.resultSummary.textContent = completed + " ready · " + failed + " failed · " + sceneLabel(background.sceneNumbers) + " just processed.";
     }
 
     if (deferred > 0) {
-      els.resultSummary.textContent = "Storyboard complete · " + completed + " backgrounds ready. " + deferred + " unique settings remain for a later batch.";
+      els.resultSummary.textContent = "Storyboard ready · " + completed + " backgrounds generated · " + deferred + " unique settings deferred.";
     } else {
-      els.resultSummary.textContent = "Storyboard complete · " + completed + " scene-aware backgrounds are ready.";
+      els.resultSummary.textContent = "Storyboard ready · " + completed + " backgrounds generated.";
     }
-    setNotice("", false);
+    if (failed > 0) {
+      els.resultSummary.textContent = "Batch finished · " + completed + " backgrounds generated · " + failed + " failed.";
+      setNotice(failed + " background" + (failed === 1 ? " failed" : "s failed") + ". Successful images are ready; review the marked cards before retrying.", true);
+    } else setNotice("", false);
   } catch (error) {
     const message = error && typeof error.message === "string" ? error.message : "The workflow stopped unexpectedly.";
-    const partial = completed > 0
-      ? " " + completed + " image" + (completed === 1 ? " is" : "s are") + " ready; the remaining requests stopped."
+    const partial = completed > 0 || failed > 0
+      ? " " + completed + " image" + (completed === 1 ? " is" : "s are") + " ready, " + failed + " failed; remaining requests stopped."
       : "";
     setNotice(message + partial, true);
-    els.resultSummary.textContent = completed > 0
-      ? completed + " background" + (completed === 1 ? " is" : "s are") + " ready. The batch stopped after an error."
+    els.resultSummary.textContent = completed > 0 || failed > 0
+      ? completed + " backgrounds ready · " + failed + " failed. The batch stopped after a connection error."
       : els.storyboardDisclosure.hidden
         ? "No storyboard or backgrounds were returned. Check the n8n workflow before retrying."
         : "The storyboard is ready, but no backgrounds were returned. Check the n8n workflow before retrying.";

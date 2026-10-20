@@ -88,21 +88,10 @@
               <span class="notice-mark" aria-hidden="true">✦</span><span id="notice-copy"></span>
             </div>
 
-            <details class="storyboard-disclosure" id="storyboard-disclosure" hidden>
-              <summary><span>Full storyboard</span><span class="storyboard-count" id="storyboard-count">0 scenes</span></summary>
-              <div class="storyboard-content">
-                <div class="storyboard-toolbar">
-                  <p>Review all planned scenes. The Background column drives image generation.</p>
-                  <button class="storyboard-download" id="download-storyboard" type="button" disabled>Download CSV</button>
-                </div>
-                <div class="storyboard-table-scroll" tabindex="0" aria-label="Scrollable storyboard table">
-                  <table class="storyboard-table">
-                    <thead><tr><th>Scene</th><th>Timestamp</th><th>Voiceover</th><th>What's happening</th><th>Background</th><th>Hand-drawn characters &amp; props</th><th>On-screen text</th><th>Transitions/Motion</th></tr></thead>
-                    <tbody id="storyboard-body"></tbody>
-                  </table>
-                </div>
-              </div>
-            </details>
+            <div class="storyboard-disclosure storyboard-download-panel" id="storyboard-disclosure" hidden>
+              <span class="storyboard-count" id="storyboard-count">Full storyboard · CSV ready</span>
+              <button class="storyboard-download" id="download-storyboard" type="button" disabled>Download storyboard CSV</button>
+            </div>
 
             <div class="image-grid" id="image-grid" aria-live="polite">
               <div class="image-empty" id="empty-state">

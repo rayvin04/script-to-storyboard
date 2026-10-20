@@ -16,7 +16,7 @@ The two internal request types are intentional: `action: "plan"` is always the f
 {"action":"plan","script":"Paste the complete voiceover script here..."}
 ```
 
-The planner reads the external `Planner Context` tab once, ranks example CSV rows, and uses Vercel AI Gateway `openai/gpt-5-mini` with a structured parser. It returns `scenes`, `storyboardCsv`, `totalScenes`, `totalUniqueBackgrounds`, `remainingBackgrounds`, and up to 10 background objects with IDs, linked scene numbers, and background descriptions. The UI displays the complete storyboard in a table and provides the returned CSV for download. Planning does not call the image model.
+The planner reads the external `Planner Context` tab once, ranks example CSV rows, and uses Vercel AI Gateway `openai/gpt-5-mini` with a structured parser. It returns the full eight-column `storyboardCsv`, counts, and up to 10 background objects with IDs, linked scene numbers, and background descriptions. It does not duplicate the scene array in the response. The UI focuses on background progress/images and offers a storyboard CSV download; planning does not call the image model.
 
 ### Generate one background image
 
@@ -24,7 +24,7 @@ The planner reads the external `Planner Context` tab once, ranks example CSV row
 {"action":"image","background":"A warm illustrated jewelry shop interior with display cases and a sunlit window","backgroundId":"BG001","sceneNumbers":[1,3]}
 ```
 
-The workflow adds fixed style constraints, reads one approved Drive style anchor, then uses OpenRouter’s Images API with model `openai/gpt-image-2.5-flare`, low quality, 16:9, and `n: 1`. The image route returns `imageData` as a displayable image data URL. The image model is never used for text work.
+The workflow adds fixed style constraints, reads one approved Drive style anchor, then uses OpenRouter’s Images API with model `openai/gpt-image-2.5-flare`, low quality, 16:9, and `n: 1`. The image route returns `imageData` as a displayable image data URL and preserves `backgroundId` and `sceneNumbers` in success and error results. It does not build a duplicate binary output. The image model is never used for text work.
 
 ## Reference source
 
@@ -38,5 +38,7 @@ The workflow reads the `Planner Context` tab in [Fred Storyboard Style and Refer
 - No characters, animals, body parts, movable props, text, diagrams, logos, or motion are generated.
 - No n8n Data Tables, n8n Memory, script/job storage, Drive upload, SVG export, notifications, or feedback loop. The CSV comes from the planner response and is not stored.
 - `Read Planner Context` has bounded retry settings for transient Sheets errors.
+
+When there are more than 10 distinct settings, the planner samples evenly across the complete scene sequence rather than taking only the opening scenes. Any remaining unique settings are counted as deferred. The workflow disables successful-execution payload storage so large base64 images are not retained in n8n execution history.
 
 The published graph is authoritative. Import snapshots should be inactive to avoid registering a duplicate webhook. Reconnect saved credentials in n8n after importing on another instance.

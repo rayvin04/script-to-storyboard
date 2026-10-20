@@ -23,7 +23,9 @@
         data = text ? JSON.parse(text) : {};
       } catch {
         if (response.status >= 500) {
-          throw new Error("n8n returned an HTML/server error (HTTP " + response.status + "). Wait for the host to recover, then check the matching execution before retrying.");
+          const error = new Error("n8n returned an HTML/server error (HTTP " + response.status + "). Wait for the host to recover, then check the matching execution before retrying.");
+          error.stopBatch = true;
+          throw error;
         }
         throw new Error("n8n returned unreadable data (HTTP " + response.status + ").");
       }
@@ -32,12 +34,20 @@
         if (/quota exceeded|too many requests|rate_limit_exceeded|http 429/i.test(String(message || ""))) {
           message = "Fred's reference sheets hit Google's read limit. Wait about a minute, then submit the script again. No image requests were sent.";
         }
-        throw new Error(message || "Workflow request failed (HTTP " + response.status + ").");
+        const requestError = new Error(message || "Workflow request failed (HTTP " + response.status + ").");
+        throw requestError;
       }
       return data;
     } catch (error) {
       if (error && error.name === "AbortError") {
-        throw new Error("The workflow timed out after " + Math.round(timeoutMs / 1000) + " seconds. No automatic retry was sent, to avoid duplicate image charges. Check the n8n execution before retrying.");
+        const timeoutError = new Error("The workflow timed out after " + Math.round(timeoutMs / 1000) + " seconds. No automatic retry was sent, to avoid duplicate image charges. Check the n8n execution before retrying.");
+        timeoutError.stopBatch = true;
+        throw timeoutError;
+      }
+      if (error instanceof TypeError) {
+        const connectionError = new Error("Could not reach the n8n webhook. The host may be unavailable or may have closed the request. No automatic retry was sent; check the matching n8n execution before resubmitting, since a slow request may still finish.");
+        connectionError.stopBatch = true;
+        throw connectionError;
       }
       throw error;
     } finally {
