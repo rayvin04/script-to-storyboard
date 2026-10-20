@@ -11,7 +11,7 @@
         }
       },
       "id": "686810ba-a70b-4eb0-90bc-c012f251e9ae",
-      "name": "Script or Background Webhook",
+      "name": "Storyboard and Background Pipeline Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
       "position": [
@@ -160,13 +160,13 @@
     },
     {
       "parameters": {
-        "content": "## Fred Script → Storyboard + Backgrounds\n\n**One submission runs both stages automatically.** The user pastes one complete script and presses the button once. The browser sends it to the storyboard branch first. The planner returns every scene in Fred’s eight-column format, the downloadable CSV data, and up to 10 unique Background settings.\n\n**Then the image stage runs automatically.** The browser sends each selected Background setting to this same workflow one at a time. The \"action\" value is an internal stage marker; the user never chooses storyboard or image mode. Each image request stays a small execution for the Heroku host. It reads the shared Drive style reference and calls OpenRouter openai/gpt-image-2.5-flare, low quality, one 16:9 image.\n\nThe final UI shows the full storyboard and generated backgrounds together. The image model generates backgrounds only; animators add characters, props, text, diagrams, and motion. No sheet writes, n8n tables/memory, job storage, Drive upload, status polling, or email delivery.",
+        "content": "## Deterministic script → storyboard → backgrounds pipeline\n\n**One user submission always produces both deliverables in order.** The UI sends the complete script to Stage 1. The text planner returns the full storyboard in Fred’s eight-column CSV schema, plus up to 10 unique values from its `Background` column.\n\n**Stage 2 always follows Stage 1.** Fixed UI code takes those storyboard `Background` values and calls this same webhook once per background, sequentially. The internal `action` field only routes a request to the correct stage; no AI decides whether to create a storyboard or images, and the user never chooses a mode.\n\nThis keeps each n8n execution small for the Heroku host. It avoids holding a full script, reference data, and a batch of up to 10 image payloads in one execution. The final UI shows the complete storyboard and the generated background plates together.\n\nImage requests use OpenRouter `openai/gpt-image-2.5-flare`, low quality, one 16:9 background plate per call, with the Drive style reference. Images contain environments only; animators add characters, props, text, diagrams, and motion. No n8n tables or memory are used.",
         "color": 5,
         "width": 1740,
-        "height": 200
+        "height": 300
       },
       "id": "937e5abf-7bf0-4a75-90d9-12f0e5a0824a",
-      "name": "Sticky Note 5e105651",
+      "name": "Pipeline Architecture — Fixed Sequence",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
@@ -176,7 +176,7 @@
     },
     {
       "id": "98ab681e-0a62-402c-b9d7-90f63aac24c1",
-      "name": "Route Script or Image Request",
+      "name": "Identify Internal Stage (UI-Controlled)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -190,7 +190,7 @@
     },
     {
       "id": "aa810724-639b-4012-87d8-2ebd524c9785",
-      "name": "Plan Request?",
+      "name": "Stage 1 — Storyboard Request?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
@@ -223,7 +223,7 @@
     },
     {
       "id": "87e73010-c0cb-4dd7-b436-11dbaa5271fc",
-      "name": "Image Request?",
+      "name": "Stage 2 — Background Request?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
@@ -634,64 +634,6 @@
         ]
       ]
     },
-    "Script or Background Webhook": {
-      "main": [
-        [
-          {
-            "node": "Route Script or Image Request",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Route Script or Image Request": {
-      "main": [
-        [
-          {
-            "node": "Plan Request?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Plan Request?": {
-      "main": [
-        [
-          {
-            "node": "Validate Full Script",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Image Request?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Image Request?": {
-      "main": [
-        [
-          {
-            "node": "Prepare Image Request",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Return Invalid Action",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Validate Full Script": {
       "main": [
         [
@@ -810,6 +752,64 @@
         [
           {
             "node": "Retrieve Relevant CSV Examples",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Storyboard and Background Pipeline Webhook": {
+      "main": [
+        [
+          {
+            "node": "Identify Internal Stage (UI-Controlled)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Identify Internal Stage (UI-Controlled)": {
+      "main": [
+        [
+          {
+            "node": "Stage 1 — Storyboard Request?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stage 1 — Storyboard Request?": {
+      "main": [
+        [
+          {
+            "node": "Validate Full Script",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Stage 2 — Background Request?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stage 2 — Background Request?": {
+      "main": [
+        [
+          {
+            "node": "Prepare Image Request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return Invalid Action",
             "type": "main",
             "index": 0
           }

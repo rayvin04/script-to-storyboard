@@ -6,17 +6,19 @@ This file now describes the simplified implementation and supersedes the older `
 
 ```mermaid
 flowchart LR
-  UI[One full script] --> Hook[One n8n webhook]
-  Hook --> Route{action}
-  Route -->|plan| Validate[Validate full script]
+  UI[One full script + one Generate click] --> PlanCall[Stage 1 request: plan]
+  PlanCall --> Hook[Same n8n webhook]
+  Hook --> Route{Internal stage marker}
+  Route -->|Stage 1| Validate[Validate full script]
   Validate --> Refs[Read Planner Context once from Google Sheets]
   Refs --> Rank[Select relevant CSV examples]
   Rank --> Planner[GPT-5-mini + structured parser]
   Planner --> Package[Full storyboard; dedupe Background values]
   Package --> FullResult[Return full scenes + CSV + up to 10 unique settings]
   FullResult --> UI
-  UI -->|action=image, one setting at a time| Hook
-  Route -->|image| Style[Read one Drive style anchor]
+  FullResult -->|Then, sequentially for each returned Background| ImageCall[Stage 2 request: image]
+  ImageCall --> Hook
+  Route -->|Stage 2| Style[Read one Drive style anchor]
   Style --> Flare[OpenRouter GPT Image 2.5 Flare]
   Flare --> Return[Return image data URL]
   Return --> UI

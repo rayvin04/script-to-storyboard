@@ -56,7 +56,8 @@ Current demo omits SVG export, Drive upload, email delivery, review feedback, jo
 
 - The image branch succeeded in n8n execution `2546` on 20 October 2026. OpenRouter returned an image data URL for a custom-fit jewelry-shop background; reported provider cost was about `$0.0168`.
 - Planner execution `2547` previously stopped on Google Sheets `429` rate limiting. The references have since been consolidated into one tab and one read.
-- The later one-script planner execution `2548` was marked `crashed` before any workflow node began. The n8n/Heroku host then returned HTTP 503. The full planner path and deployed UI have **not** yet passed an end-to-end check.
+- The latest one-script planner execution `2551` was marked `crashed` before any workflow node began (its execution record contains only the webhook trigger). The n8n/Heroku host returned HTTP 503 at that time. The full planner path and deployed UI have **not** yet passed an end-to-end check.
+- The active n8n workflow was republished as `b5c77ff8-5248-462f-a082-e896e9e3a690` with clearer stage names and a canvas note: one user submit always plans the full storyboard first, then the UI sends its unique Background settings to image generation sequentially. The stage field is routing metadata, not an AI decision.
 - The older complex workflow `NO5b5a1P44wvK4U7` is unpublished. Preserve it as a reference; do not use its old UI routes or activate it alongside this workflow.
 - Do not issue duplicate image calls after timeouts. Check the matching n8n execution first; a retry can incur another image charge.
 

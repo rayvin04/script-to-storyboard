@@ -4,7 +4,9 @@ Current n8n workflow ID: `QRPeaK5ayX9ZC5Zx`
 Editor: [open in n8n](https://n8n-rayv-742595626609.herokuapp.com/workflow/QRPeaK5ayX9ZC5Zx)  
 Production webhook: `POST /webhook/fred-image-generation-stage-1`
 
-The workflow accepts **one full script** from the UI’s single Generate action. It creates the complete scene storyboard first, returns every scene plus Fred-format CSV data and up to 10 distinct `Background` settings, then the browser automatically sends each setting to this same webhook for image generation, one at a time. There is no separate prompt per scene or user-facing mode choice.
+The workflow accepts **one full script** from the UI’s single Generate action. The fixed sequence is always: (1) create the complete storyboard, then (2) generate up to 10 unique background plates from the storyboard’s `Background` values. The browser automatically orchestrates the two stages through lightweight calls to this same webhook; the user does not choose a mode, and no AI decides whether to storyboard or generate images.
+
+The two internal request types are intentional: `action: "plan"` is always the first call, and `action: "image"` is sent only after the planner returns the storyboard. Each image call is sequential and contains one background so the Heroku host does not have to hold a full storyboard run and a batch of image payloads in one execution.
 
 ## Routes
 
