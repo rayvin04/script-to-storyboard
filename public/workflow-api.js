@@ -62,7 +62,11 @@
     plan(script, title) { return post(routes.plan, { script, title }); },
     generate(jobId, backgroundIds) { return post(routes.generate, { jobId, backgroundIds }); },
     deliver(jobId, title) { return post(routes.deliver, { jobId, title }, 90000); },
-    status(jobId) { return requestJson(`${routes.status}?jobId=${encodeURIComponent(jobId)}`); },
+    status(jobId, createdAt = "") {
+      const query = new URLSearchParams({ jobId });
+      if (createdAt) query.set("createdAt", createdAt);
+      return requestJson(`${routes.status}?${query.toString()}`);
+    },
     downloadCsv(jobId) { return download(`${routes.csv}?jobId=${encodeURIComponent(jobId)}`); },
     downloadImage(url) { return download(url); },
   };

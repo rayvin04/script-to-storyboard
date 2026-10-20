@@ -2,10 +2,14 @@ const SAMPLE_TITLE = "Why Your Brain Invents Phantom Phone Vibrations";
 const SAMPLE_SCRIPT = `Your phone buzzes in your pocket. You reach for it. Nothing. No text, no call, no notification. Almost everyone has felt this, and it has a name: phantom vibration syndrome.\n\nYour brain is a prediction machine, constantly scanning for signals that matter. After thousands of checks, it starts treating every tiny muscle twitch or shift of fabric as a possible phone notification. The sensation feels real, even though the phone never moved.\n\nThe fix is simple: give your attention a break. The more you expect a notification, the more likely your brain is to invent one.`;
 const MAX_SCRIPT_LENGTH = 30000;
 const BATCH_LIMIT = 10;
-const STATUS_POLL_INTERVAL_MS = 12000;
+const STATUS_POLL_INTERVAL_MS = 30000;
+const PLAN_FIRST_POLL_DELAY_MS = 75000;
+const PLAN_POLL_INTERVAL_MS = 60000;
+const PLAN_STALE_AFTER_MS = 3 * 60 * 1000;
 const STATUS_RETRY_BASE_MS = 15000;
 const STATUS_RETRY_MAX_MS = 60000;
 const JOB_STORAGE_KEY = "fredStoryboardJobId";
+const JOB_STARTED_AT_KEY = "fredStoryboardJobStartedAt";
 const DELIVERY_STORAGE_KEY = "fredStoryboardDeliveredJobId";
 const DEFERRED_NOTE = "This is the full storyboard. More background plates remain for a later batch.";
 
@@ -20,12 +24,12 @@ const els = {
   retry: $("retry-failed"), downloadCsv: $("download-csv"), downloadSvg: $("download-svg"), downloadImages: $("download-images"),
   deliver: $("send-to-editors"), deliverLabel: $("send-to-editors-label"),
   batchStatus: $("batch-status"), backgrounds: $("background-grid"), backgroundCount: $("background-count-label"),
-  table: $("storyboard-table-body"), sceneCount: $("scene-count-label"), footer: $("footer-status-copy"), jobId: $("footer-job-id"),
+  footer: $("footer-status-copy"), jobId: $("footer-job-id"),
   stepPlan: $("step-plan"), stepImages: $("step-images"), stepExport: $("step-export"),
 };
 
 const state = {
-  jobId: "", job: null, scenes: [], backgrounds: [], deliveredJobId: "",
+  jobId: "", job: null, sceneCount: 0, backgrounds: [], deliveredJobId: "", planStartedAt: 0,
   polling: false, pollTimer: null, isPlanning: false, isGenerating: false, isDelivering: false, pollFailures: 0,
   expectedBatchIds: [], seenBatchIds: new Set(), expectedBatchAt: 0,
 };
@@ -91,15 +95,13 @@ function stopPolling() {
 }
 
 function renderSummary(job) {
-  const scenes = Number(job.sceneCount) || state.scenes.length;
   const backgrounds = Number(job.backgroundCount) || state.backgrounds.length;
   const generated = state.backgrounds.filter(item => item.status === "completed").length;
   const failed = state.backgrounds.filter(item => item.status === "failed").length;
   const deferred = state.backgrounds.filter(item => item.status === "deferred").length;
   const status = state.isPlanning ? "Planning" : state.isGenerating ? "Generating plates" : String(job.status || "Storyboard ready").replaceAll("_", " ");
   els.summary.innerHTML = [
-    [scenes, "scenes planned"], [backgrounds, "unique backgrounds"], [generated, "plates ready"],
-    [deferred, "deferred"], [failed, "failed"],
+    [backgrounds, "backgrounds"], [generated, "plates ready"], [deferred, "later batch"], [failed, "failed"],
   ].map(([value, label]) => `<div class="summary-stat"><strong>${escapeHtml(value)}</strong><span>${escapeHtml(label)}</span></div>`).join("") +
     `<div class="summary-state"><span class="summary-state-dot ${state.isPlanning || state.isGenerating ? "is-working" : ""}"></span>${escapeHtml(status)}</div>`;
 }
@@ -128,25 +130,6 @@ function renderBackgrounds() {
   }).join("");
 }
 
-function renderScenes() {
-  els.sceneCount.textContent = `${state.scenes.length} ${state.scenes.length === 1 ? "scene" : "scenes"}`;
-  if (!state.scenes.length) {
-    els.table.innerHTML = '<tr><td class="table-empty" colspan="9">The storyboard plan is being prepared. This page will update automatically.</td></tr>';
-    return;
-  }
-  els.table.innerHTML = state.scenes.map(scene => {
-    const status = String(scene.backgroundImageStatus || "pending").toLowerCase();
-    const plateLabel = `${scene.backgroundId || "—"} · ${status}`;
-    return `<tr>
-      <td>${escapeHtml(scene.sceneNumber)}</td><td>${escapeHtml(scene.timestamp || "—")}</td>
-      <td>${escapeHtml(scene.voiceover || "—")}</td><td>${escapeHtml(scene.whatsHappening || "—")}</td>
-      <td>${escapeHtml(scene.background || "—")}</td><td>${escapeHtml(scene.handDrawnCharactersAndProps || "—")}</td>
-      <td>${escapeHtml(scene.onScreenText || "—")}</td><td>${escapeHtml(scene.transitionsMotion || "—")}</td>
-      <td><span class="table-plate-status plate-status-${escapeHtml(status)}">${escapeHtml(plateLabel)}</span></td>
-    </tr>`;
-  }).join("");
-}
-
 function updateActions(job) {
   const statuses = state.backgrounds.map(item => String(item.status || "pending").toLowerCase());
   const pending = state.backgrounds.filter(item => item.status === "pending");
@@ -164,7 +147,7 @@ function updateActions(job) {
   els.retry.disabled = busy || failed.length === 0;
   els.downloadImages.disabled = busy || completed.length === 0;
   els.downloadCsv.disabled = !state.jobId || state.isPlanning;
-  els.downloadSvg.disabled = !state.jobId || state.isPlanning || state.scenes.length === 0;
+  els.downloadSvg.disabled = !state.jobId || state.isPlanning || state.sceneCount === 0;
   const delivered = Boolean(state.jobId) && state.deliveredJobId === state.jobId;
   els.deliver.disabled = busy || state.isDelivering || completed.length === 0 || delivered;
   els.deliverLabel.textContent = state.isDelivering ? "Sending…" : delivered ? "Sent to editors" : "Send to editors";
@@ -180,11 +163,16 @@ function updateActions(job) {
 
 function renderStatus(job) {
   state.job = job;
-  state.scenes = Array.isArray(job.scenes) ? job.scenes : [];
+  state.sceneCount = Number(job.sceneCount) || 0;
   state.backgrounds = Array.isArray(job.backgrounds) ? job.backgrounds : [];
   const jobStatus = String(job.status || "").toLowerCase();
   const jobFailed = ["failed", "error", "crashed"].includes(jobStatus);
-  state.isPlanning = jobStatus === "planning";
+  state.isPlanning = ["planning", "queued"].includes(jobStatus);
+  const serverStartedAt = Date.parse(job.updatedAt || job.createdAt || "");
+  if (Number.isFinite(serverStartedAt)) {
+    state.planStartedAt = serverStartedAt;
+    try { localStorage.setItem(JOB_STARTED_AT_KEY, String(serverStartedAt)); } catch {}
+  }
   const backgroundById = new Map(state.backgrounds.map(item => [item.backgroundId, String(item.status || "").toLowerCase()]));
   for (const id of state.expectedBatchIds) {
     if (backgroundById.get(id) === "generating") state.seenBatchIds.add(id);
@@ -199,15 +187,14 @@ function renderStatus(job) {
   setWorkspaceVisible(true);
   els.jobId.textContent = state.jobId ? `JOB ${state.jobId.slice(0, 8).toUpperCase()}` : "";
   els.subtitle.textContent = state.isPlanning
-    ? "The full script is being divided into animator-ready scene beats."
-    : `${Number(job.sceneCount) || state.scenes.length} scenes · ${Number(job.backgroundCount) || state.backgrounds.length} unique backgrounds · up to ${BATCH_LIMIT} plates per batch.`;
+    ? "The full script is being planned. Background plates will appear here when the plan is ready."
+    : `${Number(job.backgroundCount) || state.backgrounds.length} unique backgrounds · up to ${BATCH_LIMIT} plates per batch. Full scene details stay in the CSV.`;
   renderSummary(job);
   renderBackgrounds();
-  renderScenes();
   updateActions(job);
   els.stepPlan.classList.toggle("is-current", state.isPlanning || (!state.isGenerating && !state.backgrounds.some(item => item.status === "completed")));
   els.stepImages.classList.toggle("is-current", state.isGenerating || state.backgrounds.some(item => item.status === "completed"));
-  els.stepExport.classList.toggle("is-current", !state.isPlanning && !state.isGenerating && state.scenes.length > 0);
+  els.stepExport.classList.toggle("is-current", !state.isPlanning && !state.isGenerating && state.sceneCount > 0);
   if (state.isPlanning) {
     setProgress("Creating the complete scene-by-scene storyboard…", "PLANNING", 36, true);
     setFooter("Planning the full script. No image credits are being used.");
@@ -216,7 +203,7 @@ function renderStatus(job) {
     const total = state.backgrounds.filter(item => item.status === "generating" || item.status === "completed" || item.status === "failed").length;
     setProgress(`Generating background plates one at a time… ${done} of ${total} processed`, "GENERATING", total ? 20 + (done / total) * 75 : 50, true);
     setFooter("Background batch is running in n8n. This page will refresh as each plate is saved.");
-  } else if (state.scenes.length) {
+  } else if (state.sceneCount || state.backgrounds.length) {
     hideProgress();
     const generated = state.backgrounds.filter(item => item.status === "completed").length;
     const failed = state.backgrounds.filter(item => item.status === "failed").length;
@@ -227,6 +214,18 @@ function renderStatus(job) {
   }
 }
 
+function markStalledPlan(job) {
+  const status = String(job.status || "").toLowerCase();
+  const hasScenes = Number(job.sceneCount) > 0;
+  const timestamp = Date.parse(job.updatedAt || job.createdAt || "") || state.planStartedAt;
+  if (status !== "planning" || hasScenes || !Number.isFinite(timestamp) || Date.now() - timestamp < PLAN_STALE_AFTER_MS) return job;
+  return {
+    ...job,
+    status: "failed",
+    error: job.error || "No storyboard scenes were saved within three minutes. Check the n8n execution and Heroku memory usage before retrying. No background images were generated.",
+  };
+}
+
 function shouldKeepPolling(job) {
   return state.isPlanning || state.isGenerating;
 }
@@ -234,12 +233,15 @@ function shouldKeepPolling(job) {
 async function pollOnce() {
   if (!state.jobId) return;
   try {
-    const job = await window.storyboardWorkflow.status(state.jobId);
+    const submittedAt = state.planStartedAt ? new Date(state.planStartedAt).toISOString() : "";
+    let job = await window.storyboardWorkflow.status(state.jobId, submittedAt);
     if (job.ok === false) throw new Error(job.error || "Could not read this storyboard job.");
+    job = markStalledPlan(job);
     state.pollFailures = 0;
     renderStatus(job);
     if (shouldKeepPolling(job)) {
-      state.pollTimer = window.setTimeout(pollOnce, STATUS_POLL_INTERVAL_MS);
+      const nextPollDelay = state.isPlanning ? PLAN_POLL_INTERVAL_MS : STATUS_POLL_INTERVAL_MS;
+      state.pollTimer = window.setTimeout(pollOnce, nextPollDelay);
     } else {
       stopPolling();
       state.isPlanning = false;
@@ -251,7 +253,7 @@ async function pollOnce() {
       renderStatus(job);
       if (timedOut) showNotice("The batch did not reach a finished state within 30 minutes. Check the n8n execution before retrying.", "error");
       else if (["failed", "error", "crashed"].includes(String(job.status || "").toLowerCase())) showNotice(job.error || "Storyboard planning failed before any images were generated. Check the n8n execution details.", "error");
-      else if (state.scenes.length) showNotice(job.batchNote || job.note || "The full storyboard is ready. Review the CSV, then generate background plates in batches of up to 10.");
+      else if (state.sceneCount || state.backgrounds.length) showNotice(job.batchNote || job.note || "The full storyboard is ready as a CSV. Generate background plates in batches of up to 10.");
     }
   } catch (error) {
     state.pollFailures += 1;
@@ -284,15 +286,20 @@ async function createStoryboard() {
     return;
   }
   if (state.isPlanning || state.isGenerating) return;
+  stopPolling();
   state.isPlanning = true;
+  state.planStartedAt = Date.now();
   state.jobId = "";
+  state.job = null;
+  state.sceneCount = 0;
   state.deliveredJobId = "";
   try { localStorage.removeItem(DELIVERY_STORAGE_KEY); } catch {}
   state.expectedBatchIds = [];
   state.seenBatchIds.clear();
   state.expectedBatchAt = 0;
-  state.scenes = [];
   state.backgrounds = [];
+  try { localStorage.removeItem(JOB_STORAGE_KEY); } catch {}
+  try { localStorage.setItem(JOB_STARTED_AT_KEY, String(state.planStartedAt)); } catch {}
   els.plan.disabled = true;
   els.planLabel.textContent = "Starting storyboard…";
   els.mode.textContent = "PLANNING";
@@ -300,22 +307,28 @@ async function createStoryboard() {
   showNotice("");
   setWorkspaceVisible(true);
   renderBackgrounds();
-  renderScenes();
-  setProgress("Starting the full storyboard plan…", "STARTING", 12, true);
+  setProgress("Sending the script to the storyboard planner…", "STARTING", 12, true);
   setFooter("Planning uses the text model. The image model is only used after review, for background plates.");
   try {
     const result = await window.storyboardWorkflow.plan(script, title);
     if (!result.jobId) throw new Error("The workflow accepted the request but did not return a job ID.");
     state.jobId = result.jobId;
     try { localStorage.setItem(JOB_STORAGE_KEY, state.jobId); } catch {}
+    const createdAt = Date.parse(result.createdAt || "");
+    if (Number.isFinite(createdAt)) {
+      state.planStartedAt = createdAt;
+      try { localStorage.setItem(JOB_STARTED_AT_KEY, String(createdAt)); } catch {}
+    }
     els.mode.textContent = "STORYBOARD JOB";
     els.jobId.textContent = `JOB ${state.jobId.slice(0, 8).toUpperCase()}`;
     setFooter("Full script accepted. Waiting for the complete storyboard plan…");
-    startPolling(2200);
+    startPolling(PLAN_FIRST_POLL_DELAY_MS);
   } catch (error) {
     state.isPlanning = false;
     setWorkspaceVisible(false);
     hideProgress();
+    state.planStartedAt = 0;
+    try { localStorage.removeItem(JOB_STARTED_AT_KEY); } catch {}
     showNotice(error instanceof Error ? error.message : String(error), "error");
     setFooter("Storyboard request failed. Check n8n and try again.");
   } finally {
@@ -342,7 +355,7 @@ async function generateBatch(items, label) {
     const accepted = await window.storyboardWorkflow.generate(state.jobId, ids);
     if (accepted.ok === false) throw new Error(accepted.error || "n8n could not start this batch.");
     setFooter(`Batch accepted by n8n · ${ids.length} background ${ids.length === 1 ? "plate" : "plates"} queued.`);
-    startPolling(2500);
+    startPolling(15000);
   } catch (error) {
     state.isGenerating = false;
     state.expectedBatchIds = [];
@@ -388,26 +401,76 @@ function backgroundExtension(item) {
   return storedExtension || (item?.imageMimeType === "image/jpeg" ? "jpg" : "png");
 }
 
-function downloadStoryboardSvg() {
-  if (!state.scenes.length) return;
+async function downloadStoryboardSvg() {
+  if (!state.jobId || state.isPlanning || state.sceneCount === 0) return;
   if (!window.storyboardSvgExporter?.buildStoryboardSvg) {
     showNotice("The SVG export helper did not load. Reload the page and try again.", "error");
     return;
   }
+  els.downloadSvg.disabled = true;
+  setFooter("Loading the full CSV to create the storyboard SVG…");
   try {
+    const csvBlob = await window.storyboardWorkflow.downloadCsv(state.jobId);
+    const scenes = parseStoryboardCsv(await csvBlob.text());
+    if (!scenes.length) throw new Error("The storyboard CSV has no scene rows yet.");
     const svg = window.storyboardSvgExporter.buildStoryboardSvg({
       title: state.job?.title || "Fred's Storyboard",
       jobId: state.jobId,
-      scenes: state.scenes,
+      scenes,
       backgrounds: state.backgrounds,
     });
     downloadBlob(new Blob([svg], { type: "image/svg+xml;charset=utf-8" }), `${safeFilename(state.job?.title || "fred-storyboard")}-storyboard.svg`);
     els.stepExport.classList.add("is-current");
-    setFooter(`Visual storyboard SVG downloaded · ${state.scenes.length} scenes included.`);
+    setFooter(`Visual storyboard SVG downloaded · ${scenes.length} scenes included.`);
   } catch (error) {
     showNotice(error instanceof Error ? error.message : String(error), "error");
     setFooter("The storyboard SVG could not be created.");
+  } finally {
+    updateActions(state.job || {});
   }
+}
+
+function parseStoryboardCsv(source) {
+  const text = String(source || "").replace(/^\uFEFF/, "");
+  const records = [];
+  let record = [];
+  let field = "";
+  let quoted = false;
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    if (quoted) {
+      if (char === '"' && text[index + 1] === '"') { field += '"'; index += 1; }
+      else if (char === '"') quoted = false;
+      else field += char;
+    } else if (char === '"' && field === "") quoted = true;
+    else if (char === ",") { record.push(field); field = ""; }
+    else if (char === "\n" || char === "\r") {
+      if (char === "\r" && text[index + 1] === "\n") index += 1;
+      record.push(field);
+      if (record.some(value => value !== "")) records.push(record);
+      record = [];
+      field = "";
+    } else field += char;
+  }
+  if (quoted) throw new Error("The storyboard CSV is incomplete and could not be read.");
+  if (field !== "" || record.length) {
+    record.push(field);
+    if (record.some(value => value !== "")) records.push(record);
+  }
+  const headers = records.shift()?.map(value => value.trim()) || [];
+  const column = name => headers.indexOf(name);
+  return records.map(row => ({
+    sceneNumber: Number(row[column("Scene")]) || 0,
+    timestamp: row[column("Timestamp")] || "",
+    voiceover: row[column("Voiceover")] || "",
+    whatsHappening: row[column("What's happening")] || "",
+    background: row[column("Background")] || "",
+    handDrawnCharactersAndProps: row[column("Hand-drawn characters & props")] || "",
+    onScreenText: row[column("On-screen text")] || "",
+    transitionsMotion: row[column("Transitions/Motion")] || "",
+    backgroundId: row[column("Background ID")] || "",
+    backgroundImageStatus: row[column("Background image status")] || "pending",
+  })).filter(scene => scene.sceneNumber > 0);
 }
 
 async function downloadCsv() {
@@ -553,6 +616,7 @@ try {
   const savedJobId = localStorage.getItem(JOB_STORAGE_KEY);
   if (savedJobId) {
     state.jobId = savedJobId;
+    state.planStartedAt = Number(localStorage.getItem(JOB_STARTED_AT_KEY)) || Date.now();
     const savedDeliveredJobId = localStorage.getItem(DELIVERY_STORAGE_KEY);
     if (savedDeliveredJobId === savedJobId) state.deliveredJobId = savedDeliveredJobId;
     state.isPlanning = true;
@@ -560,6 +624,6 @@ try {
     els.mode.textContent = "RECONNECTING";
     els.jobId.textContent = `JOB ${savedJobId.slice(0, 8).toUpperCase()}`;
     setProgress("Reconnecting to the saved storyboard job…", "LOADING", 35, true);
-    startPolling(0);
+    startPolling(PLAN_POLL_INTERVAL_MS);
   }
 } catch {}

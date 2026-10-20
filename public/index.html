@@ -84,7 +84,7 @@
             <div class="board-header">
               <div>
                 <div class="board-title-row"><span class="heading-icon icon-film" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5.5h16v13H4zM4 9h3M4 15h3M17 9h3M17 15h3M9 5.5v3M15 5.5v3M9 15.5v3M15 15.5v3"/></svg></span><h2 id="board-title">Storyboard workspace</h2><span class="board-count" id="board-count">READY</span></div>
-                <p class="board-subtitle" id="board-subtitle">Your full scene plan and background plates will appear here.</p>
+                <p class="board-subtitle" id="board-subtitle">Generated background plates appear here. The complete scene plan is available as a CSV.</p>
               </div>
               <div class="board-actions">
                 <button class="outline-button" id="download-csv" type="button" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v11m0 0 4-4m-4 4-4-4M4 16v4h16v-4"/></svg>Download CSV</button>
@@ -124,14 +124,7 @@
               <div class="section-divider"><span>Generated backgrounds</span><small id="background-count-label">0 plates</small></div>
               <div class="background-grid" id="background-grid" aria-live="polite"></div>
 
-              <div class="section-divider storyboard-divider"><span>Full storyboard preview</span><small id="scene-count-label">0 scenes</small></div>
-              <p class="table-hint">Download CSV for the structured source data or SVG for a shareable visual review board. Background images use only the setting in the Background column.</p>
-              <div class="storyboard-table-wrap" role="region" aria-label="Full storyboard scene table" tabindex="0">
-                <table class="storyboard-table">
-                  <thead><tr><th>Scene</th><th>Timestamp</th><th>Voiceover</th><th>What's happening</th><th>Background</th><th>Hand-drawn characters &amp; props</th><th>On-screen text</th><th>Transitions/Motion</th><th>Plate</th></tr></thead>
-                  <tbody id="storyboard-table-body"></tbody>
-                </table>
-              </div>
+              <p class="table-hint">This workspace focuses on the background plates. Download the CSV for every scene, or the SVG for a visual review copy.</p>
             </section>
 
             <div class="board-footer"><div class="footer-status"><span class="status-dot"></span><span id="footer-status-copy">Paste a script to begin.</span></div><span class="footer-job-id" id="footer-job-id"></span></div>

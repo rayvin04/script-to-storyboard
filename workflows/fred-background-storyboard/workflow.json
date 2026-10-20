@@ -103,7 +103,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        672,
+        1120,
         112
       ],
       "parameters": {
@@ -117,7 +117,7 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
       "position": [
-        896,
+        1344,
         112
       ],
       "parameters": {
@@ -278,12 +278,12 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1120,
+        672,
         112
       ],
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const req = $('Validate Script and Create Job').first().json;\nreturn [{json:{ok:true,jobId:req.jobId,status:'planning',note:req.note,statusUrl:'https://n8n-rayv-742595626609.herokuapp.com/webhook/fred-storyboard-status-v4?jobId='+encodeURIComponent(req.jobId),csvUrl:'https://n8n-rayv-742595626609.herokuapp.com/webhook/fred-storyboard-csv-v4?jobId='+encodeURIComponent(req.jobId)}}];"
+        "jsCode": "const req = $('Validate Script and Create Job').first().json;\nreturn [{json:{ok:true,jobId:req.jobId,status:'planning',createdAt:req.createdAt,note:req.note,statusUrl:'https://n8n-rayv-742595626609.herokuapp.com/webhook/fred-storyboard-status-v4?jobId='+encodeURIComponent(req.jobId),csvUrl:'https://n8n-rayv-742595626609.herokuapp.com/webhook/fred-storyboard-csv-v4?jobId='+encodeURIComponent(req.jobId)}}];"
       }
     },
     {
@@ -292,7 +292,7 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        1344,
+        896,
         112
       ],
       "parameters": {
@@ -2054,7 +2054,8 @@
           "id": "uhpKISQ818MUREdV",
           "name": "giananrayvin@gmail.com"
         }
-      }
+      },
+      "alwaysOutputData": true
     },
     {
       "id": "be54ab56-cf18-479c-8ae6-bb9b5fe1f253",
@@ -2062,8 +2063,8 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
       "position": [
-        448,
-        1712
+        672,
+        1552
       ],
       "parameters": {
         "resource": "sheet",
@@ -2104,12 +2105,12 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        672,
-        1712
+        896,
+        1552
       ],
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const jobRows=$('Read Storyboard Job Status').all().map(item=>item.json);const job=jobRows[0]||{};\nconst rows=$input.all().map(item=>item.json).filter(row=>row.jobId);\nconst scenes=rows.map(row=>({sceneNumber:Number(row.sceneNumber),timestamp:row.timestamp||'',voiceover:row.voiceover||'',whatsHappening:row.whatsHappening||'',background:row.background||'',handDrawnCharactersAndProps:row.handDrawnCharactersAndProps||'',onScreenText:row.onScreenText||'',transitionsMotion:row.transitionsMotion||'',backgroundId:row.backgroundId,backgroundImageStatus:row.backgroundImageStatus,imageUrl:row.backgroundImageStatus==='completed'?'https://n8n-rayv-742595626609.herokuapp.com/webhook/fred-storyboard-image-v4?jobId='+encodeURIComponent(row.jobId)+'&backgroundId='+encodeURIComponent(row.backgroundId):null,error:row.error||''}));\nconst map=new Map();for(const row of rows){if(!row.backgroundId)continue;const current=map.get(row.backgroundId)||{backgroundId:row.backgroundId,background:row.background,status:row.backgroundImageStatus,sceneNumbers:[],imageUrl:null,error:row.error||'',costUsd:0};current.sceneNumbers.push(Number(row.sceneNumber));if(row.backgroundImageStatus==='completed'){current.status='completed';current.imageUrl='https://n8n-rayv-742595626609.herokuapp.com/webhook/fred-storyboard-image-v4?jobId='+encodeURIComponent(row.jobId)+'&backgroundId='+encodeURIComponent(row.backgroundId);current.imageFileName=row.imageFileName;current.imageMimeType=row.imageMimeType;current.costUsd=Number(row.costUsd)||current.costUsd;}else if(row.backgroundImageStatus==='failed'&&current.status!=='completed'){current.status='failed';current.error=row.error||'';}else if(row.backgroundImageStatus==='generating'&&current.status==='pending')current.status='generating';map.set(row.backgroundId,current);}\nconst backgrounds=Array.from(map.values()).sort((a,b)=>a.backgroundId.localeCompare(b.backgroundId));\nreturn [{json:{ok:!!job.jobId,jobId:job.jobId||$('Storyboard Status Webhook').first().json.query.jobId,status:job.jobStatus||'unknown',title:job.title||'',sceneCount:Number(job.sceneCount)||scenes.length,backgroundCount:Number(job.backgroundCount)||backgrounds.length,generatedCount:backgrounds.filter(item=>item.status==='completed').length,failedCount:backgrounds.filter(item=>item.status==='failed').length,deferredCount:Number(job.deferredCount)||backgrounds.filter(item=>item.status==='deferred').length,batchLimit:10,batchNote:job.batchNote||((Number(job.deferredCount)||backgrounds.filter(item=>item.status==='deferred').length)>0?'This is the full storyboard. More background plates remain for a later batch.':'This is the full storyboard. All background plates fit within this batch.'),note:((Number(job.deferredCount)||backgrounds.filter(item=>item.status==='deferred').length)>0?'This is the full storyboard. More background plates remain for a later batch.':'This is the full storyboard. All background plates fit within this batch.'),scenes,backgrounds,csvUrl:'https://n8n-rayv-742595626609.herokuapp.com/webhook/fred-storyboard-csv-v4?jobId='+encodeURIComponent(job.jobId||'')}}];"
+        "jsCode": "const jobRows = $('Read Storyboard Job Status').all().map(item => item.json);\nconst job = jobRows[0] || {};\nconst rows = $input.all().map(item => item.json).filter(row => row.jobId);\nconst map = new Map();\nfor (const row of rows) {\n  if (!row.backgroundId) continue;\n  const current = map.get(row.backgroundId) || { backgroundId: row.backgroundId, background: row.background, status: row.backgroundImageStatus, sceneNumbers: [], imageUrl: null, error: row.error || '', costUsd: 0 };\n  current.sceneNumbers.push(Number(row.sceneNumber));\n  if (row.backgroundImageStatus === 'completed') {\n    current.status = 'completed';\n    current.imageUrl = 'https://n8n-rayv-742595626609.herokuapp.com/webhook/fred-storyboard-image-v4?jobId=' + encodeURIComponent(row.jobId) + '&backgroundId=' + encodeURIComponent(row.backgroundId);\n    current.imageFileName = row.imageFileName;\n    current.imageMimeType = row.imageMimeType;\n    current.costUsd = Number(row.costUsd) || current.costUsd;\n  } else if (row.backgroundImageStatus === 'failed' && current.status !== 'completed') {\n    current.status = 'failed';\n    current.error = row.error || '';\n  } else if (row.backgroundImageStatus === 'generating' && current.status === 'pending') {\n    current.status = 'generating';\n  }\n  map.set(row.backgroundId, current);\n}\nconst backgrounds = Array.from(map.values()).sort((a, b) => a.backgroundId.localeCompare(b.backgroundId));\nconst createdAt = String(job.createdAt || '');\nconst updatedAt = String(job.updatedAt || '');\nconst status = job.jobStatus || 'unknown';\nconst error = String(job.error || '');\nconst deferredCount = Number(job.deferredCount) || backgrounds.filter(item => item.status === 'deferred').length;\nconst note = deferredCount > 0 ? 'This is the full storyboard. More background plates remain for a later batch.' : 'This is the full storyboard. All background plates fit within this batch.';\nconst jobId = String(job.jobId || $('Storyboard Status Webhook').first().json.query.jobId || '');\nconst sceneCount = Number(job.sceneCount) || new Set(rows.map(row => Number(row.sceneNumber)).filter(Number.isFinite)).size;\nreturn [{ json: { ok: !!jobId, jobId, status, title: job.title || '', createdAt, updatedAt, error, sceneCount, backgroundCount: Number(job.backgroundCount) || backgrounds.length, generatedCount: backgrounds.filter(item => item.status === 'completed').length, failedCount: backgrounds.filter(item => item.status === 'failed').length, deferredCount, batchLimit: 10, batchNote: job.batchNote || note, note, backgrounds, csvUrl: 'https://n8n-rayv-742595626609.herokuapp.com/webhook/fred-storyboard-csv-v4?jobId=' + encodeURIComponent(jobId) } }];"
       }
     },
     {
@@ -2118,7 +2119,7 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        896,
+        1120,
         1712
       ],
       "parameters": {
@@ -2496,7 +2497,7 @@
         -50
       ],
       "parameters": {
-        "content": "## 3 · UI status, private images, and CSV\n\nGoogle Sheets stores job/scene status. Google Drive stores generated image files. The UI polls this workflow, loads each image through a private Drive proxy, and downloads the Fred CSV created by the CSV node. Deferred backgrounds carry the note: “This is the full storyboard. More background plates remain for a later batch.”",
+        "content": "## 3 · Background-only UI status\n\nThe planning receipt responds before Google Sheets and AI work continue. While planning, status reads only the job row; after the storyboard is ready, status reads scene rows only to aggregate background plates. The UI polls less often and renders plates, not the full scene table. The full storyboard remains available through the CSV route; SVG export loads that CSV only when requested.",
         "color": 5,
         "width": 300,
         "height": 200
@@ -3042,6 +3043,53 @@
         "width": 360,
         "height": 220
       }
+    },
+    {
+      "id": "7a2c5d49-5cb8-45db-a57e-f3bb157229eb",
+      "name": "Storyboard Status Needs Scene Rows?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        448,
+        1712
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ Number($json.sceneCount) > 0 || ['storyboard_ready','partial','completed'].includes(String($json.jobStatus || '').toLowerCase()) }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "703505b3-1a62-40df-aeef-8a06fbd5d305",
+      "name": "Build Lightweight Planning Status",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        1904
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const rows = $('Read Storyboard Job Status').all().map(item => item.json).filter(row => row.jobId);\nconst job = rows[0] || {};\nconst query = $('Storyboard Status Webhook').first().json.query || {};\nconst jobId = String(job.jobId || query.jobId || '');\nconst createdAt = String(job.createdAt || query.createdAt || '');\nconst updatedAt = String(job.updatedAt || createdAt);\nconst statusValue = String(job.jobStatus || 'planning').toLowerCase();\nconst startedAt = Date.parse(updatedAt || createdAt);\nconst stalled = statusValue === 'planning' && Number(job.sceneCount || 0) === 0 && Number.isFinite(startedAt) && Date.now() - startedAt >= 180000;\nconst status = stalled ? 'failed' : statusValue;\nconst error = stalled ? 'No storyboard scenes were saved within three minutes. Check the n8n execution and Heroku memory usage before retrying. No background images were generated.' : String(job.error || '');\nconst csvUrl = 'https://n8n-rayv-742595626609.herokuapp.com/webhook/fred-storyboard-csv-v4?jobId=' + encodeURIComponent(jobId);\nreturn [{json:{ok:!!jobId,jobId,status,title:String(job.title||''),createdAt,updatedAt,error,sceneCount:Number(job.sceneCount)||0,backgroundCount:Number(job.backgroundCount)||0,generatedCount:Number(job.generatedCount)||0,failedCount:Number(job.failedCount)||0,deferredCount:Number(job.deferredCount)||0,batchLimit:10,batchNote:String(job.batchNote||'This is the full storyboard. More background plates may remain for a later batch.'),note:'The complete storyboard remains available as a CSV. Background images appear here.',backgrounds:[],csvUrl}}];"
+      }
     }
   ],
   "connections": {
@@ -3071,7 +3119,7 @@
       "main": [
         [
           {
-            "node": "Create Storyboard Job Row",
+            "node": "Build Planning Receipt",
             "type": "main",
             "index": 0
           }
@@ -3100,7 +3148,7 @@
       "main": [
         [
           {
-            "node": "Build Planning Receipt",
+            "node": "Read Fred Style Guide",
             "type": "main",
             "index": 0
           }
@@ -3122,7 +3170,7 @@
       "main": [
         [
           {
-            "node": "Read Fred Style Guide",
+            "node": "Create Storyboard Job Row",
             "type": "main",
             "index": 0
           }
@@ -3549,7 +3597,7 @@
       "main": [
         [
           {
-            "node": "Read Full Storyboard Scenes",
+            "node": "Storyboard Status Needs Scene Rows?",
             "type": "main",
             "index": 0
           }
@@ -3850,6 +3898,35 @@
         [
           {
             "node": "Return Delivery Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Storyboard Status Needs Scene Rows?": {
+      "main": [
+        [
+          {
+            "node": "Read Full Storyboard Scenes",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Lightweight Planning Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Lightweight Planning Status": {
+      "main": [
+        [
+          {
+            "node": "Return Storyboard Status",
             "type": "main",
             "index": 0
           }
