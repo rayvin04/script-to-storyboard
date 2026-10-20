@@ -144,7 +144,7 @@
               },
               {
                 "name": "Access-Control-Allow-Origin",
-                "value": "={{ [\"https://script-to-storyboard-six.vercel.app\",\"https://script-to-storyboard-rh9j2ogz2-rayvin-gianan-s-projects.vercel.app\",\"https://script-to-storyboard-rj8si3nam-rayvin-gianan-s-projects.vercel.app\",\"https://script-to-storyboard-2936gb8xd-rayvin-gianan-s-projects.vercel.app\",\"https://script-to-storyboard-git-codex-5b7cab-rayvin-gianan-s-projects.vercel.app\"].includes($('Storyboard and Background Pipeline Webhook').first().json.headers && $('Storyboard and Background Pipeline Webhook').first().json.headers.origin) ? $('Storyboard and Background Pipeline Webhook').first().json.headers.origin : \"https://script-to-storyboard-six.vercel.app\" }}"
+                "value": "https://script-to-storyboard-six.vercel.app"
               },
               {
                 "name": "Content-Type",
@@ -468,7 +468,7 @@
       "parameters": {
         "mode": "runOnceForAllItems",
         "language": "javaScript",
-        "jsCode": "const storyboard=$('Validate and Package Storyboard').first().json;\nconst results=$input.all().map(item=>item.json);\nconst images=results.map(result=>({backgroundId:result.backgroundId,sceneNumbers:Array.isArray(result.sceneNumbers)?result.sceneNumbers:[],backgroundPrompt:result.backgroundPrompt||'',...(result.ok===true&&typeof result.imageData==='string'?{imageData:result.imageData,mimeType:result.mimeType||'image/png'}:{ok:false,error:String(result.error||'Image generation failed.'),statusCode:result.statusCode||502})}));\nconst generatedImageCount=images.filter(image=>typeof image.imageData==='string').length;\nconst failedImageCount=images.length-generatedImageCount;\nreturn[{json:{ok:true,title:storyboard.title,storyboardCsv:storyboard.storyboardCsv,totalScenes:storyboard.totalScenes,generatedImageCount,failedImageCount,totalUniqueBackgrounds:storyboard.totalUniqueBackgrounds,selectedBackgroundCount:images.length,deferredBackgrounds:storyboard.deferredBackgrounds,images}}];"
+        "jsCode": "const storyboard = $('Validate and Package Storyboard').first().json;\nconst results = $input.all().map(item => item.json);\nconst images = results.map(result => {\n  const providerError = typeof result.error === 'string'\n    ? result.error\n    : result.error?.message ||\n      (typeof result.body?.error === 'string' ? result.body.error : result.body?.error?.message) ||\n      result.body?.message || result.message;\n  const hasImage = result.ok === true && typeof result.imageData === 'string';\n  return {\n    backgroundId: result.backgroundId,\n    sceneNumbers: Array.isArray(result.sceneNumbers) ? result.sceneNumbers : [],\n    backgroundPrompt: result.backgroundPrompt || '',\n    ...(hasImage\n      ? { imageData: result.imageData, mimeType: result.mimeType || 'image/png' }\n      : {\n          ok: false,\n          error: String(providerError || 'Image generation returned no image. Result fields: ' + Object.keys(result).join(', ')),\n          statusCode: result.statusCode || result.body?.statusCode || 502\n        })\n  };\n});\nconst generatedImageCount = images.filter(image => typeof image.imageData === 'string').length;\nconst failedImageCount = images.length - generatedImageCount;\nreturn [{ json: {\n  ok: true,\n  title: storyboard.title,\n  storyboardCsv: storyboard.storyboardCsv,\n  totalScenes: storyboard.totalScenes,\n  generatedImageCount,\n  failedImageCount,\n  totalUniqueBackgrounds: storyboard.totalUniqueBackgrounds,\n  selectedBackgroundCount: images.length,\n  deferredBackgrounds: storyboard.deferredBackgrounds,\n  images\n} }];"
       }
     }
   ],
@@ -674,14 +674,14 @@
       "main": [
         [
           {
-            "node": "Prepare Scene-Specific Image Prompt",
+            "node": "Aggregate Image Results",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Aggregate Image Results",
+            "node": "Prepare Scene-Specific Image Prompt",
             "type": "main",
             "index": 0
           }
@@ -721,3 +721,4 @@
   },
   "versionId": "1e27e289-e000-4448-b432-e08d87d4b7d6"
 }
+
