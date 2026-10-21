@@ -11,7 +11,7 @@ The goal is to remove the animator's manual work of figuring out where each beat
 ## Two-stage sequence
 
 1. **Storyboard planner (text model):** read the consolidated `Planner Context` reference tab once; segment the entire supplied script into visual beats; build the full eight-column storyboard. Preserve exact script excerpts and supplied timecodes. For script-only input, leave timestamps empty.
-2. **Background generator (image model):** use only each selected row's `Background` field plus the shared art-style rules. Generate no more than 10 distinct plates, one request at a time. Return each image to the browser; do not store it in this prototype.
+2. **Background generator (image model):** use only each selected row's `Background` field plus the shared art-style rules. Generate no more than nine distinct plates, one request at a time. Return each image to the browser; do not store it in this prototype.
 
 GPT Image 2.5 Flare is for images only. Text planning and reference retrieval use the text model or deterministic code.
 
