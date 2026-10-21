@@ -26,8 +26,7 @@ const els = {
   storyboardDisclosure: $("storyboard-disclosure"),
   storyboardCount: $("storyboard-count"),
   downloadStoryboard: $("download-storyboard"),
-  downloadBackgrounds: $("download-backgrounds"),
-  backgroundsDownloadStatus: $("backgrounds-download-status"),
+  processStatus: $("process-status"),
   notifyEditors: $("notify-editors"),
   deliveryStatus: $("delivery-status"),
   themeToggle: $("theme-toggle")
@@ -50,7 +49,6 @@ function updateInputState() {
   const length = els.script.value.length;
   els.scriptCount.textContent = length.toLocaleString() + " / " + MAX_SCRIPT_LENGTH.toLocaleString();
   els.generateButton.disabled = state.busy || state.notificationBusy || length < 20 || length > MAX_SCRIPT_LENGTH;
-  updateDownloadBackgroundsButton();
   updateNotifyButton();
 }
 
@@ -59,14 +57,6 @@ function updateNotifyButton() {
   const completed = state.images.filter(image => image.previewUrl);
   const allSaved = completed.length > 0 && completed.every(image => image.driveFileId) && Boolean(state.storyboardDriveUrl);
   els.notifyEditors.disabled = state.busy || state.notificationBusy || !allSaved;
-}
-
-function updateDownloadBackgroundsButton() {
-  const downloadable = state.images.filter(image => image.downloadBlob instanceof Blob).length;
-  els.downloadBackgrounds.disabled = state.busy || downloadable === 0;
-  els.downloadBackgrounds.textContent = downloadable > 0
-    ? "Download all backgrounds (" + downloadable + ")"
-    : state.busy ? "Images are generating…" : "Download backgrounds (.zip)";
 }
 
 function setNotice(message, isError) {
@@ -122,10 +112,9 @@ function clearResults() {
   els.deliveryStatus.hidden = true;
   els.deliveryStatus.textContent = "";
   els.deliveryStatus.classList.remove("is-error");
-  els.backgroundsDownloadStatus.hidden = true;
-  els.backgroundsDownloadStatus.textContent = "";
-  els.backgroundsDownloadStatus.classList.remove("is-error");
-  updateDownloadBackgroundsButton();
+  els.processStatus.hidden = true;
+  els.processStatus.textContent = "";
+  els.processStatus.classList.remove("is-error");
 }
 
 function sceneLabel(sceneNumbers) {
@@ -190,37 +179,7 @@ function createImageCard(image, index) {
   driveStatus.hidden = true;
   image.driveStatusEl = driveStatus;
 
-  const feedbackRow = document.createElement("div");
-  feedbackRow.className = "feedback-row image-feedback-row";
-  const feedbackLabel = document.createElement("span");
-  feedbackLabel.className = "feedback-label";
-  feedbackLabel.textContent = "Rate this background";
-  const feedbackUp = document.createElement("button");
-  feedbackUp.type = "button";
-  feedbackUp.className = "rate-button";
-  feedbackUp.dataset.rating = "up";
-  feedbackUp.setAttribute("aria-label", "Thumbs up for " + (image.backgroundId || "this background"));
-  feedbackUp.setAttribute("aria-pressed", "false");
-  feedbackUp.textContent = "👍";
-  const feedbackDown = document.createElement("button");
-  feedbackDown.type = "button";
-  feedbackDown.className = "rate-button";
-  feedbackDown.dataset.rating = "down";
-  feedbackDown.setAttribute("aria-label", "Thumbs down for " + (image.backgroundId || "this background"));
-  feedbackDown.setAttribute("aria-pressed", "false");
-  feedbackDown.textContent = "👎";
-  feedbackUp.addEventListener("click", () => submitFeedback(image, "up", feedbackUp, feedbackDown, feedbackStatus));
-  feedbackDown.addEventListener("click", () => submitFeedback(image, "down", feedbackUp, feedbackDown, feedbackStatus));
-  feedbackRow.append(feedbackLabel, feedbackUp, feedbackDown);
-  feedbackRow.hidden = !image.previewUrl;
-
-  const feedbackStatus = document.createElement("p");
-  feedbackStatus.className = "image-card-feedback-status";
-  feedbackStatus.hidden = true;
-  image.feedbackStatusEl = feedbackStatus;
-  image.feedbackButtons = [feedbackUp, feedbackDown];
-
-  card.append(top, preview, caption, driveStatus, feedbackRow, feedbackStatus);
+  card.append(top, preview, caption, driveStatus);
   return card;
 }
 
@@ -239,8 +198,7 @@ function appendImage(image) {
       const end = Math.min(offset + 32768, binary.length);
       for (let index = offset; index < end; index += 1) bytes[index] = binary.charCodeAt(index);
     }
-    storedImage.downloadBlob = new Blob([bytes], { type: mimeType });
-    storedImage.previewUrl = URL.createObjectURL(storedImage.downloadBlob);
+    storedImage.previewUrl = URL.createObjectURL(new Blob([bytes], { type: mimeType }));
     state.imageObjectUrls.push(storedImage.previewUrl);
     delete storedImage.imageData;
   }
@@ -250,7 +208,6 @@ function appendImage(image) {
   else if (storedImage.driveUploadError) setImageDriveError(storedImage, storedImage.driveUploadError);
   const successfulImages = state.images.filter(item => item.previewUrl).length;
   els.resultCount.textContent = successfulImages + " / " + MAX_BACKGROUND_IMAGES;
-  updateDownloadBackgroundsButton();
   updateNotifyButton();
 }
 
@@ -317,141 +274,6 @@ function downloadStoryboard() {
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-const CRC32_TABLE = (() => {
-  const table = new Uint32Array(256);
-  for (let index = 0; index < 256; index += 1) {
-    let value = index;
-    for (let bit = 0; bit < 8; bit += 1) value = (value & 1) ? (0xedb88320 ^ (value >>> 1)) : (value >>> 1);
-    table[index] = value >>> 0;
-  }
-  return table;
-})();
-
-function crc32(bytes) {
-  let value = 0xffffffff;
-  for (const byte of bytes) value = CRC32_TABLE[(value ^ byte) & 0xff] ^ (value >>> 8);
-  return (value ^ 0xffffffff) >>> 0;
-}
-
-function zipDateTime(date = new Date()) {
-  const year = Math.max(1980, date.getFullYear());
-  return {
-    time: (date.getHours() << 11) | (date.getMinutes() << 5) | Math.floor(date.getSeconds() / 2),
-    date: ((year - 1980) << 9) | ((date.getMonth() + 1) << 5) | date.getDate()
-  };
-}
-
-async function createZip(files) {
-  const encoder = new TextEncoder();
-  const parts = [];
-  const centralParts = [];
-  let localOffset = 0;
-  const stamp = zipDateTime();
-
-  for (const file of files) {
-    const nameBytes = encoder.encode(file.name);
-    const data = new Uint8Array(await file.blob.arrayBuffer());
-    const checksum = crc32(data);
-    const local = new Uint8Array(30 + nameBytes.length);
-    const localView = new DataView(local.buffer);
-    localView.setUint32(0, 0x04034b50, true);
-    localView.setUint16(4, 20, true);
-    localView.setUint16(6, 0x0800, true);
-    localView.setUint16(8, 0, true);
-    localView.setUint16(10, stamp.time, true);
-    localView.setUint16(12, stamp.date, true);
-    localView.setUint32(14, checksum, true);
-    localView.setUint32(18, data.length, true);
-    localView.setUint32(22, data.length, true);
-    localView.setUint16(26, nameBytes.length, true);
-    localView.setUint16(28, 0, true);
-    local.set(nameBytes, 30);
-    parts.push(local, data);
-
-    const central = new Uint8Array(46 + nameBytes.length);
-    const centralView = new DataView(central.buffer);
-    centralView.setUint32(0, 0x02014b50, true);
-    centralView.setUint16(4, 0x0314, true);
-    centralView.setUint16(6, 20, true);
-    centralView.setUint16(8, 0x0800, true);
-    centralView.setUint16(10, 0, true);
-    centralView.setUint16(12, stamp.time, true);
-    centralView.setUint16(14, stamp.date, true);
-    centralView.setUint32(16, checksum, true);
-    centralView.setUint32(20, data.length, true);
-    centralView.setUint32(24, data.length, true);
-    centralView.setUint16(28, nameBytes.length, true);
-    centralView.setUint16(30, 0, true);
-    centralView.setUint16(32, 0, true);
-    centralView.setUint16(34, 0, true);
-    centralView.setUint16(36, 0, true);
-    centralView.setUint32(38, 0, true);
-    centralView.setUint32(42, localOffset, true);
-    central.set(nameBytes, 46);
-    centralParts.push(central);
-    localOffset += local.length + data.length;
-  }
-
-  const centralSize = centralParts.reduce((total, part) => total + part.length, 0);
-  const end = new Uint8Array(22);
-  const endView = new DataView(end.buffer);
-  endView.setUint32(0, 0x06054b50, true);
-  endView.setUint16(4, 0, true);
-  endView.setUint16(6, 0, true);
-  endView.setUint16(8, files.length, true);
-  endView.setUint16(10, files.length, true);
-  endView.setUint32(12, centralSize, true);
-  endView.setUint32(16, localOffset, true);
-  endView.setUint16(20, 0, true);
-  return new Blob([...parts, ...centralParts, end], { type: "application/zip" });
-}
-
-function safeArchiveFileName(fileName, fallback) {
-  const basename = String(fileName || fallback).replace(/\\/g, "/").split("/").pop();
-  return basename.replace(/[<>:"|?*\u0000-\u001f]/g, "_").trim() || fallback;
-}
-
-async function downloadAllBackgrounds() {
-  const images = state.images.filter(image => image.downloadBlob instanceof Blob);
-  if (!images.length) return;
-  els.downloadBackgrounds.disabled = true;
-  els.backgroundsDownloadStatus.hidden = true;
-  try {
-    const usedNames = new Set();
-    const files = images.map((image, index) => {
-      const fallback = (image.backgroundId || "background-" + String(index + 1).padStart(2, "0")) + ".png";
-      const base = safeArchiveFileName(image.fileName, fallback);
-      let name = base;
-      let suffix = 2;
-      while (usedNames.has(name.toLowerCase())) {
-        const dot = base.lastIndexOf(".");
-        name = dot > 0 ? base.slice(0, dot) + "-" + suffix++ + base.slice(dot) : base + "-" + suffix++;
-      }
-      usedNames.add(name.toLowerCase());
-      return { name, blob: image.downloadBlob };
-    });
-    const archive = await createZip(files);
-    const url = URL.createObjectURL(archive);
-    const link = document.createElement("a");
-    const slug = storyboardFilename(state.title).replace(/-storyboard\.csv$/i, "") || "storyboard";
-    link.href = url;
-    link.download = slug + "-backgrounds.zip";
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    window.setTimeout(() => URL.revokeObjectURL(url), 30000);
-    els.backgroundsDownloadStatus.textContent = files.length + " background image" + (files.length === 1 ? "" : "s") + " downloaded as a ZIP.";
-    els.backgroundsDownloadStatus.classList.remove("is-error");
-    els.backgroundsDownloadStatus.hidden = false;
-  } catch (error) {
-    els.backgroundsDownloadStatus.textContent = error && error.message ? error.message : "Could not package the background images.";
-    els.backgroundsDownloadStatus.classList.add("is-error");
-    els.backgroundsDownloadStatus.hidden = false;
-  } finally {
-    updateDownloadBackgroundsButton();
-  }
-}
-
 function addDriveFileLink(image, result) {
   image.driveFileId = result.driveFileId || result.fileId;
   image.driveUrl = result.driveUrl || result.webViewLink || "https://drive.google.com/file/d/" + encodeURIComponent(image.driveFileId) + "/view";
@@ -474,38 +296,6 @@ function setImageDriveError(image, message) {
   image.driveStatusEl.hidden = false;
   image.driveStatusEl.classList.add("is-error");
   image.driveStatusEl.textContent = "Drive upload failed · " + String(message || "Could not save this background.").slice(0, 240);
-}
-
-async function submitFeedback(image, rating, upButton, downButton, statusElement) {
-  if (image.feedbackRating || image.feedbackBusy || !image.previewUrl) return;
-  image.feedbackBusy = true;
-  image.feedbackButtons?.forEach(button => { button.disabled = true; });
-  statusElement.hidden = true;
-  try {
-    const result = await window.storyboardWorkflow.submitFeedback({
-      jobId: state.jobId,
-      title: state.title,
-      backgroundId: image.backgroundId,
-      sceneNumbers: image.sceneNumbers,
-      driveFileId: image.driveFileId || "",
-      driveUrl: image.driveUrl || "",
-      rating,
-      comment: ""
-    });
-    if (!result || result.ok !== true || result.status !== "recorded") throw new Error(result && result.error || "Google Sheets did not confirm the rating.");
-    image.feedbackRating = rating;
-    const selectedButton = rating === "up" ? upButton : downButton;
-    selectedButton.setAttribute("aria-pressed", "true");
-    statusElement.textContent = "Thanks — your rating was saved.";
-    statusElement.classList.remove("is-error");
-    statusElement.hidden = false;
-  } catch (error) {
-    image.feedbackBusy = false;
-    image.feedbackButtons?.forEach(button => { button.disabled = false; });
-    statusElement.textContent = error && error.message ? error.message : "Could not save the rating.";
-    statusElement.classList.add("is-error");
-    statusElement.hidden = false;
-  }
 }
 
 async function notifyEditingTeam() {
@@ -666,9 +456,9 @@ async function generateFromScript(event) {
       if (!state.storyboardDriveUrl) throw new Error(logResult.error || "The workflow did not return a Drive link for the storyboard CSV.");
     } catch (error) {
       const logError = error && error.message ? error.message : "The CSV could not be saved to Drive or the run could not be logged.";
-      els.backgroundsDownloadStatus.textContent = "Images are ready, but Drive could not save the storyboard CSV or log this run: " + logError;
-      els.backgroundsDownloadStatus.classList.add("is-error");
-      els.backgroundsDownloadStatus.hidden = false;
+      els.processStatus.textContent = "Images are ready, but Drive could not save the storyboard CSV or log this run: " + logError;
+      els.processStatus.classList.add("is-error");
+      els.processStatus.hidden = false;
     }
     updateNotifyButton();
     setProgress(failed ? "Storyboard finished with image errors." : "Storyboard and background batch finished.", 100,
@@ -689,7 +479,6 @@ async function generateFromScript(event) {
 els.script.addEventListener("input", updateInputState);
 els.form.addEventListener("submit", generateFromScript);
 els.downloadStoryboard.addEventListener("click", downloadStoryboard);
-els.downloadBackgrounds.addEventListener("click", downloadAllBackgrounds);
 els.notifyEditors.addEventListener("click", notifyEditingTeam);
 els.sampleButton.addEventListener("click", () => {
   els.script.value = SAMPLE_SCRIPT;

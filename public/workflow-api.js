@@ -3,7 +3,6 @@
   const generateRoute = base + "/fred-image-generation-stage-1";
   const backgroundRoute = base + "/fred-generate-background";
   const notifyRoute = base + "/fred-notify-editors";
-  const feedbackRoute = base + "/fred-background-feedback";
   const processRoute = base + "/fred-record-process";
   // Planning should finish quickly; each image gets its own bounded request.
   const PLAN_TIMEOUT_MS = 180000;
@@ -74,9 +73,6 @@
     },
     recordProcess(payload) {
       return postJson(processRoute, payload, 180000);
-    },
-    submitFeedback(payload) {
-      return postJson(feedbackRoute, payload, 180000);
     }
   };
 })();
