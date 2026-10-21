@@ -196,7 +196,7 @@ function appendImage(image) {
   els.saveToDrive.disabled = state.busy || state.driveBusy || successfulImages === 0;
 }
 
-function validateResponse(result) {
+function validateStoryboardResponse(result) {
   if (!result || result.ok !== true) {
     throw new Error(result && typeof result.error === "string" ? result.error : "The workflow did not return a completed storyboard.");
   }
@@ -208,19 +208,32 @@ function validateResponse(result) {
   if (actualHeader !== expectedHeader) {
     throw new Error("The workflow returned a CSV with unexpected columns.");
   }
-  if (!Array.isArray(result.images)) {
-    throw new Error("The workflow response did not include the generated background results.");
+  if (!Array.isArray(result.selectedBackgrounds)) {
+    throw new Error("The workflow did not return the selected background settings.");
   }
-  if (result.images.length > MAX_BACKGROUND_IMAGES) {
-    throw new Error("The workflow returned more than " + MAX_BACKGROUND_IMAGES + " backgrounds. The batch limit was exceeded.");
+  if (result.selectedBackgrounds.length === 0) {
+    throw new Error("The complete storyboard did not include any usable background settings.");
   }
-  for (const image of result.images) {
-    if (!image || typeof image.backgroundId !== "string" || !Array.isArray(image.sceneNumbers)) {
-      throw new Error("An image result is missing its background or scene identity.");
+  if (result.selectedBackgrounds.length > MAX_BACKGROUND_IMAGES) {
+    throw new Error("The workflow selected more than " + MAX_BACKGROUND_IMAGES + " backgrounds. The batch limit was exceeded.");
+  }
+  for (const background of result.selectedBackgrounds) {
+    if (!background || typeof background.backgroundId !== "string" || !Array.isArray(background.sceneNumbers) || typeof background.backgroundPrompt !== "string") {
+      throw new Error("A selected background is missing its prompt or scene identity.");
     }
-    if (image.imageData !== undefined && (typeof image.imageData !== "string" || !image.imageData.startsWith("data:image/"))) {
-      throw new Error("An image result did not contain a displayable image.");
-    }
+  }
+  return result;
+}
+
+function validateBackgroundResponse(result, expectedBackgroundId) {
+  if (!result || result.ok !== true) {
+    throw new Error(result && typeof result.error === "string" ? result.error : "The workflow did not return a generated background.");
+  }
+  if (result.backgroundId !== expectedBackgroundId || !Array.isArray(result.sceneNumbers)) {
+    throw new Error("The generated image did not match its storyboard background identity.");
+  }
+  if (typeof result.imageData !== "string" || !result.imageData.startsWith("data:image/")) {
+    throw new Error("The workflow did not return a displayable image.");
   }
   return result;
 }
@@ -345,33 +358,64 @@ async function generateFromScript(event) {
   clearResults();
   setNotice("", false);
   setBusy(true);
-  setProgress("Creating the complete storyboard, then up to nine backgrounds…", 8, "WORKING", true);
+  setProgress("Creating the complete storyboard…", 8, "PLANNING", true);
   try {
     const title = titleFromScript(script);
     state.title = title;
-    const response = validateResponse(await window.storyboardWorkflow.generate(title, script));
-    showStoryboardCsv(response.totalScenes, response.storyboardCsv);
-    const totalUnique = Number(response.totalUniqueBackgrounds) || response.images.length;
-    const deferred = Number(response.deferredBackgrounds) || 0;
-    const completed = Number(response.generatedImageCount) || 0;
-    const failed = Number(response.failedImageCount) || response.images.filter(image => !image.imageData).length;
+    const plan = validateStoryboardResponse(await window.storyboardWorkflow.generate(title, script));
+    showStoryboardCsv(plan.totalScenes, plan.storyboardCsv);
+    const backgrounds = plan.selectedBackgrounds;
+    const totalUnique = Number(plan.totalUniqueBackgrounds) || backgrounds.length;
+    let completed = 0;
+    let failed = 0;
+    let stoppedEarly = false;
 
-    for (const image of response.images) {
-      appendImage({
-        backgroundId: image.backgroundId,
-        sceneNumbers: image.sceneNumbers,
-        backgroundPrompt: image.backgroundPrompt || "Custom-fit background plate",
-        imageData: image.imageData,
-        mimeType: image.mimeType || "image/png",
-        error: image.error
-      });
+    for (let index = 0; index < backgrounds.length; index += 1) {
+      const background = backgrounds[index];
+      const progress = 12 + Math.round((index / Math.max(1, backgrounds.length)) * 82);
+      setProgress("Generating " + background.backgroundId + " of " + backgrounds.length + "…", progress,
+        (index + 1) + " / " + backgrounds.length, true);
+      els.resultSummary.textContent = "Storyboard ready · Generating " + background.backgroundId + " (" + (index + 1) + " of " + backgrounds.length + ").";
+      try {
+        const image = validateBackgroundResponse(await window.storyboardWorkflow.generateBackground({
+          title,
+          backgroundId: background.backgroundId,
+          sceneNumbers: background.sceneNumbers,
+          backgroundPrompt: background.backgroundPrompt
+        }), background.backgroundId);
+        appendImage({
+          backgroundId: image.backgroundId,
+          sceneNumbers: image.sceneNumbers,
+          backgroundPrompt: image.backgroundPrompt || background.backgroundPrompt,
+          imageData: image.imageData,
+          mimeType: image.mimeType || "image/png"
+        });
+        completed += 1;
+      } catch (error) {
+        const message = error && typeof error.message === "string" ? error.message : "Image generation failed.";
+        appendImage({
+          backgroundId: background.backgroundId,
+          sceneNumbers: background.sceneNumbers,
+          backgroundPrompt: background.backgroundPrompt,
+          error: message
+        });
+        failed += 1;
+        if (error && error.stopBatch) {
+          stoppedEarly = true;
+          break;
+        }
+      }
+      els.resultSummary.textContent = "Storyboard ready · " + completed + " of " + backgrounds.length + " backgrounds generated.";
     }
 
-    els.resultSummary.textContent = "Storyboard ready · " + completed + " of " + response.images.length + " backgrounds generated.";
+    const deferredByPlanner = Number(plan.deferredBackgrounds) || 0;
+    const unrequested = Math.max(0, backgrounds.length - completed - failed);
+    const deferred = deferredByPlanner + unrequested;
     if (deferred > 0) {
       els.deferredNote.hidden = false;
-      els.deferredCopy.textContent = totalUnique + " distinct settings were identified across the complete script. This run generated up to " +
-        MAX_BACKGROUND_IMAGES + "; " + deferred + " remain for a later batch.";
+      els.deferredCopy.textContent = stoppedEarly
+        ? "The storyboard has " + totalUnique + " distinct settings. " + unrequested + " selected background" + (unrequested === 1 ? " was" : "s were") + " not requested after the connection stopped; " + deferredByPlanner + " additional settings are deferred beyond this batch."
+        : totalUnique + " distinct settings were identified across the complete script. This run generated up to " + MAX_BACKGROUND_IMAGES + "; " + deferred + " remain for a later batch.";
     }
     setProgress(failed ? "Storyboard finished with image errors." : "Storyboard and background batch finished.", 100,
       completed + " ready · " + failed + " failed", false);
