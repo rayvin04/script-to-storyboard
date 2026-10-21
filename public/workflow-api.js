@@ -2,7 +2,9 @@
   const base = "https://n8n.47-131-239-128.sslip.io/webhook";
   const generateRoute = base + "/fred-image-generation-stage-1";
   const backgroundRoute = base + "/fred-generate-background";
-  const driveUploadRoute = base + "/fred-save-background-to-drive";
+  const notifyRoute = base + "/fred-notify-editors";
+  const feedbackRoute = base + "/fred-background-feedback";
+  const processRoute = base + "/fred-record-process";
   // Planning should finish quickly; each image gets its own bounded request.
   const PLAN_TIMEOUT_MS = 180000;
   const IMAGE_TIMEOUT_MS = 360000;
@@ -36,7 +38,7 @@
         if (isRateLimited) {
           message = route === backgroundRoute
             ? "OpenRouter rate-limited image generation. The batch stopped here; wait before starting another image request."
-            : "Fred's reference sheets hit Google's read limit. Wait about a minute, then submit the script again. No image requests were sent.";
+            : "The storyboard reference sheets hit Google's read limit. Wait about a minute, then submit the script again. No image requests were sent.";
         }
         const requestError = new Error(message || "Workflow request failed (HTTP " + response.status + ").");
         if (isRateLimited && route === backgroundRoute) requestError.stopBatch = true;
@@ -61,14 +63,20 @@
   }
 
   window.storyboardWorkflow = {
-    generate(title, script) {
-      return postJson(generateRoute, { title, script, mode: "planOnly" }, PLAN_TIMEOUT_MS);
+    generate(title, script, jobId) {
+      return postJson(generateRoute, { title, script, mode: "planOnly", jobId }, PLAN_TIMEOUT_MS);
     },
     generateBackground(payload) {
       return postJson(backgroundRoute, { ...payload, mode: "single" }, IMAGE_TIMEOUT_MS);
     },
-    saveBackground(payload) {
-      return postJson(driveUploadRoute, payload, 180000);
+    notifyEditors(payload) {
+      return postJson(notifyRoute, payload, 180000);
+    },
+    recordProcess(payload) {
+      return postJson(processRoute, payload, 180000);
+    },
+    submitFeedback(payload) {
+      return postJson(feedbackRoute, payload, 180000);
     }
   };
 })();

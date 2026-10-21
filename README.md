@@ -1,41 +1,31 @@
-# Fred’s Script-to-Backgrounds Demo
+# Script to Storyboard Lab
 
-The demo takes **one complete voiceover script** in one submission. A text model plans the full script into Fred-style scenes, estimates timestamps when source timing is absent, then the workflow generates up to nine distinct full-frame environment plates from the storyboard’s `Background` descriptions. The complete storyboard and its CSV remain available when additional unique backgrounds are deferred.
+This demo takes one complete narration script and produces a full scene-by-scene storyboard plus up to six sequentially generated, scene-matched background plates. The storyboard is retained in full even when the image run is limited to six backgrounds.
 
-Only backgrounds are generated. Animators add all characters, props, labels, diagrams, and movement by hand. Fred’s art treatment stays consistent across settings, while each background changes to fit its scene.
+## What it does
 
-## Current architecture
+- The planning workflow reads the entire script and the approved CSV examples/style notes from the Google Sheets reference workbook.
+- It returns the storyboard with the eight required columns, continuous timestamps when no source timecodes exist, and concise animator notes.
+- The image workflow creates one full-frame 16:9 background image per selected setting, one request at a time.
+- Completed backgrounds are saved to the shared Google Drive folder with title, date, background ID, and scene numbers in each filename.
+- The storyboard CSV is saved to that folder, and the Process Log tab tracks each completed or partial run.
+- The UI supports a single ZIP download for all generated images, CSV download, email notification, and per-image thumbs up/down feedback.
 
-- UI: static Vercel site in `public/`.
-- n8n: **Fred Script-to-Backgrounds — Simple**, ID `QRPeaK5ayX9ZC5Zx` ([open in AWS n8n](https://n8n.47-131-239-128.sslip.io/workflow/QRPeaK5ayX9ZC5Zx)). The UI sends one planning request, then one image request per selected background in sequence.
-- Storyboard planning: Vercel AI Gateway `openai/gpt-5-mini`, with read-only Google Sheets reference context.
-- Image generation: OpenRouter `openai/gpt-image-2.5-flare`, low quality, 16:9, one image per request. The image model is used only for images.
-- The planning webhook returns the full Fred-format CSV and up to nine selected background settings. A separate image webhook generates one full-frame background per request; the UI adds each image as it arrives. Scripts and generated images are not saved.
+Only background environments are generated. Animators add characters, movable props, text, diagrams, and motion by hand. The approved reference image guides linework and color treatment; it does not lock scenes to one location or composition.
 
-The UI shows the nine-image batch in a three-column desktop gallery and saves completed backgrounds to the shared demo Drive folder through a separate n8n webhook. The storyboard CSV filename is derived from the first line/topic sentence of the submitted script. Image requests and Drive uploads run sequentially, and each image appears as soon as its request returns. The saved personal Google Drive credential stays in n8n; no credential is placed in browser code. Email notification, SVG export, database writes, n8n Data Tables, n8n Memory, and status polling are not part of this stage. The CSV is built in the workflow response and downloaded by the browser; it is not stored.
+## Live project resources
 
-## Files
+- Vercel UI: [Script to Storyboard Lab](https://script-to-storyboard-six.vercel.app/)
+- Generation workflow: ID `QRPeaK5ayX9ZC5Zx` ([open in n8n](https://n8n.47-131-239-128.sslip.io/workflow/QRPeaK5ayX9ZC5Zx))
+- Delivery and feedback workflow: ID `KNBiOwM2a2SXvgK2` ([open in n8n](https://n8n.47-131-239-128.sslip.io/workflow/KNBiOwM2a2SXvgK2))
+- Reference and operations workbook: [Google Sheets workbook](https://docs.google.com/spreadsheets/d/1RL7C_3kg7Ua47R7BnQFi4YvsgDyecIQS7yi1uCAT-gg/edit)
+- Shared output folder: [Google Drive](https://drive.google.com/drive/folders/153VPM-IBR1T5UIq-TthqtpklyAGwi-UU)
 
-- `public/` — one-script UI and the fixed webhook client.
-- `workflows/fred-script-to-backgrounds-simple/` — current workflow export and setup guide; import it inactive to avoid a duplicate webhook.
-- `workflows/fred-image-generation-stage-1/` — earlier single-image workflow export retained as a reference.
-- `workflows/fred-background-storyboard/` — legacy full workflow notes, retained for reference and not used by the simplified UI.
-- `docs/fred-style-guide.md` — analysis of Fred’s art treatment and storyboard examples.
-- `docs/fred-agent-context.md` — current behavior and hard constraints for the AI planner and image stage.
+## Workflow files
 
-## Limits and verification
+- Generation and delivery workflow exports are stored in `workflows/`.
+- `docs/storyboard-style-guide.md` — storyboard and background image rules.
+- `docs/agent-context.md` — planner and image-stage contract.
+- `docs/delivery-and-export-plan.md` — Drive, email, feedback, and process-log requirements.
 
-- One script, maximum 30,000 characters.
-- Complete Fred-format storyboard plan; up to 9 unique full-frame backgrounds per run.
-- Image requests run one at a time. A failed request stops the batch while keeping images already shown.
-- The n8n planner reads the consolidated `Planner Context` tab once and returns the full storyboard with up to nine selected backgrounds.
-- The image route requests a single image per execution so a slow nine-image batch does not hold one webhook connection open. The end-to-end Vercel test is the release check.
-
-Run local syntax checks with:
-
-```powershell
-node --check public/app.js
-node --check public/workflow-api.js
-```
-
-Credentials stay in n8n and must never be placed in browser code or committed files.
+All persistent reference and process data belongs in Google Sheets/Drive. Do not use n8n Data Tables or workflow memory for storage.
