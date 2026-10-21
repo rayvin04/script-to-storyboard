@@ -8,7 +8,7 @@
         "path": "fred-image-generation-stage-1",
         "responseMode": "responseNode",
         "options": {
-          "allowedOrigins": "https://script-to-storyboard-six.vercel.app,https://script-to-storyboard-rh9j2ogz2-rayvin-gianan-s-projects.vercel.app,https://script-to-storyboard-rj8si3nam-rayvin-gianan-s-projects.vercel.app,https://script-to-storyboard-2936gb8xd-rayvin-gianan-s-projects.vercel.app,https://script-to-storyboard-git-codex-5b7cab-rayvin-gianan-s-projects.vercel.app"
+          "allowedOrigins": "https://script-to-storyboard-six.vercel.app,https://script-to-storyboard-bczcrjyi8-rayvin-gianan-s-projects.vercel.app,https://script-to-storyboard-rh9j2ogz2-rayvin-gianan-s-projects.vercel.app,https://script-to-storyboard-rj8si3nam-rayvin-gianan-s-projects.vercel.app,https://script-to-storyboard-2936gb8xd-rayvin-gianan-s-projects.vercel.app,https://script-to-storyboard-git-codex-5b7cab-rayvin-gianan-s-projects.vercel.app"
         }
       },
       "id": "686810ba-a70b-4eb0-90bc-c012f251e9ae",
@@ -23,7 +23,7 @@
     },
     {
       "parameters": {
-        "jsCode": "let input=$json.body??$json;\nif(typeof input==='string'){try{input=JSON.parse(input)}catch{input={}}}\nconst backgroundPrompt=typeof input.backgroundPrompt==='string'?input.backgroundPrompt.trim():'';\nconst backgroundId=String(input.backgroundId||'');\nconst sceneNumbers=Array.isArray(input.sceneNumbers)?input.sceneNumbers.map(Number).filter(Number.isFinite):[];\nif(backgroundPrompt.length<20||backgroundPrompt.length>2500||!backgroundId||!sceneNumbers.length)return[{json:{ok:false,statusCode:422,backgroundId,sceneNumbers,backgroundPrompt,error:'A selected storyboard background with its scene identity is required.'}}];\nconst prompt=[\n'Create ONE single continuous, full-frame landscape 16:9 environment background plate for this storyboard scene. The image must show one complete location across the entire canvas, edge to edge.',\n'Match the approved reference image’s drawing treatment only: consistent hand-drawn 2D cartoon, bold slightly irregular black ink outlines, chunky simplified shapes, flat color fills, minimal shading, and clear readable forms. Never make it photorealistic or 3D.',\n'Build the location, palette, and composition specifically from the scene Background description below. The reference image controls linework and color treatment only; do not copy its room, furniture, palette, layout, or camera composition unless the scene calls for them.',\n'SHOW ONE ENVIRONMENT ONLY. Absolutely no split screen, triptych, panels, multi-panel layout, collage, inset, storyboard sheet, vertical or horizontal dividers, borders between scenes, alternate locations, or multiple views. This is one standalone full background image, not a set of panels.',\n'Environment only: exclude people, characters, animals, faces, bodies, body parts, hands, movable foreground props, diagrams, symbols, lettering, captions, logos, watermarks, and motion marks. Fixed architecture and environmental set dressing may establish the location. Leave clear open space where animators can draw characters and props.',\n'SINGLE SCENE BACKGROUND: '+backgroundPrompt].join(' ');\nreturn[{json:{ok:true,fileId:'19_rZZhpt3du495njrjnO5nuPWQjxnMAQ',backgroundId,sceneNumbers,backgroundPrompt,prompt}}];",
+        "jsCode": "let webhook = $json ?? {};\nlet input = webhook.body ?? webhook;\nif (typeof input === 'string') { try { input = JSON.parse(input); } catch { input = {}; } }\nconst backgroundPrompt = typeof input.backgroundPrompt === 'string' ? input.backgroundPrompt.trim() : '';\nconst backgroundId = String(input.backgroundId || '');\nconst sceneNumbers = Array.isArray(input.sceneNumbers) ? input.sceneNumbers.map(Number).filter(Number.isFinite) : [];\nconst allowedOrigins = [\"https://script-to-storyboard-six.vercel.app\",\"https://script-to-storyboard-bczcrjyi8-rayvin-gianan-s-projects.vercel.app\",\"https://script-to-storyboard-rh9j2ogz2-rayvin-gianan-s-projects.vercel.app\",\"https://script-to-storyboard-rj8si3nam-rayvin-gianan-s-projects.vercel.app\",\"https://script-to-storyboard-2936gb8xd-rayvin-gianan-s-projects.vercel.app\",\"https://script-to-storyboard-git-codex-5b7cab-rayvin-gianan-s-projects.vercel.app\"];\nconst requestMode = input.mode === 'single' || input.requestMode === 'single' ? 'single' : 'batch';\nconst requestedOrigin = String(webhook.headers?.origin || input.corsOrigin || '');\nconst corsOrigin = allowedOrigins.includes(requestedOrigin) ? requestedOrigin : allowedOrigins[0];\nif (backgroundPrompt.length < 20 || backgroundPrompt.length > 2500 || !backgroundId || !sceneNumbers.length) return [{json:{ok:false,statusCode:422,backgroundId,sceneNumbers,backgroundPrompt,requestMode,corsOrigin,error:'A selected storyboard background with its scene identity is required.'}}];\nconst prompt = [\n'Create ONE single continuous, full-frame landscape 16:9 environment background plate for this storyboard scene. The image must show one complete location across the entire canvas, edge to edge.',\n'Match the approved reference image’s drawing treatment only: consistent hand-drawn 2D cartoon, bold slightly irregular black ink outlines, chunky simplified shapes, flat color fills, minimal shading, and clear readable forms. Never make it photorealistic or 3D.',\n'Build the location, palette, and composition specifically from the scene Background description below. The reference image controls linework and color treatment only; do not copy its room, furniture, palette, layout, or camera composition unless the scene calls for them.',\n'SHOW ONE ENVIRONMENT ONLY. Absolutely no split screen, triptych, panels, multi-panel layout, collage, inset, storyboard sheet, vertical or horizontal dividers, borders between scenes, alternate locations, or multiple views. This is one standalone full background image, not a set of panels.',\n'Environment only: exclude people, characters, animals, faces, bodies, body parts, hands, movable foreground props, diagrams, symbols, lettering, captions, logos, watermarks, and motion marks. Fixed architecture and environmental set dressing may establish the location. Leave clear open space where animators can draw characters and props.',\n'SINGLE SCENE BACKGROUND: ' + backgroundPrompt\n].join(' ');\nreturn [{json:{ok:true,fileId:'19_rZZhpt3du495njrjnO5nuPWQjxnMAQ',backgroundId,sceneNumbers,backgroundPrompt,prompt,requestMode,corsOrigin}}];",
         "mode": "runOnceForAllItems",
         "language": "javaScript"
       },
@@ -117,7 +117,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const response=$json??{};\nconst request=$('Prepare Scene-Specific Image Prompt').item.json;\nconst identity={backgroundId:request.backgroundId,sceneNumbers:request.sceneNumbers,backgroundPrompt:request.backgroundPrompt};\nif(response.ok===false&&response.error)return[{json:{...response,...identity,ok:false}}];\nconst body=response.body&&typeof response.body==='object'?response.body:response;\nconst image=body.data?.[0];const b64=image?.b64_json;\nif(!b64){const providerError=body.error;const errorMessage=typeof providerError==='string'?providerError:providerError?.message||response.error?.message||body.message||'OpenRouter did not return image bytes.';const statusCode=Number(response.statusCode||providerError?.code||502);return[{json:{ok:false,statusCode,error:String(errorMessage).slice(0,1000),model:'openai/gpt-image-2.5-flare',...identity}}]}\nconst mimeType=image.media_type||body.media_type||'image/jpeg';\nif(!mimeType.startsWith('image/'))return[{json:{ok:false,statusCode:502,error:'OpenRouter returned an unsupported media type.',model:'openai/gpt-image-2.5-flare',...identity}}];\nreturn[{json:{ok:true,model:'openai/gpt-image-2.5-flare',...identity,mimeType,costUsd:body.usage?.cost??null,imageData:'data:'+mimeType+';base64,'+b64}}];",
+        "jsCode": "const response=$json??{};\nconst request=$('Prepare Scene-Specific Image Prompt').item.json;\nconst identity={backgroundId:request.backgroundId,sceneNumbers:request.sceneNumbers,backgroundPrompt:request.backgroundPrompt,requestMode:request.requestMode,corsOrigin:request.corsOrigin};\nif(response.ok===false&&response.error)return[{json:{...response,...identity,ok:false}}];\nconst body=response.body&&typeof response.body==='object'?response.body:response;\nconst image=body.data?.[0];const b64=image?.b64_json;\nif(!b64){const providerError=body.error;const errorMessage=typeof providerError==='string'?providerError:providerError?.message||response.error?.message||body.message||'OpenRouter did not return image bytes.';const statusCode=Number(response.statusCode||providerError?.code||502);return[{json:{ok:false,statusCode,error:String(errorMessage).slice(0,1000),model:'openai/gpt-image-2.5-flare',...identity}}]}\nconst mimeType=image.media_type||body.media_type||'image/jpeg';\nif(!mimeType.startsWith('image/'))return[{json:{ok:false,statusCode:502,error:'OpenRouter returned an unsupported media type.',model:'openai/gpt-image-2.5-flare',...identity}}];\nreturn[{json:{ok:true,model:'openai/gpt-image-2.5-flare',...identity,mimeType,costUsd:body.usage?.cost??null,imageData:'data:'+mimeType+';base64,'+b64}}];",
         "mode": "runOnceForAllItems",
         "language": "javaScript"
       },
@@ -133,7 +133,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ $json }}",
+        "responseBody": "={{ $json.ok === true && $json.mode === 'planOnly' ? {\n  ok: true,\n  title: $json.title,\n  mode: $json.mode,\n  corsOrigin: $json.corsOrigin,\n  totalScenes: $json.totalScenes,\n  totalUniqueBackgrounds: $json.totalUniqueBackgrounds,\n  selectedBackgroundCount: $json.selectedBackgroundCount,\n  deferredBackgrounds: $json.deferredBackgrounds,\n  scriptWordCount: $json.scriptWordCount,\n  timestampMode: $json.timestampMode,\n  storyboardCsv: $json.storyboardCsv,\n  selectedBackgrounds: $json.selectedBackgrounds\n} : $json }}",
         "options": {
           "responseCode": "={{ $json.ok ? 200 : ($json.statusCode ?? 502) }}",
           "responseHeaders": {
@@ -144,7 +144,7 @@
               },
               {
                 "name": "Access-Control-Allow-Origin",
-                "value": "https://script-to-storyboard-six.vercel.app"
+                "value": "={{ $json.corsOrigin || 'https://script-to-storyboard-six.vercel.app' }}"
               },
               {
                 "name": "Content-Type",
@@ -182,7 +182,7 @@
     },
     {
       "parameters": {
-        "jsCode": "let body = $json.body ?? $json;\nif (typeof body === 'string') { try { body = JSON.parse(body); } catch { body = {}; } }\nconst script = typeof body.script === 'string' ? body.script.trim() : '';\nif (script.length < 20 || script.length > 30000) return [{json:{ok:false,statusCode:400,error:'Paste a script between 20 and 30,000 characters.'}}];\nconst firstLine = script.split(/\\r?\\n/).map(part => part.trim()).find(Boolean) || '';\nconst title = String(body.title || firstLine.slice(0,120) || 'Untitled storyboard').trim().slice(0,120);\nreturn [{json:{ok:true,title,script}}];"
+        "jsCode": "let webhook = $json ?? {};\nlet body = webhook.body ?? webhook;\nif (typeof body === 'string') { try { body = JSON.parse(body); } catch { body = {}; } }\nconst allowedOrigins = [\"https://script-to-storyboard-six.vercel.app\",\"https://script-to-storyboard-bczcrjyi8-rayvin-gianan-s-projects.vercel.app\",\"https://script-to-storyboard-rh9j2ogz2-rayvin-gianan-s-projects.vercel.app\",\"https://script-to-storyboard-rj8si3nam-rayvin-gianan-s-projects.vercel.app\",\"https://script-to-storyboard-2936gb8xd-rayvin-gianan-s-projects.vercel.app\",\"https://script-to-storyboard-git-codex-5b7cab-rayvin-gianan-s-projects.vercel.app\"];\nconst requestedOrigin = String(webhook.headers?.origin || body.origin || '');\nconst corsOrigin = allowedOrigins.includes(requestedOrigin) ? requestedOrigin : allowedOrigins[0];\nconst mode = body.mode === 'planOnly' ? 'planOnly' : 'batch';\nconst script = typeof body.script === 'string' ? body.script.trim() : '';\nif (script.length < 20 || script.length > 30000) return [{json:{ok:false,statusCode:400,error:'Paste a script between 20 and 30,000 characters.',mode,corsOrigin}}];\nconst firstLine = script.split(/\\r?\\n/).map(part => part.trim()).find(Boolean) || '';\nconst title = String(body.title || firstLine.slice(0,120) || 'Untitled storyboard').trim().slice(0,120);\nreturn [{json:{ok:true,title,script,mode,corsOrigin}}];"
       },
       "id": "b977a225-9430-4bcd-9f6e-1a05e497bfbb",
       "name": "Validate Full Script",
@@ -346,7 +346,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const fail = (error, statusCode = 422) => [{ json: { ok: false, statusCode, error } }];\nconst raw = $json.output ?? $json;\nif ($json.error) { const detail = typeof $json.error === 'string' ? $json.error : $json.error?.message || JSON.stringify($json.error); return fail('Storyboard generation failed: ' + String(detail).slice(0, 900), 502); }\nlet plan;\ntry { plan = typeof raw === 'string' ? JSON.parse(raw) : raw; } catch { return fail('The storyboard model returned invalid structured data. No images were generated.', 502); }\nif (!Array.isArray(plan?.scenes) || !plan.scenes.length) return fail('The storyboard model returned no scenes. No images were generated.', 502);\nconst request = $('Validate Full Script').first().json;\nif (!request.ok || typeof request.script !== 'string') return fail(request.error || 'The submitted script is invalid.', request.statusCode || 400);\nconst stripTimecodes = value => String(value || '').replace(/\\b\\d{1,2}:\\d{2}(?::\\d{2})?(?:\\s*[-–—]\\s*\\d{1,2}:\\d{2}(?::\\d{2})?)?\\b/g, ' ');\nconst tokens = value => String(value || '').normalize('NFKC').toLowerCase().match(/[\\p{L}\\p{N}]+(?:['’][\\p{L}\\p{N}]+)*/gu) || [];\nconst sourceTokens = tokens(stripTimecodes(request.script));\nconst voiceoverTokens = tokens(plan.scenes.map(scene => String(scene?.voiceover || '')).join(' '));\nif (sourceTokens.length !== voiceoverTokens.length || !sourceTokens.every((token, index) => token === voiceoverTokens[index])) return fail('The storyboard did not preserve the complete script in order. No images were generated; the script was not shortened.');\nconst sourceHasTimecodes = /\\b\\d{1,2}:\\d{2}(?::\\d{2})?\\b/.test(request.script);\nconst formatTime = seconds => String(Math.floor(seconds / 60)).padStart(2, '0') + ':' + String(seconds % 60).padStart(2, '0');\nlet elapsedSeconds = 0;\nconst scenes = plan.scenes.map((scene, index) => {\n const item = scene || {};\n const duration = Math.max(1, Math.ceil(tokens(item.voiceover).length * 60 / 145));\n const timestamp = sourceHasTimecodes ? String(item.timestamp || '').trim() : formatTime(elapsedSeconds) + '-' + formatTime(elapsedSeconds + duration);\n elapsedSeconds += duration;\n return { ...item, sceneNumber: index + 1, timestamp };\n});\nconst unique = new Map();\nfor (let index = 0; index < scenes.length; index++) {\n const scene = scenes[index];\n const description = String(scene.background || '').trim();\n if (description.length < 20) return fail('Scene ' + (index + 1) + ' is missing a useful Background description. No images were generated.');\n const key = description.toLowerCase().replace(/\\s+/g, ' ');\n if (!unique.has(key)) unique.set(key, { backgroundPrompt: description, sceneNumbers: [] });\n unique.get(key).sceneNumbers.push(index + 1);\n}\nconst all = Array.from(unique.values());\nif (!all.length) return fail('No distinct storyboard backgrounds were available for image generation.');\nconst columns = [['Scene','sceneNumber'],['Timestamp','timestamp'],['Voiceover','voiceover'],[\"What's happening\",'whatsHappening'],['Background','background'],['Hand-drawn characters & props','handDrawnCharactersAndProps'],['On-screen text','onScreenText'],['Transitions/Motion','transitionsMotion']];\nconst csvCell = value => '\"' + String(value ?? '').replace(/\"/g,'\"\"') + '\"';\nconst storyboardCsv = [columns.map(([header])=>csvCell(header)).join(','),...scenes.map(scene=>columns.map(([,key])=>csvCell(scene[key])).join(','))].join('\\r\\n');\nreturn [{json:{ok:true,title:request.title,totalScenes:scenes.length,totalUniqueBackgrounds:all.length,selectedBackgroundCount:Math.min(9,all.length),deferredBackgrounds:Math.max(0,all.length-9),scriptWordCount:sourceTokens.length,timestampMode:sourceHasTimecodes?'provided':'estimated',storyboardCsv,backgroundCandidates:all}}];",
+        "jsCode": "const request = $('Validate Full Script').first().json;\nconst fail = (error, statusCode = 422) => [{ json: { ok: false, statusCode, error, mode: request.mode, corsOrigin: request.corsOrigin } }];\nconst raw = $json.output ?? $json;\nif ($json.error) { const detail = typeof $json.error === 'string' ? $json.error : $json.error?.message || JSON.stringify($json.error); return fail('Storyboard generation failed: ' + String(detail).slice(0, 900), 502); }\nlet plan;\ntry { plan = typeof raw === 'string' ? JSON.parse(raw) : raw; } catch { return fail('The storyboard model returned invalid structured data. No images were generated.', 502); }\nif (!Array.isArray(plan?.scenes) || !plan.scenes.length) return fail('The storyboard model returned no scenes. No images were generated.', 502);\nif (!request.ok || typeof request.script !== 'string') return fail(request.error || 'The submitted script is invalid.', request.statusCode || 400);\nconst stripTimecodes = value => String(value || '').replace(/\\b\\d{1,2}:\\d{2}(?::\\d{2})?(?:\\s*[-–—]\\s*\\d{1,2}:\\d{2}(?::\\d{2})?)?\\b/g, ' ');\nconst tokens = value => String(value || '').normalize('NFKC').toLowerCase().match(/[\\p{L}\\p{N}]+(?:['’][\\p{L}\\p{N}]+)*/gu) || [];\nconst sourceTokens = tokens(stripTimecodes(request.script));\nconst voiceoverTokens = tokens(plan.scenes.map(scene => String(scene?.voiceover || '')).join(' '));\nif (sourceTokens.length !== voiceoverTokens.length || !sourceTokens.every((token, index) => token === voiceoverTokens[index])) return fail('The storyboard did not preserve the complete script in order. No images were generated; the script was not shortened.');\nconst sourceHasTimecodes = /\\b\\d{1,2}:\\d{2}(?::\\d{2})?\\b/.test(request.script);\nconst formatTime = seconds => String(Math.floor(seconds / 60)).padStart(2, '0') + ':' + String(seconds % 60).padStart(2, '0');\nlet elapsedSeconds = 0;\nconst scenes = plan.scenes.map((scene, index) => {\n const item = scene || {};\n const duration = Math.max(1, Math.ceil(tokens(item.voiceover).length * 60 / 145));\n const timestamp = sourceHasTimecodes ? String(item.timestamp || '').trim() : formatTime(elapsedSeconds) + '-' + formatTime(elapsedSeconds + duration);\n elapsedSeconds += duration;\n return { ...item, sceneNumber: index + 1, timestamp };\n});\nconst unique = new Map();\nfor (let index = 0; index < scenes.length; index++) {\n const scene = scenes[index];\n const description = String(scene.background || '').trim();\n if (description.length < 20) return fail('Scene ' + (index + 1) + ' is missing a useful Background description. No images were generated.');\n const key = description.toLowerCase().replace(/\\s+/g, ' ');\n if (!unique.has(key)) unique.set(key, { backgroundPrompt: description, sceneNumbers: [] });\n unique.get(key).sceneNumbers.push(index + 1);\n}\nconst all = Array.from(unique.values());\nif (!all.length) return fail('No distinct storyboard backgrounds were available for image generation.');\nconst count = Math.min(9, all.length);\nconst indices = count === 1 ? [Math.floor((all.length - 1) / 2)] : Array.from({length:count}, (_, slot) => Math.round(slot * (all.length - 1) / (count - 1)));\nconst selectedBackgrounds = indices.map((candidateIndex, slot) => ({ backgroundId: 'BG' + String(slot + 1).padStart(3, '0'), ...all[candidateIndex] }));\nconst columns = [['Scene','sceneNumber'],['Timestamp','timestamp'],['Voiceover','voiceover'],[\"What's happening\",'whatsHappening'],['Background','background'],['Hand-drawn characters & props','handDrawnCharactersAndProps'],['On-screen text','onScreenText'],['Transitions/Motion','transitionsMotion']];\nconst csvCell = value => '\"' + String(value ?? '').replace(/\"/g,'\"\"') + '\"';\nconst storyboardCsv = [columns.map(([header])=>csvCell(header)).join(','),...scenes.map(scene=>columns.map(([,key])=>csvCell(scene[key])).join(','))].join('\\r\\n');\nreturn [{json:{\n ok:true,title:request.title,mode:request.mode,corsOrigin:request.corsOrigin,\n totalScenes:scenes.length,totalUniqueBackgrounds:all.length,selectedBackgroundCount:selectedBackgrounds.length,\n deferredBackgrounds:Math.max(0,all.length-selectedBackgrounds.length),scriptWordCount:sourceTokens.length,\n timestampMode:sourceHasTimecodes?'provided':'estimated',storyboardCsv,selectedBackgrounds,backgroundCandidates:all\n}}];",
         "mode": "runOnceForAllItems",
         "language": "javaScript"
       },
@@ -411,7 +411,7 @@
           },
           "conditions": [
             {
-              "leftValue": "={{ $json.ok === true }}",
+              "leftValue": "={{ $json.ok === true && $json.mode !== 'planOnly' }}",
               "rightValue": true,
               "operator": {
                 "type": "boolean",
@@ -437,7 +437,7 @@
       "parameters": {
         "mode": "runOnceForAllItems",
         "language": "javaScript",
-        "jsCode": "const packageData=$input.first().json;\nif(!packageData.ok)return[{json:packageData}];\nconst candidates=packageData.backgroundCandidates;\nif(!Array.isArray(candidates)||!candidates.length)return[{json:{ok:false,statusCode:422,error:'The storyboard did not include usable Background descriptions.'}}];\nconst count=Math.min(9,candidates.length);\nconst indices=count===1?[Math.floor((candidates.length-1)/2)]:Array.from({length:count},(_,slot)=>Math.round(slot*(candidates.length-1)/(count-1)));\nreturn indices.map((candidateIndex,slot)=>{const candidate=candidates[candidateIndex];return{json:{backgroundId:'BG'+String(slot+1).padStart(3,'0'),sceneNumbers:candidate.sceneNumbers,backgroundPrompt:candidate.backgroundPrompt,totalUniqueBackgrounds:candidates.length,selectedBackgroundCount:count,deferredBackgrounds:candidates.length-count}};});"
+        "jsCode": "const packageData=$input.first().json;\nif(!packageData.ok)return[{json:packageData}];\nconst selected=packageData.selectedBackgrounds;\nif(!Array.isArray(selected)||!selected.length)return[{json:{ok:false,statusCode:422,error:'The storyboard did not include usable Background descriptions.',mode:packageData.mode,corsOrigin:packageData.corsOrigin}}];\nreturn selected.map(background=>({json:{...background,requestMode:'batch',corsOrigin:packageData.corsOrigin,totalUniqueBackgrounds:packageData.totalUniqueBackgrounds,selectedBackgroundCount:packageData.selectedBackgroundCount,deferredBackgrounds:packageData.deferredBackgrounds}}));"
       }
     },
     {
@@ -468,7 +468,7 @@
       "parameters": {
         "mode": "runOnceForAllItems",
         "language": "javaScript",
-        "jsCode": "const storyboard = $('Validate and Package Storyboard').first().json;\nconst results = $input.all().map(item => item.json);\nconst images = results.map(result => {\n  const providerError = typeof result.error === 'string'\n    ? result.error\n    : result.error?.message ||\n      (typeof result.body?.error === 'string' ? result.body.error : result.body?.error?.message) ||\n      result.body?.message || result.message;\n  const hasImage = result.ok === true && typeof result.imageData === 'string';\n  return {\n    backgroundId: result.backgroundId,\n    sceneNumbers: Array.isArray(result.sceneNumbers) ? result.sceneNumbers : [],\n    backgroundPrompt: result.backgroundPrompt || '',\n    ...(hasImage\n      ? { imageData: result.imageData, mimeType: result.mimeType || 'image/png' }\n      : {\n          ok: false,\n          error: String(providerError || 'Image generation returned no image. Result fields: ' + Object.keys(result).join(', ')),\n          statusCode: result.statusCode || result.body?.statusCode || 502\n        })\n  };\n});\nconst generatedImageCount = images.filter(image => typeof image.imageData === 'string').length;\nconst failedImageCount = images.length - generatedImageCount;\nreturn [{ json: {\n  ok: true,\n  title: storyboard.title,\n  storyboardCsv: storyboard.storyboardCsv,\n  totalScenes: storyboard.totalScenes,\n  generatedImageCount,\n  failedImageCount,\n  totalUniqueBackgrounds: storyboard.totalUniqueBackgrounds,\n  selectedBackgroundCount: images.length,\n  deferredBackgrounds: storyboard.deferredBackgrounds,\n  images\n} }];"
+        "jsCode": "const storyboard = $('Validate and Package Storyboard').first().json;\nconst results = $input.all().map(item => item.json);\nconst images = results.map(result => {\n  const providerError = typeof result.error === 'string'\n    ? result.error\n    : result.error?.message ||\n      (typeof result.body?.error === 'string' ? result.body.error : result.body?.error?.message) ||\n      result.body?.message || result.message;\n  const hasImage = result.ok === true && typeof result.imageData === 'string';\n  return {\n    backgroundId: result.backgroundId,\n    sceneNumbers: Array.isArray(result.sceneNumbers) ? result.sceneNumbers : [],\n    backgroundPrompt: result.backgroundPrompt || '',\n    ...(hasImage\n      ? { imageData: result.imageData, mimeType: result.mimeType || 'image/png' }\n      : {\n          ok: false,\n          error: String(providerError || 'Image generation returned no image. Result fields: ' + Object.keys(result).join(', ')),\n          statusCode: result.statusCode || result.body?.statusCode || 502\n        })\n  };\n});\nconst generatedImageCount = images.filter(image => typeof image.imageData === 'string').length;\nconst failedImageCount = images.length - generatedImageCount;\nreturn [{ json: {\n  ok: true,\n  title: storyboard.title,\n  corsOrigin: storyboard.corsOrigin,\n  storyboardCsv: storyboard.storyboardCsv,\n  totalScenes: storyboard.totalScenes,\n  generatedImageCount,\n  failedImageCount,\n  totalUniqueBackgrounds: storyboard.totalUniqueBackgrounds,\n  selectedBackgroundCount: images.length,\n  deferredBackgrounds: storyboard.deferredBackgrounds,\n  images\n} }];"
       }
     },
     {
@@ -548,7 +548,7 @@
             "entries": [
               {
                 "name": "Access-Control-Allow-Origin",
-                "value": "https://script-to-storyboard-six.vercel.app"
+                "value": "={{ ['https://script-to-storyboard-six.vercel.app','https://script-to-storyboard-bczcrjyi8-rayvin-gianan-s-projects.vercel.app','https://script-to-storyboard-rh9j2ogz2-rayvin-gianan-s-projects.vercel.app','https://script-to-storyboard-rj8si3nam-rayvin-gianan-s-projects.vercel.app','https://script-to-storyboard-2936gb8xd-rayvin-gianan-s-projects.vercel.app','https://script-to-storyboard-git-codex-5b7cab-rayvin-gianan-s-projects.vercel.app'].includes($('Webhook').first().json.headers?.origin) ? $('Webhook').first().json.headers.origin : 'https://script-to-storyboard-six.vercel.app' }}"
               },
               {
                 "name": "Cache-Control",
@@ -571,6 +571,91 @@
         896,
         1120
       ]
+    },
+    {
+      "name": "Generate One Background Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        224,
+        864
+      ],
+      "id": "61650422-2606-4da5-ac7e-3cb07cab6ee6",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "fred-generate-background",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "https://script-to-storyboard-six.vercel.app,https://script-to-storyboard-bczcrjyi8-rayvin-gianan-s-projects.vercel.app,https://script-to-storyboard-rh9j2ogz2-rayvin-gianan-s-projects.vercel.app,https://script-to-storyboard-rj8si3nam-rayvin-gianan-s-projects.vercel.app,https://script-to-storyboard-2936gb8xd-rayvin-gianan-s-projects.vercel.app,https://script-to-storyboard-git-codex-5b7cab-rayvin-gianan-s-projects.vercel.app"
+        }
+      }
+    },
+    {
+      "name": "Single Background Request?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        3808,
+        496
+      ],
+      "id": "378326ba-9510-47dd-aaaf-8798eaf2f067",
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.requestMode === 'single' }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "name": "Respond with Single Background",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        4032,
+        496
+      ],
+      "id": "a1d2ef65-e826-4455-90a7-e9945c2644b2",
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseCode": "={{ $json.ok === true ? 200 : ($json.statusCode ?? 502) }}",
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "={{ $json.corsOrigin || 'https://script-to-storyboard-six.vercel.app' }}"
+              },
+              {
+                "name": "Cache-Control",
+                "value": "no-store"
+              },
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          },
+          "enableStreaming": false
+        }
+      }
     }
   ],
   "connections": {
@@ -782,7 +867,7 @@
       "main": [
         [
           {
-            "node": "Loop Over Items",
+            "node": "Single Background Request?",
             "type": "main",
             "index": 0
           }
@@ -835,6 +920,35 @@
     },
     "Select up to 9 Backgrounds": {
       "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate One Background Webhook": {
+      "main": [
+        [
+          {
+            "node": "Prepare Scene-Specific Image Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Single Background Request?": {
+      "main": [
+        [
+          {
+            "node": "Respond with Single Background",
+            "type": "main",
+            "index": 0
+          }
+        ],
         [
           {
             "node": "Loop Over Items",
