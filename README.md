@@ -7,12 +7,12 @@ Only backgrounds are generated. Animators add all characters, props, labels, dia
 ## Current architecture
 
 - UI: static Vercel site in `public/`.
-- n8n: **Fred Script-to-Backgrounds — Simple**, ID `QRPeaK5ayX9ZC5Zx` ([open in AWS n8n](https://n8n.47-131-239-128.sslip.io/workflow/QRPeaK5ayX9ZC5Zx)). One Generate action sends the title and full script once; n8n plans the storyboard first, then generates the selected backgrounds sequentially, and returns both.
+- n8n: **Fred Script-to-Backgrounds — Simple**, ID `QRPeaK5ayX9ZC5Zx` ([open in AWS n8n](https://n8n.47-131-239-128.sslip.io/workflow/QRPeaK5ayX9ZC5Zx)). The UI sends one planning request, then one image request per selected background in sequence.
 - Storyboard planning: Vercel AI Gateway `openai/gpt-5-mini`, with read-only Google Sheets reference context.
 - Image generation: OpenRouter `openai/gpt-image-2.5-flare`, low quality, 16:9, one image per request. The image model is used only for images.
-- The workflow returns every storyboard row and Fred-format CSV data. The UI displays the full storyboard and downloads the CSV on request. Background images are generated sequentially and shown as they arrive. Scripts and generated images are not saved.
+- The planning webhook returns the full Fred-format CSV and up to nine selected background settings. A separate image webhook generates one full-frame background per request; the UI adds each image as it arrives. Scripts and generated images are not saved.
 
-The UI shows the nine-image batch in a three-column desktop gallery and saves completed backgrounds to the shared demo Drive folder through a separate n8n webhook. The storyboard CSV filename is derived from the first line/topic sentence of the submitted script. Uploads run sequentially and return a file link for each image. The saved personal Google Drive credential stays in n8n; no credential is placed in browser code. Email notification, SVG export, database writes, n8n Data Tables, n8n Memory, and status polling are not part of this stage. The CSV is built in the workflow response and downloaded by the browser; it is not stored.
+The UI shows the nine-image batch in a three-column desktop gallery and saves completed backgrounds to the shared demo Drive folder through a separate n8n webhook. The storyboard CSV filename is derived from the first line/topic sentence of the submitted script. Image requests and Drive uploads run sequentially, and each image appears as soon as its request returns. The saved personal Google Drive credential stays in n8n; no credential is placed in browser code. Email notification, SVG export, database writes, n8n Data Tables, n8n Memory, and status polling are not part of this stage. The CSV is built in the workflow response and downloaded by the browser; it is not stored.
 
 ## Files
 
@@ -28,8 +28,8 @@ The UI shows the nine-image batch in a three-column desktop gallery and saves co
 - One script, maximum 30,000 characters.
 - Complete Fred-format storyboard plan; up to 9 unique full-frame backgrounds per run.
 - Image requests run one at a time. A failed request stops the batch while keeping images already shown.
-- The n8n planner reads the consolidated `Planner Context` tab once and returns the full storyboard with up to nine selected backgrounds. The current production test is being run after this update.
-- The image route has succeeded in n8n before this update: Flare returned PNGs for custom backgrounds. The nine-image batch and production display path are being verified against the deployed UI.
+- The n8n planner reads the consolidated `Planner Context` tab once and returns the full storyboard with up to nine selected backgrounds.
+- The image route requests a single image per execution so a slow nine-image batch does not hold one webhook connection open. The end-to-end Vercel test is the release check.
 
 Run local syntax checks with:
 
