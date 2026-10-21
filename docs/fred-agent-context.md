@@ -14,10 +14,9 @@ Updated 20 October 2026. This is the current implementation brief for agents wor
 ## Current workflow
 
 - n8n workflow: **Fred Script-to-Backgrounds — Simple**, ID `QRPeaK5ayX9ZC5Zx` ([open in AWS n8n](https://n8n.47-131-239-128.sslip.io/workflow/QRPeaK5ayX9ZC5Zx)).
-- One production webhook: `POST /webhook/fred-image-generation-stage-1`.
-- `{"action":"plan","script":"..."}` validates one full script, reads the external reference tab once, plans all storyboard scenes, and returns Fred-format CSV data, at most 9 selected distinct backgrounds, and counts. It does not duplicate every scene as JSON in the response.
-- `{"action":"image","background":"...","backgroundId":"BG001","sceneNumbers":[1]}` makes one image. The browser waits for that result before sending the next image request to the same webhook.
-- The browser always runs plan first, then image requests in order from the returned storyboard. The `action` field is an internal stage marker; the user submits one script and does not choose a mode.
+- Planning webhook: `POST /webhook/fred-image-generation-stage-1` receives the full script with `mode: "planOnly"`, reads the external reference tab once, plans every storyboard scene, and returns the complete Fred-format CSV plus up to 9 selected backgrounds.
+- Image webhook: `POST /webhook/fred-generate-background` receives one selected background with `mode: "single"`, its prompt, ID, and scene numbers, then returns one generated image.
+- The browser requests the complete storyboard first, then sends the selected image requests sequentially. The user submits one script and does not choose a mode.
 - Text planning uses Vercel AI Gateway `openai/gpt-5-mini` and the structured storyboard parser. GPT Image 2.5 Flare is used **only** for image generation through OpenRouter’s Images API, at low quality, 16:9, `n: 1`.
 - Current fixed image style reference: Google Drive image `19_rZZhpt3du495njrjnO5nuPWQjxnMAQ`. It guides linework and color treatment; the reference subject, setting, and composition are not copied.
 - Drive save route: `POST /webhook/fred-save-background-to-drive`. The UI sends one completed image at a time; n8n uploads it with the personal Google Drive credential into demo folder `153VPM-IBR1T5UIq-TthqtpklyAGwi-UU` and returns a Drive file link.
@@ -55,11 +54,12 @@ The current demo omits SVG export, email delivery, review feedback, job/status p
 
 ## Reliability and known test state
 
-- The image branch succeeded in n8n execution `2557` on 20 October 2026. The workflow downloaded the approved Drive style reference, called OpenRouter Flare, and returned an image data URL. An earlier successful image run reported provider cost of about `$0.0168`.
-- The planner was tightened to send four matched example rows from each CSV, cap reference-index context, validate complete ordered script coverage, and return a dynamic error status before images are requested.
-- Planner execution `2563` crashed before any node after the webhook ran. Heroku logs recorded `R14` at about 601 MB on the 512 MB dyno. The next published planner request, execution `2564`, also crashed before any node after the webhook ran; Heroku recorded `R14` at 597 MB and returned HTTP 503. Do not repeat large execution-data reads; returning image payloads through execution inspection can create multi-megabyte responses.
-- The latest published workflow version is `6d6ac00c-1875-43c6-856e-6c08f2a63b68`. One submission still always plans the complete storyboard first, then the UI requests selected unique Background settings sequentially. The stage field is routing metadata, not an AI decision.
-- The AWS storyboard/image flow has previously returned three images to the deployed UI. The separate Drive upload branch is published with the saved personal credential and demo folder, but the first live upload is still needed to verify write permission.
+- The earlier one-request batch design caused the Vercel connection to close while n8n continued processing; execution `2585` remained active beyond 20 minutes without a UI response. Do not submit another full batch until its execution status is known.
+- The split plan/image design is prepared locally. The planning webhook returns the full CSV and up to nine selected settings; each separate image webhook execution handles one background and returns it for immediate display.
+- The new node configurations pass n8n schema validation, and local simulations confirm the plan response, CSV header, nine-of-ten selection, deferred count, CORS origin, and one-image response shape. This does not confirm the new graph is published or live.
+- AWS uses a dedicated external task runner with concurrency 1; its current heap and container limits were raised after prior image-response memory failures. Postgres and the Heroku instance remain untouched.
+- The existing Google Drive upload webhook is separate from image generation and still needs its own live write check.
+- The older complex workflow `NO5b5a1P44wvK4U7` is unpublished. Preserve it as a reference; do not use its old UI routes or activate it alongside this workflow.
 - The older complex workflow `NO5b5a1P44wvK4U7` is unpublished. Preserve it as a reference; do not use its old UI routes or activate it alongside this workflow.
 - Do not issue duplicate image calls after timeouts. Check the matching n8n execution first; a retry can incur another image charge.
 
