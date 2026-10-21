@@ -2,6 +2,8 @@
   const base = "https://n8n.47-131-239-128.sslip.io/webhook";
   const generateRoute = base + "/fred-image-generation-stage-1";
   const backgroundRoute = base + "/fred-generate-background";
+  const notifyRoute = base + "/fred-notify-editors";
+  const processRoute = base + "/fred-record-process";
   // Planning should finish quickly; each image gets its own bounded request.
   const PLAN_TIMEOUT_MS = 180000;
   const IMAGE_TIMEOUT_MS = 360000;
@@ -33,9 +35,13 @@
         let message = typeof data.error === "string" ? data.error : data.error && data.error.message;
         const isRateLimited = /quota exceeded|too many requests|rate_limit_exceeded|http 429/i.test(String(message || "")) || response.status === 429;
         if (isRateLimited) {
-          message = route === backgroundRoute
-            ? "OpenRouter rate-limited image generation. The batch stopped here; wait before starting another image request."
-            : "The storyboard reference sheets hit Google's read limit. Wait about a minute, then submit the script again. No image requests were sent.";
+          if (route === backgroundRoute) {
+            message = "OpenRouter rate-limited image generation. The batch stopped here; wait before starting another image request.";
+          } else if (route === generateRoute) {
+            message = "The storyboard reference sheets hit Google's read limit. Wait about a minute, then submit the script again. No image requests were sent.";
+          } else {
+            message = "n8n rate-limited this delivery request. Wait briefly, then use the notification button again.";
+          }
         }
         const requestError = new Error(message || "Workflow request failed (HTTP " + response.status + ").");
         if (isRateLimited && route === backgroundRoute) requestError.stopBatch = true;
@@ -44,7 +50,8 @@
       return data;
     } catch (error) {
       if (error && error.name === "AbortError") {
-        const timeoutError = new Error("The n8n request did not return within " + Math.ceil(timeoutMs / 60000) + " minute(s). No automatic retry was sent; check the matching execution before retrying because image generation may still finish.");
+        const operation = route === backgroundRoute ? "Image generation" : route === generateRoute ? "Storyboard planning" : "The delivery step";
+        const timeoutError = new Error(operation + " did not return within " + Math.ceil(timeoutMs / 60000) + " minute(s). No automatic retry was sent; check the matching n8n execution before retrying because it may still finish.");
         timeoutError.stopBatch = true;
         throw timeoutError;
       }
@@ -65,6 +72,12 @@
     },
     generateBackground(payload) {
       return postJson(backgroundRoute, { ...payload, mode: "single" }, IMAGE_TIMEOUT_MS);
+    },
+    notifyEditors(payload) {
+      return postJson(notifyRoute, payload, 180000);
+    },
+    recordProcess(payload) {
+      return postJson(processRoute, payload, 180000);
     }
   };
 })();
