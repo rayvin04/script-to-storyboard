@@ -1,6 +1,6 @@
 # Fred’s Script-to-Backgrounds Demo
 
-The demo takes **one complete voiceover script** in one submission. A text model plans the full script into Fred-style scenes, then the workflow generates up to ten distinct environment plates from the storyboard’s `Background` descriptions. The complete storyboard and its CSV remain available when additional unique backgrounds are deferred.
+The demo takes **one complete voiceover script** in one submission. A text model plans the full script into Fred-style scenes, estimates timestamps when source timing is absent, then the workflow generates up to nine distinct full-frame environment plates from the storyboard’s `Background` descriptions. The complete storyboard and its CSV remain available when additional unique backgrounds are deferred.
 
 Only backgrounds are generated. Animators add all characters, props, labels, diagrams, and movement by hand. Fred’s art treatment stays consistent across settings, while each background changes to fit its scene.
 
@@ -12,7 +12,7 @@ Only backgrounds are generated. Animators add all characters, props, labels, dia
 - Image generation: OpenRouter `openai/gpt-image-2.5-flare`, low quality, 16:9, one image per request. The image model is used only for images.
 - The workflow returns every storyboard row and Fred-format CSV data. The UI displays the full storyboard and downloads the CSV on request. Background images are generated sequentially and shown as they arrive. Scripts and generated images are not saved.
 
-The UI can save completed backgrounds to the shared demo Drive folder through a separate n8n webhook. Uploads run sequentially and return a file link for each image. The saved personal Google Drive credential stays in n8n; no credential is placed in browser code. Email notification, SVG export, database writes, n8n Data Tables, n8n Memory, and status polling are not part of this stage. The CSV is built in the workflow response and downloaded by the browser; it is not stored.
+The UI shows the nine-image batch in a three-column desktop gallery and saves completed backgrounds to the shared demo Drive folder through a separate n8n webhook. The storyboard CSV filename is derived from the first line/topic sentence of the submitted script. Uploads run sequentially and return a file link for each image. The saved personal Google Drive credential stays in n8n; no credential is placed in browser code. Email notification, SVG export, database writes, n8n Data Tables, n8n Memory, and status polling are not part of this stage. The CSV is built in the workflow response and downloaded by the browser; it is not stored.
 
 ## Files
 
@@ -26,10 +26,10 @@ The UI can save completed backgrounds to the shared demo Drive folder through a 
 ## Limits and verification
 
 - One script, maximum 30,000 characters.
-- Complete storyboard plan; up to 10 unique backgrounds per run.
+- Complete Fred-format storyboard plan; up to 9 unique full-frame backgrounds per run.
 - Image requests run one at a time. A failed request stops the batch while keeping images already shown.
-- The n8n planner reads the consolidated `Planner Context` tab once and returns the full storyboard with the selected backgrounds. Earlier planner tests hit Google Sheets HTTP 429 before this consolidation; the latest test crashed before any node ran, so the revised full pipeline still needs an end-to-end check.
-- The image route has succeeded in n8n: Flare returned a PNG for a custom jewelry-shop background. The browser display path still needs verification against the deployed UI after this code is published.
+- The n8n planner reads the consolidated `Planner Context` tab once and returns the full storyboard with up to nine selected backgrounds. The current production test is being run after this update.
+- The image route has succeeded in n8n before this update: Flare returned PNGs for custom backgrounds. The nine-image batch and production display path are being verified against the deployed UI.
 
 Run local syntax checks with:
 

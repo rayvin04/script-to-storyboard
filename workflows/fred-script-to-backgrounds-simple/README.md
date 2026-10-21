@@ -6,7 +6,7 @@ Production endpoint: `POST /webhook/fred-image-generation-stage-1`
 
 ## One request, one result
 
-The frontend sends the title and complete narration script once. This workflow first plans the entire storyboard, validates that every narration word is preserved in order, and packages the full CSV. Only after storyboard validation succeeds does it choose up to ten distinct background settings and generate images sequentially.
+The frontend sends the complete narration script once. This workflow first plans the entire storyboard, validates that every narration word is preserved in order, estimates continuous timestamps when the script has no timecodes, and packages the full CSV. Only after storyboard validation succeeds does it choose up to nine distinct background settings and generate full-frame images sequentially.
 
 The browser makes one generation request. It does not poll for status or retry automatically. A separate Drive upload webhook accepts one completed background at a time when the user clicks **Save backgrounds to Google Drive**.
 
@@ -17,7 +17,7 @@ The browser makes one generation request. It does not poll for status or retry a
 3. Read Fred’s style rules and storyboard examples from the existing Google Sheets reference workbook.
 4. Use the existing text model and structured output parser to create all storyboard scenes.
 5. Validate full narration coverage and generate the complete CSV.
-6. Select up to ten distinct backgrounds spaced across the full storyboard.
+6. Select up to nine distinct backgrounds spaced across the full storyboard.
 7. For each selected background, in a batch-size-one loop, load the approved Drive style reference and call OpenRouter `openai/gpt-image-2.5-flare`.
 8. Aggregate images with their background IDs and scene numbers and return one JSON response.
 9. For Drive delivery, a second webhook validates one image payload, names it from the title/background/scenes, uploads it to the demo folder with the saved personal Google Drive credential, and returns the file link.
@@ -28,15 +28,16 @@ The CSV always uses these exact columns and order:
 
 `Scene, Timestamp, Voiceover, What's happening, Background, Hand-drawn characters & props, On-screen text, Transitions/Motion`
 
-It contains every planned scene. Timestamps stay blank when the input does not provide them. The workflow checks that the ordered Voiceover cells contain the entire source script; if that check fails, it returns an error and starts no image generation.
+It contains every planned scene. Supplied timestamps are preserved; when the source has no timecodes, the workflow estimates continuous scene ranges from narration at about 145 words per minute. The workflow checks that the ordered Voiceover cells contain the entire source script; if that check fails, it returns an error and starts no image generation.
 
 ## Image selection and style
 
-- Maximum: ten images per request, generated one at a time.
+- Maximum: nine images per script, generated one at a time.
 - The selected settings are sampled from across the complete scene sequence, not simply the first three scenes.
 - Each image is tied to a `backgroundId` and its storyboard `sceneNumbers`.
 - Fred’s Drive reference controls drawing style only: hand-drawn 2D cartoon, bold slightly irregular black ink outlines, simplified shapes, flat color, and minimal shading.
 - The scene’s `Background` field determines the environment and composition. The reference room is not copied unless that setting fits the script.
+- Each output is one continuous, full-frame location. Split screens, triptychs, panel layouts, collages, and multiple locations in one image are prohibited.
 - Outputs are background plates only. Characters, animals, body parts, hands, movable foreground props, diagrams, lettering, logos, watermarks, and motion marks are excluded.
 
 ## Response

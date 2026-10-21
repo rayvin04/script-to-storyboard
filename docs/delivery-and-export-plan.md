@@ -4,7 +4,7 @@ Updated 21 October 2026.
 
 ## Current status
 
-- The storyboard/image flow remains a single script submission followed by up to ten sequential background generations.
+- The storyboard/image flow remains a single script submission followed by up to nine sequential, full-frame background generations.
 - The UI source adds **Save backgrounds to Google Drive**. It sends each completed image to `POST /webhook/fred-save-background-to-drive`, one image at a time.
 - The upload route validates the image data URL and scene identity, limits each image to 12 MB, and uses the saved personal Google Drive credential to upload into the shared `Demo Test Upload` folder.
 - Filenames use `YYYY-MM-DD-title-background-ID-scenes-NN.ext`. Each upload response returns a Drive file ID and link, which the UI adds to the matching image card.
@@ -40,6 +40,7 @@ The button becomes available after at least one background is complete. The UI m
 ## CSV and SVG exports
 
 - **CSV** is generated in the n8n response from the complete storyboard and downloaded by the browser. It is not saved to Google Sheets.
+- The browser derives the CSV filename from the script’s first line or topic sentence, sanitizes it, and appends `-storyboard.csv`.
 - **SVG** export is not part of this delivery stage.
 
 ## Load and storage safeguards

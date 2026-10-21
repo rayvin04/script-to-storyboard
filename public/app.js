@@ -4,7 +4,7 @@ const SAMPLE_SCRIPT = [
   "The fix is to give your attention a break. The more you expect a notification, the more likely your brain is to invent one."
 ].join("\n\n");
 const MAX_SCRIPT_LENGTH = 30000;
-const MAX_BACKGROUND_IMAGES = 10;
+const MAX_BACKGROUND_IMAGES = 9;
 const $ = id => document.getElementById(id);
 const els = {
   form: $("generate-form"),
@@ -109,6 +109,26 @@ function sceneLabel(sceneNumbers) {
   const clean = sceneNumbers.map(Number).filter(Number.isFinite);
   if (clean.length === 0) return "Scene not specified";
   return clean.length === 1 ? "Scene " + clean[0] : "Scenes " + clean.join(", ");
+}
+
+function titleFromScript(script) {
+  const firstLine = String(script || "").split(/\r?\n/).map(line => line.trim()).find(Boolean) || "Untitled storyboard";
+  if (firstLine.length <= 120 && !/[.!?]$/.test(firstLine)) return firstLine;
+  const sentence = firstLine.match(/^.{1,180}?[.!?](?:\s|$)/u)?.[0]?.trim();
+  return (sentence || firstLine).slice(0, 120);
+}
+
+function storyboardFilename(title) {
+  const slug = String(title || "storyboard")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[^\p{L}\p{N}]+/gu, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80)
+    .replace(/-+$/g, "");
+  return (slug || "storyboard") + "-storyboard.csv";
 }
 
 function createImageCard(image, index) {
@@ -219,7 +239,7 @@ function downloadStoryboard() {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = "fred-storyboard.csv";
+  link.download = storyboardFilename(state.title);
   document.body.appendChild(link);
   link.click();
   link.remove();
@@ -325,9 +345,9 @@ async function generateFromScript(event) {
   clearResults();
   setNotice("", false);
   setBusy(true);
-  setProgress("Creating the complete storyboard, then up to ten backgrounds…", 8, "WORKING", true);
+  setProgress("Creating the complete storyboard, then up to nine backgrounds…", 8, "WORKING", true);
   try {
-    const title = script.split(/\r?\n/).map(line => line.trim()).find(Boolean) || "Untitled storyboard";
+    const title = titleFromScript(script);
     state.title = title;
     const response = validateResponse(await window.storyboardWorkflow.generate(title, script));
     showStoryboardCsv(response.totalScenes, response.storyboardCsv);

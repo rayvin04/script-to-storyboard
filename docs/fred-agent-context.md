@@ -6,16 +6,16 @@ Updated 20 October 2026. This is the current implementation brief for agents wor
 
 - The user pastes **one complete narration script once**. They do not write a separate prompt for each image.
 - The text planner covers the whole script with a scene-by-scene storyboard in Fred’s original eight-column format.
-- The storyboard is part of the final result. The image stage reads only each scene group’s `Background` description and creates up to **10 unique background plates** for that script, one request at a time.
+- The storyboard is part of the final result. The image stage reads only each scene group’s `Background` description and creates up to **9 unique, full-frame background plates** for that script, one request at a time.
 - Keep Fred’s drawing treatment consistent while letting each scene’s location, palette, and composition fit its narration.
 - Generate environment backgrounds only. Animators add characters, animals, anatomy, handheld or loose props, diagrams, text, and all movement.
-- If more than 10 unique settings are planned, tell the user how many remain for a later run. Never send a per-scene prompt form to the user.
+- When more than 9 unique settings are planned, keep the entire storyboard and report the number of backgrounds deferred. Never send a per-scene prompt form to the user.
 
 ## Current workflow
 
 - n8n workflow: **Fred Script-to-Backgrounds — Simple**, ID `QRPeaK5ayX9ZC5Zx` ([open in AWS n8n](https://n8n.47-131-239-128.sslip.io/workflow/QRPeaK5ayX9ZC5Zx)).
 - One production webhook: `POST /webhook/fred-image-generation-stage-1`.
-- `{"action":"plan","script":"..."}` validates one full script, reads the external reference tab once, plans all storyboard scenes, and returns Fred-format CSV data, at most 10 selected distinct backgrounds, and counts. It does not duplicate every scene as JSON in the response.
+- `{"action":"plan","script":"..."}` validates one full script, reads the external reference tab once, plans all storyboard scenes, and returns Fred-format CSV data, at most 9 selected distinct backgrounds, and counts. It does not duplicate every scene as JSON in the response.
 - `{"action":"image","background":"...","backgroundId":"BG001","sceneNumbers":[1]}` makes one image. The browser waits for that result before sending the next image request to the same webhook.
 - The browser always runs plan first, then image requests in order from the returned storyboard. The `action` field is an internal stage marker; the user submits one script and does not choose a mode.
 - Text planning uses Vercel AI Gateway `openai/gpt-5-mini` and the structured storyboard parser. GPT Image 2.5 Flare is used **only** for image generation through OpenRouter’s Images API, at low quality, 16:9, `n: 1`.
@@ -43,9 +43,9 @@ Preserve the source columns, in this exact order and spelling:
 7. `On-screen text`
 8. `Transitions/Motion`
 
-Keep every Voiceover field verbatim; together the fields must cover the complete script in order. The workflow checks this before creating image requests. Use exact supplied timestamps and leave timestamps blank when none were provided. Split visual beats when the narration or location changes. Keep animator directions, text, and motion in their own columns. Do not generate image prompts or images during the planning stage.
+Keep every Voiceover field verbatim; together the fields must cover the complete script in order. The workflow checks this before creating image requests. Preserve supplied timestamps; when none are supplied, estimate continuous scene ranges at about 145 words per minute. Match Fred’s compact descriptions and short animator cues (for example, “Hard cut. Zoom on pocket, zoom on phone.”). Split visual beats when narration or location changes, with one location per Background cell. Do not generate image prompts or images during the planning stage.
 
-Only `Background` can contribute scene-specific content to an image request. Never concatenate voiceover, actions, characters/props, on-screen text, transitions, feedback, or inferred objects into the image prompt.
+Only `Background` can contribute scene-specific content to an image request. Every image is one full-frame location; never generate split screens, triptychs, panels, collages, insets, borders, or multiple locations in one image. Never concatenate voiceover, actions, characters/props, on-screen text, transitions, feedback, or inferred objects into the image prompt.
 
 ## UI and scope
 
