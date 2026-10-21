@@ -26,12 +26,9 @@ const els = {
   storyboardDisclosure: $("storyboard-disclosure"),
   storyboardCount: $("storyboard-count"),
   downloadStoryboard: $("download-storyboard"),
-  processStatus: $("process-status"),
-  notifyEditors: $("notify-editors"),
-  deliveryStatus: $("delivery-status"),
   themeToggle: $("theme-toggle")
 };
-const state = { busy: false, notificationBusy: false, images: [], imageObjectUrls: [], storyboardCsv: "", title: "", jobId: "", processedAt: "", storyboardDriveUrl: "", driveFolderUrl: "" };
+const state = { busy: false, images: [], imageObjectUrls: [], storyboardCsv: "", title: "", jobId: "" };
 
 function setTheme(theme, persist) {
   document.documentElement.dataset.theme = theme;
@@ -48,15 +45,7 @@ function setTheme(theme, persist) {
 function updateInputState() {
   const length = els.script.value.length;
   els.scriptCount.textContent = length.toLocaleString() + " / " + MAX_SCRIPT_LENGTH.toLocaleString();
-  els.generateButton.disabled = state.busy || state.notificationBusy || length < 20 || length > MAX_SCRIPT_LENGTH;
-  updateNotifyButton();
-}
-
-function updateNotifyButton() {
-  if (!els.notifyEditors) return;
-  const completed = state.images.filter(image => image.previewUrl);
-  const allSaved = completed.length > 0 && completed.every(image => image.driveFileId) && Boolean(state.storyboardDriveUrl);
-  els.notifyEditors.disabled = state.busy || state.notificationBusy || !allSaved;
+  els.generateButton.disabled = state.busy || length < 20 || length > MAX_SCRIPT_LENGTH;
 }
 
 function setNotice(message, isError) {
@@ -85,7 +74,6 @@ function setBusy(isBusy) {
   state.busy = isBusy;
   els.script.disabled = isBusy;
   els.sampleButton.disabled = isBusy;
-  updateNotifyButton();
   els.generateLabel.textContent = isBusy ? "Building storyboard & backgrounds…" : "Create storyboard & backgrounds";
   updateInputState();
 }
@@ -97,9 +85,6 @@ function clearResults() {
   state.storyboardCsv = "";
   state.title = "";
   state.jobId = "";
-  state.processedAt = "";
-  state.storyboardDriveUrl = "";
-  state.driveFolderUrl = "";
   els.imageGrid.querySelectorAll(".image-card").forEach(card => card.remove());
   els.emptyState.hidden = false;
   els.resultCount.textContent = "0 / " + MAX_BACKGROUND_IMAGES;
@@ -107,14 +92,6 @@ function clearResults() {
   els.storyboardDisclosure.hidden = true;
   els.storyboardCount.textContent = "0 scenes";
   els.downloadStoryboard.disabled = true;
-  els.notifyEditors.disabled = true;
-  els.notifyEditors.textContent = "Notify editing team";
-  els.deliveryStatus.hidden = true;
-  els.deliveryStatus.textContent = "";
-  els.deliveryStatus.classList.remove("is-error");
-  els.processStatus.hidden = true;
-  els.processStatus.textContent = "";
-  els.processStatus.classList.remove("is-error");
 }
 
 function sceneLabel(sceneNumbers) {
@@ -208,7 +185,6 @@ function appendImage(image) {
   else if (storedImage.driveUploadError) setImageDriveError(storedImage, storedImage.driveUploadError);
   const successfulImages = state.images.filter(item => item.previewUrl).length;
   els.resultCount.textContent = successfulImages + " / " + MAX_BACKGROUND_IMAGES;
-  updateNotifyButton();
 }
 
 function validateStoryboardResponse(result) {
@@ -288,7 +264,6 @@ function addDriveFileLink(image, result) {
     link.textContent = image.fileName || "Open in Drive";
     image.driveStatusEl.appendChild(link);
   }
-  updateNotifyButton();
 }
 
 function setImageDriveError(image, message) {
@@ -298,64 +273,9 @@ function setImageDriveError(image, message) {
   image.driveStatusEl.textContent = "Drive upload failed · " + String(message || "Could not save this background.").slice(0, 240);
 }
 
-async function notifyEditingTeam() {
-  if (state.notificationBusy) return;
-  const images = state.images.filter(image => image.previewUrl);
-  if (!images.length || images.some(image => !image.driveFileId)) {
-    els.deliveryStatus.textContent = "Wait for the backgrounds and storyboard CSV to finish saving to Drive before notifying editors.";
-    els.deliveryStatus.classList.add("is-error");
-    els.deliveryStatus.hidden = false;
-    return;
-  }
-  if (!state.storyboardDriveUrl) {
-    els.deliveryStatus.textContent = "The storyboard CSV has not been saved to Drive yet, so the team email is not ready.";
-    els.deliveryStatus.classList.add("is-error");
-    els.deliveryStatus.hidden = false;
-    return;
-  }
-  state.notificationBusy = true;
-  els.notifyEditors.textContent = "Sending notification…";
-  updateNotifyButton();
-  els.deliveryStatus.hidden = true;
-  try {
-    const result = await window.storyboardWorkflow.notifyEditors({
-      jobId: state.jobId,
-      title: state.title,
-      processedAt: state.processedAt,
-      storyboardFileName: storyboardFilename(state.title),
-      storyboardDriveUrl: state.storyboardDriveUrl,
-      driveFolderUrl: state.driveFolderUrl,
-      images: images.map(image => ({
-        backgroundId: image.backgroundId,
-        sceneNumbers: image.sceneNumbers,
-        fileName: image.fileName,
-        driveFileId: image.driveFileId,
-        driveUrl: image.driveUrl
-      }))
-    });
-    if (!result || result.ok !== true) throw new Error(result && result.reason || result && result.error || "The delivery workflow did not confirm the notification.");
-    els.deliveryStatus.classList.remove("is-error");
-    if (result.notificationSent) {
-      els.deliveryStatus.textContent = "Editors notified at " + result.recipient + ".";
-    } else {
-      els.deliveryStatus.textContent = result.reason || "Backgrounds are in Drive. Fill in editingTeamEmail on the Workflow Settings sheet to enable notifications.";
-    }
-    els.deliveryStatus.hidden = false;
-  } catch (error) {
-    els.deliveryStatus.textContent = error && error.message ? error.message : "Could not notify the editing team.";
-    els.deliveryStatus.classList.add("is-error");
-    els.deliveryStatus.hidden = false;
-  } finally {
-    state.notificationBusy = false;
-    els.notifyEditors.textContent = "Notify editing team";
-    updateNotifyButton();
-    updateInputState();
-  }
-}
-
 async function generateFromScript(event) {
   event.preventDefault();
-  if (state.busy || state.driveBusy) return;
+  if (state.busy) return;
 
   const script = els.script.value.trim();
   if (script.length < 20) {
@@ -381,7 +301,6 @@ async function generateFromScript(event) {
     state.jobId = plan.jobId || jobId;
     showStoryboardCsv(plan.totalScenes, plan.storyboardCsv);
     const backgrounds = plan.selectedBackgrounds;
-    const totalUnique = Number(plan.totalUniqueBackgrounds) || backgrounds.length;
     let completed = 0;
     let failed = 0;
 
@@ -428,39 +347,6 @@ async function generateFromScript(event) {
       els.resultSummary.textContent = "Storyboard ready · " + completed + " of " + backgrounds.length + " backgrounds generated.";
     }
 
-    state.processedAt = new Date().toISOString();
-    state.driveFolderUrl = "https://drive.google.com/drive/folders/153VPM-IBR1T5UIq-TthqtpklyAGwi-UU";
-    try {
-      const logResult = await window.storyboardWorkflow.recordProcess({
-        jobId: state.jobId,
-        title,
-        processedAt: state.processedAt,
-        status: failed === 0 ? "complete" : "partial",
-        sceneCount: Number(plan.totalScenes) || 0,
-        uniqueBackgrounds: totalUnique,
-        generatedCount: completed,
-        failedCount: failed,
-        storyboardFileName: storyboardFilename(title),
-        storyboardCsv: plan.storyboardCsv,
-        driveFolderUrl: state.driveFolderUrl,
-        images: state.images.filter(image => image.previewUrl).map(image => ({
-          backgroundId: image.backgroundId,
-          sceneNumbers: image.sceneNumbers,
-          fileName: image.fileName,
-          driveFileId: image.driveFileId || "",
-          driveUrl: image.driveUrl || ""
-        }))
-      });
-      state.storyboardDriveUrl = String(logResult.storyboardDriveUrl || "");
-      if (logResult.driveFolderUrl) state.driveFolderUrl = logResult.driveFolderUrl;
-      if (!state.storyboardDriveUrl) throw new Error(logResult.error || "The workflow did not return a Drive link for the storyboard CSV.");
-    } catch (error) {
-      const logError = error && error.message ? error.message : "The CSV could not be saved to Drive or the run could not be logged.";
-      els.processStatus.textContent = "Images are ready, but Drive could not save the storyboard CSV or log this run: " + logError;
-      els.processStatus.classList.add("is-error");
-      els.processStatus.hidden = false;
-    }
-    updateNotifyButton();
     setProgress(failed ? "Storyboard finished with image errors." : "Storyboard and background batch finished.", 100,
       completed + " ready · " + failed + " failed", false);
     if (failed > 0) setNotice(failed + " background" + (failed === 1 ? " failed" : "s failed") + ". The storyboard CSV and successful images are ready; failed scene identities are shown below.", true);
@@ -479,7 +365,6 @@ async function generateFromScript(event) {
 els.script.addEventListener("input", updateInputState);
 els.form.addEventListener("submit", generateFromScript);
 els.downloadStoryboard.addEventListener("click", downloadStoryboard);
-els.notifyEditors.addEventListener("click", notifyEditingTeam);
 els.sampleButton.addEventListener("click", () => {
   els.script.value = SAMPLE_SCRIPT;
   updateInputState();

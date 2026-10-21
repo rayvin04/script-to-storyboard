@@ -2,8 +2,6 @@
   const base = "https://n8n.47-131-239-128.sslip.io/webhook";
   const generateRoute = base + "/fred-image-generation-stage-1";
   const backgroundRoute = base + "/fred-generate-background";
-  const notifyRoute = base + "/fred-notify-editors";
-  const processRoute = base + "/fred-record-process";
   // Planning should finish quickly; each image gets its own bounded request.
   const PLAN_TIMEOUT_MS = 180000;
   const IMAGE_TIMEOUT_MS = 360000;
@@ -67,12 +65,6 @@
     },
     generateBackground(payload) {
       return postJson(backgroundRoute, { ...payload, mode: "single" }, IMAGE_TIMEOUT_MS);
-    },
-    notifyEditors(payload) {
-      return postJson(notifyRoute, payload, 180000);
-    },
-    recordProcess(payload) {
-      return postJson(processRoute, payload, 180000);
     }
   };
 })();
