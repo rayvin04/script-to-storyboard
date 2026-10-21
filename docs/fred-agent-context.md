@@ -13,13 +13,14 @@ Updated 20 October 2026. This is the current implementation brief for agents wor
 
 ## Current workflow
 
-- n8n workflow: **Fred Script-to-Backgrounds — Simple**, ID `QRPeaK5ayX9ZC5Zx` ([open in n8n](https://n8n-rayv-742595626609.herokuapp.com/workflow/QRPeaK5ayX9ZC5Zx)).
+- n8n workflow: **Fred Script-to-Backgrounds — Simple**, ID `QRPeaK5ayX9ZC5Zx` ([open in AWS n8n](https://n8n.47-131-239-128.sslip.io/workflow/QRPeaK5ayX9ZC5Zx)).
 - One production webhook: `POST /webhook/fred-image-generation-stage-1`.
 - `{"action":"plan","script":"..."}` validates one full script, reads the external reference tab once, plans all storyboard scenes, and returns Fred-format CSV data, at most 10 selected distinct backgrounds, and counts. It does not duplicate every scene as JSON in the response.
 - `{"action":"image","background":"...","backgroundId":"BG001","sceneNumbers":[1]}` makes one image. The browser waits for that result before sending the next image request to the same webhook.
 - The browser always runs plan first, then image requests in order from the returned storyboard. The `action` field is an internal stage marker; the user submits one script and does not choose a mode.
 - Text planning uses Vercel AI Gateway `openai/gpt-5-mini` and the structured storyboard parser. GPT Image 2.5 Flare is used **only** for image generation through OpenRouter’s Images API, at low quality, 16:9, `n: 1`.
 - Current fixed image style reference: Google Drive image `19_rZZhpt3du495njrjnO5nuPWQjxnMAQ`. It guides linework and color treatment; the reference subject, setting, and composition are not copied.
+- Drive save route: `POST /webhook/fred-save-background-to-drive`. The UI sends one completed image at a time; n8n uploads it with the personal Google Drive credential into demo folder `153VPM-IBR1T5UIq-TthqtpklyAGwi-UU` and returns a Drive file link.
 
 ## Reference retrieval
 
@@ -48,9 +49,9 @@ Only `Background` can contribute scene-specific content to an image request. Nev
 
 ## UI and scope
 
-The static UI is in `public/`. It has one full-script textarea and one generate action. It offers the complete storyboard as a workflow-produced CSV download, plus a gallery of completed backgrounds. It displays each image as soon as it arrives and preserves completed images if a later image fails.
+The static UI is in `public/`. It has one full-script textarea and one generate action. It offers the complete storyboard as a workflow-produced CSV download, plus a gallery of completed backgrounds. It displays each image as soon as it arrives, preserves completed images if a later image fails, and can save successful images to Drive sequentially.
 
-Current demo omits SVG export, Drive upload, email delivery, review feedback, job/status persistence, and automatic retries. The storyboard CSV is returned by n8n and downloaded in the browser without persistence. Keep every AI/node step for this product in the same n8n workflow.
+The current demo omits SVG export, email delivery, review feedback, job/status persistence, and automatic retries. The storyboard CSV is returned by n8n and downloaded in the browser without persistence. Keep every AI/node step for this product in the same n8n workflow.
 
 ## Reliability and known test state
 
@@ -58,7 +59,7 @@ Current demo omits SVG export, Drive upload, email delivery, review feedback, jo
 - The planner was tightened to send four matched example rows from each CSV, cap reference-index context, validate complete ordered script coverage, and return a dynamic error status before images are requested.
 - Planner execution `2563` crashed before any node after the webhook ran. Heroku logs recorded `R14` at about 601 MB on the 512 MB dyno. The next published planner request, execution `2564`, also crashed before any node after the webhook ran; Heroku recorded `R14` at 597 MB and returned HTTP 503. Do not repeat large execution-data reads; returning image payloads through execution inspection can create multi-megabyte responses.
 - The latest published workflow version is `6d6ac00c-1875-43c6-856e-6c08f2a63b68`. One submission still always plans the complete storyboard first, then the UI requests selected unique Background settings sequentially. The stage field is routing metadata, not an AI decision.
-- Stage 2 has a verified success, but the full planner-to-image UI path has **not** yet passed an end-to-end check because the current Heroku host exceeds its 512 MB memory quota. The requested hosting budget cap is `$13/month`; the next Heroku dyno tier with 1 GB RAM is listed at `$50/month`, so do not change the plan under that cap.
+- The AWS storyboard/image flow has previously returned three images to the deployed UI. The separate Drive upload branch is published with the saved personal credential and demo folder, but the first live upload is still needed to verify write permission.
 - The older complex workflow `NO5b5a1P44wvK4U7` is unpublished. Preserve it as a reference; do not use its old UI routes or activate it alongside this workflow.
 - Do not issue duplicate image calls after timeouts. Check the matching n8n execution first; a retry can incur another image charge.
 

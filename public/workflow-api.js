@@ -1,12 +1,13 @@
 (() => {
   const base = "https://n8n.47-131-239-128.sslip.io/webhook";
-  const route = base + "/fred-image-generation-stage-1";
+  const generateRoute = base + "/fred-image-generation-stage-1";
+  const driveUploadRoute = base + "/fred-save-background-to-drive";
   // Keep the UI request bounded and avoid duplicate image charges on retries.
   const REQUEST_TIMEOUT_MS = 900000;
 
-  async function postJson(body) {
+  async function postJson(route, body, timeoutMs = REQUEST_TIMEOUT_MS) {
     const controller = new AbortController();
-    const timer = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    const timer = window.setTimeout(() => controller.abort(), timeoutMs);
     try {
       const response = await fetch(route, {
         method: "POST",
@@ -38,7 +39,7 @@
       return data;
     } catch (error) {
       if (error && error.name === "AbortError") {
-        const timeoutError = new Error("The webhook did not return within fifteen minutes. No automatic retry was sent, to avoid duplicate image charges. Check the n8n execution before retrying.");
+        const timeoutError = new Error("The webhook did not return within " + Math.ceil(timeoutMs / 60000) + " minute(s). No automatic retry was sent. Check n8n and Google Drive before retrying, because the upload may have completed.");
         timeoutError.stopBatch = true;
         throw timeoutError;
       }
@@ -55,7 +56,10 @@
 
   window.storyboardWorkflow = {
     generate(title, script) {
-      return postJson({ title, script });
+      return postJson(generateRoute, { title, script });
+    },
+    saveBackground(payload) {
+      return postJson(driveUploadRoute, payload, 180000);
     }
   };
 })();

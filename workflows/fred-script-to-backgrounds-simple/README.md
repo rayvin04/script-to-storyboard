@@ -8,7 +8,7 @@ Production endpoint: `POST /webhook/fred-image-generation-stage-1`
 
 The frontend sends the title and complete narration script once. This workflow first plans the entire storyboard, validates that every narration word is preserved in order, and packages the full CSV. Only after storyboard validation succeeds does it choose up to ten distinct background settings and generate images sequentially.
 
-The browser makes one webhook request. It does not send separate planning/image calls, poll for status, or retry automatically.
+The browser makes one generation request. It does not poll for status or retry automatically. A separate Drive upload webhook accepts one completed background at a time when the user clicks **Save backgrounds to Google Drive**.
 
 ## Workflow sequence
 
@@ -20,6 +20,7 @@ The browser makes one webhook request. It does not send separate planning/image 
 6. Select up to ten distinct backgrounds spaced across the full storyboard.
 7. For each selected background, in a batch-size-one loop, load the approved Drive style reference and call OpenRouter `openai/gpt-image-2.5-flare`.
 8. Aggregate images with their background IDs and scene numbers and return one JSON response.
+9. For Drive delivery, a second webhook validates one image payload, names it from the title/background/scenes, uploads it to the demo folder with the saved personal Google Drive credential, and returns the file link.
 
 ## Storyboard CSV
 
@@ -42,20 +43,20 @@ It contains every planned scene. Timestamps stay blank when the input does not p
 
 On success, the single webhook response includes `ok`, `title`, the complete `storyboardCsv`, scene and image counts, the deferred-background count, and an `images` array. Successful image entries include `imageData` as a data URL, `mimeType`, `backgroundId`, and `sceneNumbers`. Failed image entries retain their scene identity and include an error. A storyboard failure returns an error response before images are attempted.
 
-The UI displays the returned images and provides a CSV download. It does not render the full storyboard table.
+The UI displays the returned images, provides a CSV download, and can save generated backgrounds to Drive sequentially. Each saved card receives its Drive link.
 
 ## Data handling
 
-The workflow reads its reference materials from Google Sheets and Google Drive. It does not use n8n Data Tables or memory, store scripts or results in an application database, upload generated images to Drive, or duplicate the full storyboard inside each loop item. Successful execution payload saving is disabled to avoid retaining image base64 in execution history.
+The workflow reads reference materials from Google Sheets and Google Drive. It does not use n8n Data Tables or memory, or store scripts and results in an application database. Generated images are uploaded to the shared `Demo Test Upload` folder only after the user clicks the Drive button; files are sent one at a time, with a 12 MB per-file limit. Filenames follow `YYYY-MM-DD-title-background-ID-scenes-NN.ext`. Successful execution payload saving is disabled to avoid retaining image base64 in execution history. The Drive write permission still needs a first live upload check.
 
 ## AWS migration status
 
-- Published graph: active version `1e27e289-e000-4448-b432-e08d87d4b7d6`; 21 nodes, one webhook trigger, and one final response node.
+- The published graph now includes a separate `fred-save-background-to-drive` webhook alongside the storyboard/image webhook.
 - Workflow graph validation returned no warnings.
 - Frontend syntax and whitespace checks passed locally.
 - The existing Heroku Postgres database was dumped and restored into the AWS-hosted Postgres instance. The restored database contains 30 workflows and 45 credentials; the original Heroku app and database remain untouched as rollback.
 - The AWS n8n service is healthy at the HTTPS editor URL above. Its matching 2.44.4 external JavaScript/Python task runner has registered with the n8n task broker.
-- The Caddy HTTPS health endpoint returned HTTP 200. A full storyboard-to-image request and the deployed UI image display still require an end-to-end check.
+- The Caddy HTTPS health endpoint returned HTTP 200. The storyboard/image flow has previously returned three images to the deployed UI; the new Drive upload route has not yet completed an end-to-end upload check.
 - AWS hosting is the approved $24/month Lightsail plan. The AWS deployment is temporary; Heroku remains available for rollback.
 
 ## Importing the snapshot

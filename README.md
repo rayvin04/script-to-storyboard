@@ -12,7 +12,7 @@ Only backgrounds are generated. Animators add all characters, props, labels, dia
 - Image generation: OpenRouter `openai/gpt-image-2.5-flare`, low quality, 16:9, one image per request. The image model is used only for images.
 - The workflow returns every storyboard row and Fred-format CSV data. The UI displays the full storyboard and downloads the CSV on request. Background images are generated sequentially and shown as they arrive. Scripts and generated images are not saved.
 
-No SVG export, database writes, n8n Data Tables, n8n Memory, Drive upload, email notification, or status polling is part of this prototype. The CSV is built in the workflow response and downloaded by the browser; it is not stored.
+The UI can save completed backgrounds to the shared demo Drive folder through a separate n8n webhook. Uploads run sequentially and return a file link for each image. The saved personal Google Drive credential stays in n8n; no credential is placed in browser code. Email notification, SVG export, database writes, n8n Data Tables, n8n Memory, and status polling are not part of this stage. The CSV is built in the workflow response and downloaded by the browser; it is not stored.
 
 ## Files
 

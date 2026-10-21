@@ -166,7 +166,7 @@
     },
     {
       "parameters": {
-        "content": "## One webhook → full storyboard CSV → up to 10 sequential background plates\n\nThe UI sends one title and the complete script in a single request. Google Sheets supplies Fred’s style guide and imported storyboard examples to the text planner. The planner preserves every narration line and returns the full eight-column storyboard CSV.\n\nThe workflow validates the complete script and storyboard before selecting up to ten distinct backgrounds sampled from across the whole story. It loops over the selected backgrounds one at a time, downloads the approved Drive style reference, and calls the existing OpenRouter GPT Image Flare request once per background.\n\nThe final webhook response includes the complete CSV, scene counts, image success/failure counts, and the images with their exact background IDs and scene numbers. The reference image guides drawing style only; backgrounds remain scene-specific. No n8n Data Tables, memory, or internal application storage are used.",
+        "content": "## One webhook → full storyboard CSV → up to 10 sequential background plates\n\nThe UI sends one title and the complete script in a single request. Google Sheets supplies Fred’s style guide and imported storyboard examples to the text planner. The planner preserves every narration line and returns the full eight-column storyboard CSV.\n\nThe workflow validates the complete script and storyboard before selecting up to ten distinct backgrounds sampled from across the whole story. It loops over the selected backgrounds one at a time, downloads the approved Drive style reference, and calls the existing OpenRouter GPT Image Flare request once per background.\n\nThe final webhook response includes the complete CSV, scene counts, image success/failure counts, and the images with their exact background IDs and scene numbers. The reference image guides drawing style only; backgrounds remain scene-specific. No n8n Data Tables, memory, or internal application storage are used.\n\n## Demo Drive delivery\n\nUse the personal Google Drive credential. The UI uploads each generated background to the shared Demo Test Upload folder one at a time. Filenames use YYYY-MM-DD-title-background-ID-scenes-NN, and the response returns each Drive file link to the UI.",
         "height": 300,
         "width": 2700,
         "color": 5
@@ -470,6 +470,107 @@
         "language": "javaScript",
         "jsCode": "const storyboard = $('Validate and Package Storyboard').first().json;\nconst results = $input.all().map(item => item.json);\nconst images = results.map(result => {\n  const providerError = typeof result.error === 'string'\n    ? result.error\n    : result.error?.message ||\n      (typeof result.body?.error === 'string' ? result.body.error : result.body?.error?.message) ||\n      result.body?.message || result.message;\n  const hasImage = result.ok === true && typeof result.imageData === 'string';\n  return {\n    backgroundId: result.backgroundId,\n    sceneNumbers: Array.isArray(result.sceneNumbers) ? result.sceneNumbers : [],\n    backgroundPrompt: result.backgroundPrompt || '',\n    ...(hasImage\n      ? { imageData: result.imageData, mimeType: result.mimeType || 'image/png' }\n      : {\n          ok: false,\n          error: String(providerError || 'Image generation returned no image. Result fields: ' + Object.keys(result).join(', ')),\n          statusCode: result.statusCode || result.body?.statusCode || 502\n        })\n  };\n});\nconst generatedImageCount = images.filter(image => typeof image.imageData === 'string').length;\nconst failedImageCount = images.length - generatedImageCount;\nreturn [{ json: {\n  ok: true,\n  title: storyboard.title,\n  storyboardCsv: storyboard.storyboardCsv,\n  totalScenes: storyboard.totalScenes,\n  generatedImageCount,\n  failedImageCount,\n  totalUniqueBackgrounds: storyboard.totalUniqueBackgrounds,\n  selectedBackgroundCount: images.length,\n  deferredBackgrounds: storyboard.deferredBackgrounds,\n  images\n} }];"
       }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "fred-save-background-to-drive",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "https://script-to-storyboard-six.vercel.app,https://script-to-storyboard-bczcrjyi8-rayvin-gianan-s-projects.vercel.app,https://script-to-storyboard-rh9j2ogz2-rayvin-gianan-s-projects.vercel.app,https://script-to-storyboard-rj8si3nam-rayvin-gianan-s-projects.vercel.app,https://script-to-storyboard-2936gb8xd-rayvin-gianan-s-projects.vercel.app,https://script-to-storyboard-git-codex-5b7cab-rayvin-gianan-s-projects.vercel.app"
+        }
+      },
+      "id": "e1f8a41b-5e66-4345-800a-6b6650a44285",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        224,
+        1120
+      ],
+      "webhookId": "ac6c36b1-5338-4442-be73-c28a2ebf8169"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const input = $json?.body && typeof $json.body === \"object\" ? $json.body : ($json || {});\nconst title = String(input.title || \"Storyboard\").trim().slice(0, 120);\nconst backgroundId = String(input.backgroundId || \"\").trim().toLowerCase().replace(/[^a-z0-9-]/g, \"-\").replace(/-+/g, \"-\").replace(/^-|-$/g, \"\");\nconst sceneNumbers = Array.isArray(input.sceneNumbers) ? [...new Set(input.sceneNumbers.map(Number).filter(n => Number.isInteger(n) && n > 0))].sort((a, b) => a - b) : [];\nconst imageData = String(input.imageData || \"\");\nconst match = /^data:(image\\/(?:png|jpe?g|webp));base64,([A-Za-z0-9+/=\\r\\n]+)$/i.exec(imageData);\nif (!backgroundId || sceneNumbers.length === 0 || !match) throw new Error(\"A valid background image, background ID, and scene numbers are required.\");\nconst mimeType = match[1].toLowerCase().replace(\"image/jpg\", \"image/jpeg\");\nconst extension = mimeType === \"image/jpeg\" ? \"jpg\" : mimeType.split(\"/\")[1];\nconst slug = title.normalize(\"NFKD\").replace(/[\\u0300-\\u036f]/g, \"\").toLowerCase().replace(/[^a-z0-9]+/g, \"-\").replace(/^-|-$/g, \"\").slice(0, 48) || \"storyboard\";\nconst scenePart = sceneNumbers.map(n => String(n).padStart(2, \"0\")).join(\"-\");\nconst fileName = new Date().toISOString().slice(0, 10) + \"-\" + slug + \"-\" + backgroundId + \"-scenes-\" + scenePart + \".\" + extension;\nconst bytes = Buffer.from(match[2].replace(/\\s/g, \"\"), \"base64\");\nif (!bytes.length || bytes.length > 12 * 1024 * 1024) throw new Error(\"The image must be between 1 byte and 12 MB.\");\nconst binary = await this.helpers.prepareBinaryData(bytes, fileName, mimeType);\nreturn [{ json: { ok: true, title, fileName, mimeType, backgroundId, sceneNumbers, folderUrl: \"https://drive.google.com/drive/folders/153VPM-IBR1T5UIq-TthqtpklyAGwi-UU\" }, binary: { data: binary } }];"
+      },
+      "id": "0fd4118b-065d-4b8c-b1cc-b4d0dd75742d",
+      "name": "Prepare Image for Drive Upload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        1120
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "operation": "upload",
+        "inputDataFieldName": "data",
+        "name": "={{ $json.fileName }}",
+        "driveId": {
+          "__rl": true,
+          "value": "My Drive",
+          "mode": "list"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "153VPM-IBR1T5UIq-TthqtpklyAGwi-UU",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "id": "2023f9ec-d4b8-4a4d-961f-8ee6f90db4e5",
+      "name": "Upload Background to Google Drive",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        672,
+        1120
+      ],
+      "onError": "stopWorkflow",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "PWL6ap3LIUEv75px",
+          "name": "giananrayvin@gmail.com GDRIVE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\\n  ok: true,\\n  fileId: $json.id,\\n  fileName: $json.name || $('Prepare Image for Drive Upload').first().json.fileName,\\n  webViewLink: $json.webViewLink || ('https://drive.google.com/file/d/' + $json.id + '/view'),\\n  folderUrl: $('Prepare Image for Drive Upload').first().json.folderUrl,\\n  backgroundId: $('Prepare Image for Drive Upload').first().json.backgroundId,\\n  sceneNumbers: $('Prepare Image for Drive Upload').first().json.sceneNumbers\\n} }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "https://script-to-storyboard-six.vercel.app"
+              },
+              {
+                "name": "Cache-Control",
+                "value": "no-store"
+              },
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          },
+          "enableStreaming": false
+        }
+      },
+      "id": "08a7badf-4d69-4785-b963-6b39a7dbec16",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        896,
+        1120
+      ]
     }
   ],
   "connections": {
@@ -709,6 +810,39 @@
           }
         ]
       ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Prepare Image for Drive Upload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Image for Drive Upload": {
+      "main": [
+        [
+          {
+            "node": "Upload Background to Google Drive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload Background to Google Drive": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": false,
@@ -721,4 +855,3 @@
   },
   "versionId": "1e27e289-e000-4448-b432-e08d87d4b7d6"
 }
-
