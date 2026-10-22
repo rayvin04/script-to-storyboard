@@ -1,16 +1,18 @@
 (() => {
-  const base = "https://n8n-rayv-742595626609.herokuapp.com/webhook";
-  // One Generate click always plans first, then calls this same workflow once
-  // per background. The action field marks the internal pipeline stage only.
-  const route = base + "/fred-image-generation-stage-1";
-  const PLAN_TIMEOUT_MS = 300000;
-  const IMAGE_TIMEOUT_MS = 180000;
+  const base = "https://n8n.47-131-239-128.sslip.io/webhook";
+  const generateRoute = base + "/fred-image-generation-stage-1";
+  const backgroundRoute = base + "/fred-generate-background";
+  const notifyRoute = base + "/fred-notify-editors";
+  const processRoute = base + "/fred-record-process";
+  // Planning should finish quickly; each image gets its own bounded request.
+  const PLAN_TIMEOUT_MS = 180000;
+  const IMAGE_TIMEOUT_MS = 360000;
 
-  async function postJson(url, body, timeoutMs) {
+  async function postJson(route, body, timeoutMs = PLAN_TIMEOUT_MS) {
     const controller = new AbortController();
     const timer = window.setTimeout(() => controller.abort(), timeoutMs);
     try {
-      const response = await fetch(url, {
+      const response = await fetch(route, {
         method: "POST",
         cache: "no-store",
         signal: controller.signal,
@@ -23,21 +25,40 @@
         data = text ? JSON.parse(text) : {};
       } catch {
         if (response.status >= 500) {
-          throw new Error("n8n returned an HTML/server error (HTTP " + response.status + "). Wait for the host to recover, then check the matching execution before retrying.");
+          const error = new Error("n8n returned an HTML/server error (HTTP " + response.status + "). The host may have timed out; check the matching execution before retrying.");
+          error.stopBatch = true;
+          throw error;
         }
         throw new Error("n8n returned unreadable data (HTTP " + response.status + ").");
       }
       if (!response.ok || data.ok === false) {
         let message = typeof data.error === "string" ? data.error : data.error && data.error.message;
-        if (/quota exceeded|too many requests|rate_limit_exceeded|http 429/i.test(String(message || ""))) {
-          message = "Fred's reference sheets hit Google's read limit. Wait about a minute, then submit the script again. No image requests were sent.";
+        const isRateLimited = /quota exceeded|too many requests|rate_limit_exceeded|http 429/i.test(String(message || "")) || response.status === 429;
+        if (isRateLimited) {
+          if (route === backgroundRoute) {
+            message = "OpenRouter rate-limited image generation. The batch stopped here; wait before starting another image request.";
+          } else if (route === generateRoute) {
+            message = "The storyboard reference sheets hit Google's read limit. Wait about a minute, then submit the script again. No image requests were sent.";
+          } else {
+            message = "n8n rate-limited this delivery request. Wait briefly, then use the notification button again.";
+          }
         }
-        throw new Error(message || "Workflow request failed (HTTP " + response.status + ").");
+        const requestError = new Error(message || "Workflow request failed (HTTP " + response.status + ").");
+        if (isRateLimited && route === backgroundRoute) requestError.stopBatch = true;
+        throw requestError;
       }
       return data;
     } catch (error) {
       if (error && error.name === "AbortError") {
-        throw new Error("The workflow timed out after " + Math.round(timeoutMs / 1000) + " seconds. No automatic retry was sent, to avoid duplicate image charges. Check the n8n execution before retrying.");
+        const operation = route === backgroundRoute ? "Image generation" : route === generateRoute ? "Storyboard planning" : "The delivery step";
+        const timeoutError = new Error(operation + " did not return within " + Math.ceil(timeoutMs / 60000) + " minute(s). No automatic retry was sent; check the matching n8n execution before retrying because it may still finish.");
+        timeoutError.stopBatch = true;
+        throw timeoutError;
+      }
+      if (error instanceof TypeError) {
+        const connectionError = new Error("Could not reach the n8n webhook. The host may be unavailable or may have closed the request. No automatic retry was sent; check the matching n8n execution before resubmitting, since a slow request may still finish.");
+        connectionError.stopBatch = true;
+        throw connectionError;
       }
       throw error;
     } finally {
@@ -46,16 +67,17 @@
   }
 
   window.storyboardWorkflow = {
-    plan(script) {
-      return postJson(route, { action: "plan", script }, PLAN_TIMEOUT_MS);
+    generate(title, script, jobId) {
+      return postJson(generateRoute, { title, script, mode: "planOnly", jobId }, PLAN_TIMEOUT_MS);
     },
-    generateBackground(background) {
-      return postJson(route, {
-        action: "image",
-        background: background.backgroundPrompt || background.background,
-        backgroundId: background.backgroundId,
-        sceneNumbers: background.sceneNumbers || []
-      }, IMAGE_TIMEOUT_MS);
+    generateBackground(payload) {
+      return postJson(backgroundRoute, { ...payload, mode: "single" }, IMAGE_TIMEOUT_MS);
+    },
+    notifyEditors(payload) {
+      return postJson(notifyRoute, payload, 180000);
+    },
+    recordProcess(payload) {
+      return postJson(processRoute, payload, 180000);
     }
   };
 })();

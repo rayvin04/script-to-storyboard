@@ -1,0 +1,1168 @@
+{
+  "name": "Script to Storyboard — Delivery & Feedback",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "id": "2eb3b33f-985d-46ea-8f4e-bbc544f39810",
+      "name": "Receive Background from Generator",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        240,
+        176
+      ]
+    },
+    {
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "const item=$input.first();const input=item.json?.body&&typeof item.json.body==='object'?item.json.body:(item.json||{});\nconst title=String(input.title||'Storyboard').trim().slice(0,120);\nconst backgroundId=String(input.backgroundId||'').trim().toUpperCase().replace(/[^A-Z0-9-]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'');\nconst sceneNumbers=Array.isArray(input.sceneNumbers)?[...new Set(input.sceneNumbers.map(Number).filter(n=>Number.isInteger(n)&&n>0))].sort((a,b)=>a-b):[];\nif(!backgroundId||!sceneNumbers.length)throw new Error('A background ID and scene numbers are required.');\nlet binary=item.binary?.data;\nlet mimeType=String(binary?.mimeType||input.mimeType||'').toLowerCase();\nif(!binary){\n const data=String(input.imageData||'');const match=/^data:(image\\/(?:png|jpe?g|webp));base64,([A-Za-z0-9+/\\r\\n=]+)$/i.exec(data);\n if(!match)throw new Error('A valid base64 image is required.');\n mimeType=match[1].toLowerCase().replace('image/jpg','image/jpeg');\n const bytes=Buffer.from(match[2].replace(/\\s/g,''),'base64');\n if(!bytes.length||bytes.length>12*1024*1024)throw new Error('Image must be between 1 byte and 12 MB.');\n binary=await this.helpers.prepareBinaryData(bytes,'background.'+(mimeType==='image/jpeg'?'jpg':mimeType.split('/')[1]),mimeType);\n}\nif(!mimeType.startsWith('image/'))throw new Error('Only image files are accepted.');\nconst ext=mimeType==='image/jpeg'?'jpg':mimeType.split('/')[1];\nconst slug=title.normalize('NFKD').replace(/[\\u0300-\\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,48)||'storyboard';\nconst scenePart=sceneNumbers.map(n=>String(n).padStart(2,'0')).join('-');\nconst fileName=String(input.fileName||'').trim()||new Date().toISOString().slice(0,10)+'-'+slug+'-'+backgroundId.toLowerCase()+'-scenes-'+scenePart+'.'+ext;\nbinary.fileName=fileName;binary.mimeType=mimeType;\nreturn[{json:{...input,ok:true,title,backgroundId,sceneNumbers,mimeType,fileName,folderUrl:'https://drive.google.com/drive/folders/153VPM-IBR1T5UIq-TthqtpklyAGwi-UU'},binary:{data:binary}}];",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "be8ff602-8508-4e28-b2b4-cfcf57803262",
+      "name": "Prepare Image for Drive Upload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        464,
+        176
+      ]
+    },
+    {
+      "parameters": {
+        "name": "={{ $json.fileName }}",
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "153VPM-IBR1T5UIq-TthqtpklyAGwi-UU",
+          "mode": "id"
+        },
+        "options": {},
+        "resource": "file",
+        "operation": "upload",
+        "inputDataFieldName": "data"
+      },
+      "id": "63281b0f-ec01-4978-b555-e2862d5bb507",
+      "name": "Upload Background to Google Drive",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        688,
+        176
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "PWL6ap3LIUEv75px",
+          "name": "giananrayvin@gmail.com GDRIVE"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "const source=$('Prepare Image for Drive Upload').first().json;\nconst id=String($json.id||'');\nif(!id){const detail=typeof $json.error==='string'?$json.error:$json.error?.message||$json.message||'Google Drive did not return a file ID.';return[{json:{...source,ok:true,driveFileId:'',fileId:'',driveUrl:'',driveUploadError:String(detail).slice(0,500)}}];}\nconst driveUrl=String($json.webViewLink||('https://drive.google.com/file/d/'+id+'/view'));\nreturn[{json:{...source,ok:true,driveFileId:id,fileId:id,fileName:$json.name||source.fileName,driveUrl,webViewLink:driveUrl}}];",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "16069c95-82d7-44a5-bbdb-a56f22e8fa9d",
+      "name": "Return Uploaded Background",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        912,
+        176
+      ]
+    },
+    {
+      "parameters": {
+        "path": "fred-notify-editors",
+        "httpMethod": "POST",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "https://script-to-storyboard-six.vercel.app,https://script-to-storyboard-66zqtjejz-rayvin-gianan-s-projects.vercel.app,https://script-to-storyboard-rh9j2ogz2-rayvin-gianan-s-projects.vercel.app,https://script-to-storyboard-rj8si3nam-rayvin-gianan-s-projects.vercel.app,https://script-to-storyboard-2936gb8xd-rayvin-gianan-s-projects.vercel.app,https://script-to-storyboard-git-codex-5b7cab-rayvin-gianan-s-projects.vercel.app"
+        }
+      },
+      "id": "2036ea32-9bfe-4551-9548-5b67f3da6e50",
+      "name": "Notify Editing Team",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        240,
+        560
+      ],
+      "webhookId": "934cd082-33a7-4d84-96a2-9119b6b68c27"
+    },
+    {
+      "id": "ff275fa4-f0e1-4653-8195-4b25c89b6625",
+      "name": "Read Workflow Delivery Settings",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        464,
+        560
+      ],
+      "parameters": {
+        "resource": "sheet",
+        "operation": "read",
+        "authentication": "oAuth2",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "1RL7C_3kg7Ua47R7BnQFi4YvsgDyecIQS7yi1uCAT-gg"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": "2026102001"
+        },
+        "returnAllMatches": "returnAllMatches",
+        "options": {
+          "outputFormatting": {
+            "values": {
+              "general": "FORMATTED_VALUE",
+              "date": "FORMATTED_STRING"
+            }
+          }
+        }
+      },
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "uhpKISQ818MUREdV",
+          "name": "giananrayvin@gmail.com"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "function parseRequest(source) {\n  let body = source?.body;\n  if (typeof body === 'string') { try { body = JSON.parse(body); } catch { body = {}; } }\n  if (body && typeof body === 'object' && !Array.isArray(body)) return body;\n  for (const candidate of [source?.rawBody, source?.data, source?.payload]) {\n    if (typeof candidate === 'string') { try { const parsed = JSON.parse(candidate); if (parsed && typeof parsed === 'object') return parsed; } catch {} }\n    if (candidate && typeof candidate === 'object' && !Array.isArray(candidate)) return candidate;\n  }\n  return source && typeof source === 'object' ? source : {};\n}\nconst hook = $('Notify Editing Team').first().json || {};\nconst req = parseRequest(hook);\nconst rows = $input.all().map(item => item.json);\nconst settings = {};\nfor (const row of rows) {\n  const key = String(row.Setting ?? row.setting ?? '').trim();\n  if (key) settings[key] = String(row.Value ?? row.value ?? '').trim();\n}\nconst email = settings.editingTeamEmail || '';\nconst images = Array.isArray(req.images) ? req.images.filter(image => image && typeof image === 'object') : [];\nconst jobId = String(req.jobId || ('job-' + Date.now().toString(36))).trim().slice(0, 100);\nconst title = String(req.title || 'Storyboard').trim().slice(0, 120);\nconst folderId = settings.teamDriveFolderId || '153VPM-IBR1T5UIq-TthqtpklyAGwi-UU';\nconst storyboardDriveUrl = String(req.storyboardDriveUrl || '').trim();\nconst storyboardFileName = String(req.storyboardFileName || 'storyboard.csv').trim().slice(0, 120);\nconst validEmail = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email);\nif (!images.length) return [{ json: { ok: false, ready: false, statusCode: 400, error: 'No background images were included.' } }];\nif (images.some(image => !String(image.driveFileId || image.fileId || '').trim() || !String(image.driveUrl || image.webViewLink || '').trim())) return [{ json: { ok: false, ready: false, statusCode: 409, error: 'Every background must finish its Google Drive upload before editors are notified.' } }];\nif (!storyboardDriveUrl) return [{ json: { ok: false, ready: false, statusCode: 409, error: 'The storyboard CSV must be saved to Google Drive before editors are notified.' } }];\nif (!validEmail) return [{ json: { ok: true, ready: false, notificationSent: false, status: 'recipient_missing', jobId, title, reason: 'Fill in editingTeamEmail on the Workflow Settings sheet to enable email notifications.' } }];\nconst escapeHtml = value => String(value ?? '').replace(/[&<>\"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;', \"'\": '&#39;' }[char]));\nlet date = new Date(req.processedAt || Date.now());\nif (!Number.isFinite(date.getTime())) date = new Date();\nconst processedDate = new Intl.DateTimeFormat('en-PH', { timeZone: 'Asia/Manila', year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(date);\nconst imageList = images.map(image => {\n  const name = String(image.fileName || image.name || image.backgroundId || 'Background');\n  const url = String(image.driveUrl || image.webViewLink || '');\n  const scenes = Array.isArray(image.sceneNumbers) ? image.sceneNumbers.join(', ') : String(image.sceneNumbers || '');\n  return '<li><a href=\"' + escapeHtml(url) + '\">' + escapeHtml(name) + '</a>' + (scenes ? ' — scenes ' + escapeHtml(scenes) : '') + '</li>';\n}).join('');\nconst folderUrl = String(req.driveFolderUrl || ('https://drive.google.com/drive/folders/' + encodeURIComponent(folderId)));\nconst fileManifest = JSON.stringify(images.map(image => ({ backgroundId: image.backgroundId || '', sceneNumbers: image.sceneNumbers || [], driveFileId: image.driveFileId || image.fileId || '', fileName: image.fileName || image.name || '', driveUrl: image.driveUrl || image.webViewLink || '' })));\nconst message = '<p>Storyboard and background delivery for <strong>' + escapeHtml(title) + '</strong>.</p>' +\n  '<p>Processed on ' + escapeHtml(processedDate) + ' (Asia/Manila).</p>' +\n  '<p><a href=\"' + escapeHtml(storyboardDriveUrl) + '\">Download the storyboard CSV (' + escapeHtml(storyboardFileName) + ')</a></p>' +\n  '<p>Generated background images:</p><ol>' + imageList + '</ol>' +\n  '<p><a href=\"' + escapeHtml(folderUrl) + '\">Open the shared Google Drive folder</a></p>';\nreturn [{ json: { ok: true, ready: true, jobId, title, processedAt: date.toISOString(), processedDate, storyboardFileName, storyboardDriveUrl, sendTo: email, subject: title + ' — storyboard and backgrounds ready', message, fileCount: images.length, targetFolderId: folderId, fileManifest, emailRecipient: email, folderUrl } }];",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "7d42a3eb-df3c-4893-983c-a4e899c21e00",
+      "name": "Build Notification Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        688,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "options": {},
+        "conditions": {
+          "options": {
+            "leftValue": "",
+            "version": 2,
+            "typeValidation": "strict",
+            "caseSensitive": true
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.ready === true }}",
+              "operator": {
+                "singleValue": true,
+                "operation": "true",
+                "type": "boolean"
+              },
+              "rightValue": true
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "a15bc00c-7cab-4ca9-b747-5bfe7962cbe2",
+      "name": "Email Recipient Configured?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        912,
+        560
+      ]
+    },
+    {
+      "id": "c66d1823-b8b1-4591-9fb4-d7cd6e983cf3",
+      "name": "Email Editing Team",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1136,
+        560
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "authentication": "oAuth2",
+        "sendTo": "={{ $json.sendTo }}",
+        "subject": "={{ $json.subject }}",
+        "emailType": "html",
+        "message": "={{ $json.message }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "webhookId": "666e431e-c956-4d7f-97a6-25affab4353a",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "9lO6lf5tFZHucf2R",
+          "name": "giananrayvin@gmail.com"
+        }
+      }
+    },
+    {
+      "id": "d6c6df4d-94dd-4857-9cab-948b8da768ce",
+      "name": "Record Notification in Delivery Log",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1360,
+        560
+      ],
+      "parameters": {
+        "resource": "sheet",
+        "operation": "appendOrUpdate",
+        "authentication": "oAuth2",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "1RL7C_3kg7Ua47R7BnQFi4YvsgDyecIQS7yi1uCAT-gg"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": "529064309"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [
+            "jobId"
+          ],
+          "value": {
+            "jobId": "={{ Build Notification Payload.first().json.jobId }}",
+            "title": "={{ Build Notification Payload.first().json.title }}",
+            "deliveryStatus": "delivered",
+            "targetFolderId": "={{ Build Notification Payload.first().json.targetFolderId }}",
+            "fileCount": "={{ Build Notification Payload.first().json.fileCount }}",
+            "fileManifest": "={{ Build Notification Payload.first().json.fileManifest }}",
+            "emailRecipient": "={{ Build Notification Payload.first().json.emailRecipient }}",
+            "notificationSentAt": "={{ $now.toISO() }}",
+            "deliveredAt": "={{ $now.toISO() }}",
+            "error": ""
+          },
+          "schema": [
+            {
+              "id": "jobId",
+              "displayName": "jobId",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "title",
+              "displayName": "title",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "deliveryStatus",
+              "displayName": "deliveryStatus",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "targetFolderId",
+              "displayName": "targetFolderId",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "fileCount",
+              "displayName": "fileCount",
+              "type": "number",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "fileManifest",
+              "displayName": "fileManifest",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "emailRecipient",
+              "displayName": "emailRecipient",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "notificationSentAt",
+              "displayName": "notificationSentAt",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "deliveredAt",
+              "displayName": "deliveredAt",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "error",
+              "displayName": "error",
+              "type": "string",
+              "required": false,
+              "display": true,
+              "canBeUsedToMatch": false
+            }
+          ]
+        },
+        "options": {
+          "cellFormat": "RAW",
+          "handlingExtraData": "error"
+        }
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "uhpKISQ818MUREdV",
+          "name": "giananrayvin@gmail.com"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseCode": "={{ $json.statusCode || 200 }}",
+          "responseHeaders": {
+            "entries": [
+              {
+                "value": "={{ [\"https://script-to-storyboard-six.vercel.app\",\"https://script-to-storyboard-66zqtjejz-rayvin-gianan-s-projects.vercel.app\",\"https://script-to-storyboard-rh9j2ogz2-rayvin-gianan-s-projects.vercel.app\",\"https://script-to-storyboard-rj8si3nam-rayvin-gianan-s-projects.vercel.app\",\"https://script-to-storyboard-2936gb8xd-rayvin-gianan-s-projects.vercel.app\",\"https://script-to-storyboard-git-codex-5b7cab-rayvin-gianan-s-projects.vercel.app\"].includes($('Notify Editing Team').first().json.headers?.origin) ? $('Notify Editing Team').first().json.headers.origin : 'https://script-to-storyboard-six.vercel.app' }}",
+                "name": "Access-Control-Allow-Origin"
+              },
+              {
+                "value": "no-store",
+                "name": "Cache-Control"
+              },
+              {
+                "value": "application/json",
+                "name": "Content-Type"
+              }
+            ]
+          },
+          "enableStreaming": false
+        }
+      },
+      "id": "0771e689-776e-4a78-b04d-445a8ad78d76",
+      "name": "Return Notification Status",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1136,
+        704
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { ok: true, notificationSent: true, recipient: $('Build Notification Payload').first().json.sendTo, fileCount: $('Build Notification Payload').first().json.fileCount, title: $('Build Notification Payload').first().json.title, jobId: $('Build Notification Payload').first().json.jobId } }}",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "value": "={{ [\"https://script-to-storyboard-six.vercel.app\",\"https://script-to-storyboard-66zqtjejz-rayvin-gianan-s-projects.vercel.app\",\"https://script-to-storyboard-rh9j2ogz2-rayvin-gianan-s-projects.vercel.app\",\"https://script-to-storyboard-rj8si3nam-rayvin-gianan-s-projects.vercel.app\",\"https://script-to-storyboard-2936gb8xd-rayvin-gianan-s-projects.vercel.app\",\"https://script-to-storyboard-git-codex-5b7cab-rayvin-gianan-s-projects.vercel.app\"].includes($('Notify Editing Team').first().json.headers?.origin) ? $('Notify Editing Team').first().json.headers.origin : 'https://script-to-storyboard-six.vercel.app' }}",
+                "name": "Access-Control-Allow-Origin"
+              },
+              {
+                "value": "no-store",
+                "name": "Cache-Control"
+              },
+              {
+                "value": "application/json",
+                "name": "Content-Type"
+              }
+            ]
+          },
+          "enableStreaming": false
+        }
+      },
+      "id": "6fa2516f-9dd5-4540-a6df-5f0b5c5edff9",
+      "name": "Return Notification Result",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1584,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "path": "fred-background-feedback",
+        "httpMethod": "POST",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "https://script-to-storyboard-six.vercel.app,https://script-to-storyboard-66zqtjejz-rayvin-gianan-s-projects.vercel.app,https://script-to-storyboard-rh9j2ogz2-rayvin-gianan-s-projects.vercel.app,https://script-to-storyboard-rj8si3nam-rayvin-gianan-s-projects.vercel.app,https://script-to-storyboard-2936gb8xd-rayvin-gianan-s-projects.vercel.app,https://script-to-storyboard-git-codex-5b7cab-rayvin-gianan-s-projects.vercel.app"
+        }
+      },
+      "id": "f69263f5-c749-4355-95e2-83fb5720e22b",
+      "name": "Record Background Feedback",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        240,
+        928
+      ],
+      "webhookId": "219177c4-6d16-4292-b94d-9cc8fb16cb7d"
+    },
+    {
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "function parseRequest(source) {\n  let body = source?.body;\n  if (typeof body === 'string') { try { body = JSON.parse(body); } catch { body = {}; } }\n  if (body && typeof body === 'object' && !Array.isArray(body)) return body;\n  for (const candidate of [source?.rawBody, source?.data, source?.payload]) {\n    if (typeof candidate === 'string') { try { const parsed = JSON.parse(candidate); if (parsed && typeof parsed === 'object') return parsed; } catch {} }\n    if (candidate && typeof candidate === 'object' && !Array.isArray(candidate)) return candidate;\n  }\n  return source && typeof source === 'object' ? source : {};\n}\nconst source = $('Record Background Feedback').first().json || {};\nconst req = parseRequest(source);\nconst rating = String(req.rating || '').trim().toLowerCase();\nconst backgroundId = String(req.backgroundId || '').trim().slice(0, 80);\nconst jobId = String(req.jobId || '').trim().slice(0, 100);\nconst sceneNumbers = Array.isArray(req.sceneNumbers) ? [...new Set(req.sceneNumbers.map(Number).filter(n => Number.isInteger(n) && n > 0))].sort((a, b) => a - b) : [];\nif (!['up', 'down'].includes(rating) || !backgroundId) return [{ json: { ok: false, statusCode: 400, error: 'A valid backgroundId and rating (up or down) are required.' } }];\nreturn [{ json: { ok: true, createdAt: new Date().toISOString(), jobId, title: String(req.title || '').trim().slice(0, 120), backgroundId, sceneNumbers: sceneNumbers.join(', '), rating, comment: String(req.comment || '').trim().slice(0, 1000), driveFileId: String(req.driveFileId || '').trim(), driveUrl: String(req.driveUrl || '').trim(), source: 'script-to-storyboard-ui' } }];",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "8da696ab-34c7-4f18-961d-95966e6c4ea4",
+      "name": "Validate Feedback",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        464,
+        928
+      ]
+    },
+    {
+      "parameters": {
+        "options": {},
+        "conditions": {
+          "options": {
+            "leftValue": "",
+            "version": 2,
+            "typeValidation": "strict",
+            "caseSensitive": true
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.ok === true }}",
+              "operator": {
+                "singleValue": true,
+                "operation": "true",
+                "type": "boolean"
+              },
+              "rightValue": true
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "0474c86f-f445-4d60-b0ee-4fc1bd607350",
+      "name": "Feedback Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        688,
+        928
+      ]
+    },
+    {
+      "parameters": {
+        "options": {
+          "handlingExtraData": "error",
+          "cellFormat": "RAW"
+        },
+        "columns": {
+          "schema": [
+            {
+              "id": "createdAt",
+              "type": "string",
+              "display": true,
+              "displayName": "createdAt",
+              "required": false
+            },
+            {
+              "id": "jobId",
+              "type": "string",
+              "display": true,
+              "displayName": "jobId",
+              "required": false
+            },
+            {
+              "id": "title",
+              "type": "string",
+              "display": true,
+              "displayName": "title",
+              "required": false
+            },
+            {
+              "id": "backgroundId",
+              "type": "string",
+              "display": true,
+              "displayName": "backgroundId",
+              "required": false
+            },
+            {
+              "id": "sceneNumbers",
+              "type": "string",
+              "display": true,
+              "displayName": "sceneNumbers",
+              "required": false
+            },
+            {
+              "id": "rating",
+              "type": "string",
+              "display": true,
+              "displayName": "rating",
+              "required": false
+            },
+            {
+              "id": "comment",
+              "type": "string",
+              "display": true,
+              "displayName": "comment",
+              "required": false
+            },
+            {
+              "id": "driveFileId",
+              "type": "string",
+              "display": true,
+              "displayName": "driveFileId",
+              "required": false
+            },
+            {
+              "id": "driveUrl",
+              "type": "string",
+              "display": true,
+              "displayName": "driveUrl",
+              "required": false
+            },
+            {
+              "id": "source",
+              "type": "string",
+              "display": true,
+              "displayName": "source",
+              "required": false
+            }
+          ],
+          "mappingMode": "autoMapInputData",
+          "value": {}
+        },
+        "authentication": "oAuth2",
+        "resource": "sheet",
+        "operation": "append",
+        "sheetName": {
+          "__rl": true,
+          "value": "1407193755",
+          "mode": "list"
+        },
+        "documentId": {
+          "__rl": true,
+          "value": "1RL7C_3kg7Ua47R7BnQFi4YvsgDyecIQS7yi1uCAT-gg",
+          "mode": "id"
+        }
+      },
+      "id": "9b34345f-dd4d-474b-8baf-58ad7fd7f851",
+      "name": "Append Feedback to Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        912,
+        880
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "uhpKISQ818MUREdV",
+          "name": "giananrayvin@gmail.com"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "const item=$('Validate Feedback').first().json;\nreturn[{json:{ok:true,status:'recorded',backgroundId:item.backgroundId,rating:item.rating}}];",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "71089997-9802-4478-b270-4194ce29cbfc",
+      "name": "Build Feedback Receipt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1136,
+        880
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseCode": "={{ $json.statusCode || 200 }}",
+          "responseHeaders": {
+            "entries": [
+              {
+                "value": "={{ [\"https://script-to-storyboard-six.vercel.app\",\"https://script-to-storyboard-66zqtjejz-rayvin-gianan-s-projects.vercel.app\",\"https://script-to-storyboard-rh9j2ogz2-rayvin-gianan-s-projects.vercel.app\",\"https://script-to-storyboard-rj8si3nam-rayvin-gianan-s-projects.vercel.app\",\"https://script-to-storyboard-2936gb8xd-rayvin-gianan-s-projects.vercel.app\",\"https://script-to-storyboard-git-codex-5b7cab-rayvin-gianan-s-projects.vercel.app\"].includes($('Record Background Feedback').first().json.headers?.origin) ? $('Record Background Feedback').first().json.headers.origin : 'https://script-to-storyboard-six.vercel.app' }}",
+                "name": "Access-Control-Allow-Origin"
+              },
+              {
+                "value": "no-store",
+                "name": "Cache-Control"
+              },
+              {
+                "value": "application/json",
+                "name": "Content-Type"
+              }
+            ]
+          },
+          "enableStreaming": false
+        }
+      },
+      "id": "f4e91512-4913-42e8-bc10-a863a256f35b",
+      "name": "Return Feedback Status",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        912,
+        1104
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "value": "={{ [\"https://script-to-storyboard-six.vercel.app\",\"https://script-to-storyboard-66zqtjejz-rayvin-gianan-s-projects.vercel.app\",\"https://script-to-storyboard-rh9j2ogz2-rayvin-gianan-s-projects.vercel.app\",\"https://script-to-storyboard-rj8si3nam-rayvin-gianan-s-projects.vercel.app\",\"https://script-to-storyboard-2936gb8xd-rayvin-gianan-s-projects.vercel.app\",\"https://script-to-storyboard-git-codex-5b7cab-rayvin-gianan-s-projects.vercel.app\"].includes($('Record Background Feedback').first().json.headers?.origin) ? $('Record Background Feedback').first().json.headers.origin : 'https://script-to-storyboard-six.vercel.app' }}",
+                "name": "Access-Control-Allow-Origin"
+              },
+              {
+                "value": "no-store",
+                "name": "Cache-Control"
+              },
+              {
+                "value": "application/json",
+                "name": "Content-Type"
+              }
+            ]
+          },
+          "enableStreaming": false
+        }
+      },
+      "id": "d3127387-e5dd-4442-9c87-42349cca7a14",
+      "name": "Return Feedback Saved",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1360,
+        928
+      ]
+    },
+    {
+      "parameters": {
+        "path": "fred-record-process",
+        "httpMethod": "POST",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "https://script-to-storyboard-six.vercel.app,https://script-to-storyboard-66zqtjejz-rayvin-gianan-s-projects.vercel.app,https://script-to-storyboard-rh9j2ogz2-rayvin-gianan-s-projects.vercel.app,https://script-to-storyboard-rj8si3nam-rayvin-gianan-s-projects.vercel.app,https://script-to-storyboard-2936gb8xd-rayvin-gianan-s-projects.vercel.app,https://script-to-storyboard-git-codex-5b7cab-rayvin-gianan-s-projects.vercel.app"
+        }
+      },
+      "id": "ff9039b0-24fe-475d-9825-4ac150458def",
+      "name": "Record Storyboard Process",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        240,
+        1248
+      ],
+      "webhookId": "6e1f0735-5699-47e5-8d58-6463d411bf4f"
+    },
+    {
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "function parseRequest(source) {\n  let body = source?.body;\n  if (typeof body === 'string') { try { body = JSON.parse(body); } catch { body = {}; } }\n  if (body && typeof body === 'object' && !Array.isArray(body)) return body;\n  for (const candidate of [source?.rawBody, source?.data, source?.payload]) {\n    if (typeof candidate === 'string') { try { const parsed = JSON.parse(candidate); if (parsed && typeof parsed === 'object') return parsed; } catch {} }\n    if (candidate && typeof candidate === 'object' && !Array.isArray(candidate)) return candidate;\n  }\n  return source && typeof source === 'object' ? source : {};\n}\nconst hook = $('Record Storyboard Process').first().json || {};\nconst req = parseRequest(hook);\nconst title = String(req.title || 'Storyboard').trim().slice(0, 120);\nconst csv = String(req.storyboardCsv || '');\nconst header = csv.split(/\\r?\\n/, 1)[0].replace(/^\\uFEFF/, '').split(',').map(cell => cell.trim().replace(/^\"|\"$/g, '').replace(/\"\"/g, '\"')).join(',');\nconst expected = \"Scene,Timestamp,Voiceover,What's happening,Background,Hand-drawn characters & props,On-screen text,Transitions/Motion\";\nif (!csv.trim() || Buffer.byteLength(csv, 'utf8') > 5 * 1024 * 1024) throw new Error('A complete storyboard CSV (up to 5 MB) is required.');\nif (header !== expected) throw new Error('The storyboard CSV is missing the required eight columns in the expected order.');\nconst slug = title.normalize('NFKD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 72) || 'storyboard';\nlet fileName = String(req.storyboardFileName || (slug + '-storyboard.csv')).replace(/[\\\\/<>:\"|?*\\u0000-\\u001f]/g, '-').trim().slice(0, 120);\nif (!fileName.toLowerCase().endsWith('.csv')) fileName += '.csv';\nlet processedAt = new Date(req.processedAt || Date.now());\nif (!Number.isFinite(processedAt.getTime())) processedAt = new Date();\nconst images = Array.isArray(req.images) ? req.images.filter(image => image && typeof image === 'object').map(image => ({ backgroundId: String(image.backgroundId || ''), sceneNumbers: Array.isArray(image.sceneNumbers) ? image.sceneNumbers : [], fileName: String(image.fileName || ''), driveFileId: String(image.driveFileId || ''), driveUrl: String(image.driveUrl || '') })) : [];\nconst folderUrl = String(req.driveFolderUrl || 'https://drive.google.com/drive/folders/153VPM-IBR1T5UIq-TthqtpklyAGwi-UU');\nconst metadata = { jobId: String(req.jobId || ('job-' + Date.now().toString(36))).slice(0, 100), title, processedAt: processedAt.toISOString(), status: String(req.status || 'complete').slice(0, 30), sceneCount: Math.max(0, Number(req.sceneCount) || 0), uniqueBackgrounds: Math.max(0, Number(req.uniqueBackgrounds) || 0), generatedCount: Math.max(0, Number(req.generatedCount) || images.length), failedCount: Math.max(0, Number(req.failedCount) || 0), storyboardFileName: fileName, driveFolderUrl: folderUrl, images };\nconst binary = await this.helpers.prepareBinaryData(Buffer.from(csv, 'utf8'), fileName, 'text/csv');\nreturn [{ json: metadata, binary: { data: binary } }];",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "efcb6be5-ba72-4d95-b56e-110152681e43",
+      "name": "Prepare Storyboard CSV",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        464,
+        1248
+      ]
+    },
+    {
+      "parameters": {
+        "name": "={{ $json.storyboardFileName }}",
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "153VPM-IBR1T5UIq-TthqtpklyAGwi-UU",
+          "mode": "id"
+        },
+        "options": {},
+        "resource": "file",
+        "operation": "upload",
+        "inputDataFieldName": "data"
+      },
+      "id": "8ef3c994-8f21-49f8-a6c9-fc9cc1308830",
+      "name": "Upload Storyboard CSV to Google Drive",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        688,
+        1248
+      ],
+      "settings": {
+        "retryOnFail": true,
+        "maxTries": 2,
+        "waitBetweenTries": 5000
+      },
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "PWL6ap3LIUEv75px",
+          "name": "giananrayvin@gmail.com GDRIVE"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "const source = $('Prepare Storyboard CSV').first().json;\nconst fileId = String($json.id || '').trim();\nif (!fileId) throw new Error('Google Drive did not return an ID for the storyboard CSV.');\nconst storyboardDriveUrl = String($json.webViewLink || ('https://drive.google.com/file/d/' + fileId + '/view'));\nreturn [{ json: { processedAt: source.processedAt, jobId: source.jobId, title: source.title, status: source.status, sceneCount: source.sceneCount, uniqueBackgrounds: source.uniqueBackgrounds, generatedCount: source.generatedCount, failedCount: source.failedCount, storyboardFileName: source.storyboardFileName, storyboardDriveUrl, driveFolderUrl: source.driveFolderUrl, backgroundManifest: JSON.stringify(source.images) } }];",
+        "mode": "runOnceForAllItems"
+      },
+      "id": "a300f9b0-06c2-4677-b5cf-c2e6352b8f71",
+      "name": "Build Process Log Entry",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        912,
+        1248
+      ]
+    },
+    {
+      "parameters": {
+        "options": {
+          "handlingExtraData": "error",
+          "cellFormat": "RAW"
+        },
+        "columns": {
+          "schema": [
+            {
+              "id": "processedAt",
+              "type": "string",
+              "display": true,
+              "displayName": "processedAt",
+              "required": false
+            },
+            {
+              "id": "jobId",
+              "type": "string",
+              "display": true,
+              "displayName": "jobId",
+              "required": false
+            },
+            {
+              "id": "title",
+              "type": "string",
+              "display": true,
+              "displayName": "title",
+              "required": false
+            },
+            {
+              "id": "status",
+              "type": "string",
+              "display": true,
+              "displayName": "status",
+              "required": false
+            },
+            {
+              "id": "sceneCount",
+              "type": "number",
+              "display": true,
+              "displayName": "sceneCount",
+              "required": false
+            },
+            {
+              "id": "uniqueBackgrounds",
+              "type": "number",
+              "display": true,
+              "displayName": "uniqueBackgrounds",
+              "required": false
+            },
+            {
+              "id": "generatedCount",
+              "type": "number",
+              "display": true,
+              "displayName": "generatedCount",
+              "required": false
+            },
+            {
+              "id": "failedCount",
+              "type": "number",
+              "display": true,
+              "displayName": "failedCount",
+              "required": false
+            },
+            {
+              "id": "storyboardFileName",
+              "type": "string",
+              "display": true,
+              "displayName": "storyboardFileName",
+              "required": false
+            },
+            {
+              "id": "storyboardDriveUrl",
+              "type": "string",
+              "display": true,
+              "displayName": "storyboardDriveUrl",
+              "required": false
+            },
+            {
+              "id": "driveFolderUrl",
+              "type": "string",
+              "display": true,
+              "displayName": "driveFolderUrl",
+              "required": false
+            },
+            {
+              "id": "backgroundManifest",
+              "type": "string",
+              "display": true,
+              "displayName": "backgroundManifest",
+              "required": false
+            }
+          ],
+          "mappingMode": "autoMapInputData",
+          "value": {}
+        },
+        "authentication": "oAuth2",
+        "resource": "sheet",
+        "operation": "append",
+        "sheetName": {
+          "__rl": true,
+          "value": "2026102121",
+          "mode": "list"
+        },
+        "documentId": {
+          "__rl": true,
+          "value": "1RL7C_3kg7Ua47R7BnQFi4YvsgDyecIQS7yi1uCAT-gg",
+          "mode": "id"
+        }
+      },
+      "id": "47cfa200-b2a1-4997-a959-bf1705979191",
+      "name": "Append Process Log to Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1136,
+        1248
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "uhpKISQ818MUREdV",
+          "name": "giananrayvin@gmail.com"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { ok: true, status: 'recorded', jobId: $('Build Process Log Entry').first().json.jobId, title: $('Build Process Log Entry').first().json.title, storyboardFileName: $('Build Process Log Entry').first().json.storyboardFileName, storyboardDriveUrl: $('Build Process Log Entry').first().json.storyboardDriveUrl, driveFolderUrl: $('Build Process Log Entry').first().json.driveFolderUrl } }}",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "value": "={{ [\"https://script-to-storyboard-six.vercel.app\",\"https://script-to-storyboard-66zqtjejz-rayvin-gianan-s-projects.vercel.app\",\"https://script-to-storyboard-rh9j2ogz2-rayvin-gianan-s-projects.vercel.app\",\"https://script-to-storyboard-rj8si3nam-rayvin-gianan-s-projects.vercel.app\",\"https://script-to-storyboard-2936gb8xd-rayvin-gianan-s-projects.vercel.app\",\"https://script-to-storyboard-git-codex-5b7cab-rayvin-gianan-s-projects.vercel.app\"].includes($('Record Storyboard Process').first().json.headers?.origin) ? $('Record Storyboard Process').first().json.headers.origin : 'https://script-to-storyboard-six.vercel.app' }}",
+                "name": "Access-Control-Allow-Origin"
+              },
+              {
+                "value": "no-store",
+                "name": "Cache-Control"
+              },
+              {
+                "value": "application/json",
+                "name": "Content-Type"
+              }
+            ]
+          },
+          "enableStreaming": false
+        }
+      },
+      "id": "033997ce-75a2-4ff7-ae2d-b2a619d181db",
+      "name": "Return Process Log Result",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1360,
+        1248
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Receive Background from Generator": {
+      "main": [
+        [
+          {
+            "node": "Prepare Image for Drive Upload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Image for Drive Upload": {
+      "main": [
+        [
+          {
+            "node": "Upload Background to Google Drive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload Background to Google Drive": {
+      "main": [
+        [
+          {
+            "node": "Return Uploaded Background",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Editing Team": {
+      "main": [
+        [
+          {
+            "node": "Read Workflow Delivery Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Workflow Delivery Settings": {
+      "main": [
+        [
+          {
+            "node": "Build Notification Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Notification Payload": {
+      "main": [
+        [
+          {
+            "node": "Email Recipient Configured?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Recipient Configured?": {
+      "main": [
+        [
+          {
+            "node": "Email Editing Team",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return Notification Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Editing Team": {
+      "main": [
+        [
+          {
+            "node": "Record Notification in Delivery Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Record Notification in Delivery Log": {
+      "main": [
+        [
+          {
+            "node": "Return Notification Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Record Background Feedback": {
+      "main": [
+        [
+          {
+            "node": "Validate Feedback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Feedback": {
+      "main": [
+        [
+          {
+            "node": "Feedback Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Feedback Valid?": {
+      "main": [
+        [
+          {
+            "node": "Append Feedback to Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return Feedback Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append Feedback to Google Sheets": {
+      "main": [
+        [
+          {
+            "node": "Build Feedback Receipt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Feedback Receipt": {
+      "main": [
+        [
+          {
+            "node": "Return Feedback Saved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Record Storyboard Process": {
+      "main": [
+        [
+          {
+            "node": "Prepare Storyboard CSV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Storyboard CSV": {
+      "main": [
+        [
+          {
+            "node": "Upload Storyboard CSV to Google Drive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload Storyboard CSV to Google Drive": {
+      "main": [
+        [
+          {
+            "node": "Build Process Log Entry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Process Log Entry": {
+      "main": [
+        [
+          {
+            "node": "Append Process Log to Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append Process Log to Google Sheets": {
+      "main": [
+        [
+          {
+            "node": "Return Process Log Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "none",
+    "binaryMode": "separate",
+    "saveExecutionProgress": false
+  },
+  "versionId": null,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "id": "KNBiOwM2a2SXvgK2",
+  "tags": []
+}

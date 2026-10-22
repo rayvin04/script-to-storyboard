@@ -123,7 +123,7 @@
     const sceneList = Array.isArray(scenes) ? scenes : [];
     if (!sceneList.length) throw new Error("There are no storyboard scenes to export yet.");
     const backgroundById = new Map((Array.isArray(backgrounds) ? backgrounds : []).map(item => [item.backgroundId, item]));
-    const pageTitle = cleanText(title) || "Fred's Storyboard";
+    const pageTitle = cleanText(title) || "Storyboard";
     const headerHeight = 160;
     const gap = 18;
     let cursorY = headerHeight;
@@ -137,14 +137,8 @@
     const completed = backgroundById.size
       ? Array.from(backgroundById.values()).filter(item => String(item.status).toLowerCase() === "completed").length
       : sceneList.filter(scene => String(scene.backgroundImageStatus).toLowerCase() === "completed").length;
-    const deferred = backgroundById.size
-      ? Array.from(backgroundById.values()).filter(item => String(item.status).toLowerCase() === "deferred").length
-      : sceneList.filter(scene => String(scene.backgroundImageStatus).toLowerCase() === "deferred").length;
     const uniqueCount = backgroundById.size || new Set(sceneList.map(scene => scene.backgroundId).filter(Boolean)).size;
-    const meta = `${sceneList.length} scenes  ·  ${uniqueCount} unique background plates  ·  ${completed} ready  ·  ${deferred} deferred`;
-    const remainingNote = deferred > 0
-      ? `This is the full storyboard. More background plates remain for a later batch (${deferred} deferred).`
-      : "This is the full storyboard. All planned background plates are available in this export.";
+    const meta = `${sceneList.length} scenes  ·  ${uniqueCount} unique background plates  ·  ${completed} ready`;
 
     return `<svg xmlns="http://www.w3.org/2000/svg" width="${WIDTH}" height="${totalHeight}" viewBox="0 0 ${WIDTH} ${totalHeight}" role="img" aria-labelledby="title description">
   <title id="title">${xmlEscape(pageTitle)} — Storyboard</title>
@@ -165,14 +159,14 @@
   </style>
   <rect width="100%" height="100%" fill="#fff7e8"/>
   <circle cx="1188" cy="44" r="42" fill="#ffd166" opacity=".38"/>
-  <text x="${PAGE_X}" y="35" class="eyebrow">FRED'S STORYBOARD LAB  ·  BACKGROUND-FIRST PLAN</text>
+  <text x="${PAGE_X}" y="35" class="eyebrow">SCRIPT TO STORYBOARD LAB  ·  BACKGROUND-FIRST PLAN</text>
   <text x="${PAGE_X}" y="82" class="title">${xmlEscape(pageTitle)}</text>
   <text x="${PAGE_X}" y="111" class="meta">${xmlEscape(meta)}</text>
   <text x="${PAGE_X}" y="136" class="note">Background plates only. Animators draw characters, props, overlays, and motion. Job ${xmlEscape(jobId || "local export")}.</text>
   ${cards.join("\n  ")}
   <line x1="${PAGE_X}" y1="${footerY}" x2="${WIDTH - PAGE_X}" y2="${footerY}" stroke="#202a3b" stroke-opacity=".22"/>
-  <text x="${PAGE_X}" y="${footerY + 24}" class="footer">${xmlEscape(remainingNote)}</text>
-  <text x="${PAGE_X}" y="${footerY + 48}" class="footer">The SVG is a visual review copy. Download the CSV for the structured source data.</text>
+  <text x="${PAGE_X}" y="${footerY + 24}" class="footer">Full storyboard with generated background plates. Animators add characters, props, text, and motion.</text>
+  <text x="${PAGE_X}" y="${footerY + 48}" class="footer">Download the CSV for the structured storyboard source.</text>
 </svg>`;
   }
 
