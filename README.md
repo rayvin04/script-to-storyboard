@@ -1,6 +1,6 @@
-![Script to Storyboard Lab cover](docs/images/project-cover.png)
-
 # Script to Storyboard Lab
+
+![Script to Storyboard Lab cover](docs/images/project-cover.png)
 
 Turn a complete narration script into an animator-ready storyboard, then generate up to six matching background images.
 
