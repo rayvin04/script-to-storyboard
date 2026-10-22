@@ -739,6 +739,11 @@
         688,
         1248
       ],
+      "settings": {
+        "retryOnFail": true,
+        "maxTries": 2,
+        "waitBetweenTries": 5000
+      },
       "credentials": {
         "googleDriveOAuth2Api": {
           "id": "PWL6ap3LIUEv75px",

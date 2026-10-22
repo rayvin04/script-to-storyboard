@@ -1,5 +1,5 @@
 {
-  "name": "Fred Script-to-Backgrounds — Simple",
+  "name": "Script to Storyboard — Generation",
   "nodes": [
     {
       "parameters": {
@@ -572,12 +572,11 @@
           },
           "conditions": [
             {
-              "rightValue": true,
-              "leftValue": "={{ $json.requestMode === 'single' }}",
+              "rightValue": "single",
+              "leftValue": "={{ $json.requestMode }}",
               "operator": {
-                "type": "boolean",
-                "operation": "true",
-                "singleValue": true
+                "type": "string",
+                "operation": "equals"
               }
             }
           ]
