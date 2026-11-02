@@ -42,6 +42,10 @@ flowchart LR
   G --> H[Return storyboard to the UI]
 ```
 
+### n8n workflow
+
+![n8n workflow showing script validation, reference lookups, storyboard planning, CSV creation, and the webhook response](docs/images/storyboard-workflow.png)
+
 The application sends the script to a dedicated n8n webhook. The workflow reads only its independent portfolio guide and examples, plans the storyboard, checks the structured result, builds a CSV, and saves it in the portfolio output folder. The app displays the returned rows and provides a local CSV download.
 
 ## Data handling
@@ -103,7 +107,8 @@ Do not commit exported workflow data containing account identifiers, credential 
 ├── styles.css
 └── docs/
     └── images/
-        └── script-to-storyboard-cover.png
+        ├── script-to-storyboard-cover.png
+        └── storyboard-workflow.png
 ```
 
 ## Author
