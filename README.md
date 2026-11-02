@@ -4,7 +4,7 @@
 
 Script to Storyboard turns a complete narration script into a scene-by-scene plan for educational videos, explainers, documentaries, presentations, and other narration-led projects. It creates a storyboard and CSV; it does not generate images or animation.
 
-> **Live demo:** The independent portfolio deployment is being prepared. Add the public URL here after the new Vercel project and workflow are verified.
+> **Live demo:** [Open Script to Storyboard](https://script-to-storyboard-portfolio.vercel.app/)
 
 ## What it does
 
@@ -13,7 +13,7 @@ Script to Storyboard turns a complete narration script into a scene-by-scene pla
 - Preserves the spoken narration in order and reports a warning when scene coverage differs from the source.
 - Returns the complete storyboard as a seven-column CSV.
 - Shows the returned scenes in a scrollable preview and lets the user download the CSV.
-- Saves a copy of the CSV in a dedicated portfolio Drive folder when the workflow is configured.
+- Saves a copy of the CSV in a dedicated portfolio Drive folder.
 
 This project is storyboard-only. Background illustration, character design, image generation, and animation are outside its scope.
 
@@ -46,15 +46,15 @@ The application sends the script to a dedicated n8n webhook. The workflow reads 
 
 ## Data handling
 
-The complete script is sent to the configured n8n webhook and processed by the connected AI model. The generated CSV is also saved in the project owner's Google Drive folder. A visitor can download a local copy from the UI; the Drive folder is restricted to its owner and workflow account. Do not use the public demo for confidential scripts.
+The complete script is sent to the public n8n webhook and processed by the connected AI model. The generated CSV is saved in the project owner's Google Drive folder. A visitor can download the CSV from the UI; the Drive folder is restricted to its owner and workflow account. Anyone with the demo link can submit a script, so do not use it for confidential scripts or sensitive personal information.
 
 ## Use the demo
 
-1. Open the live demo once its deployment URL is added above.
+1. Open the [live demo](https://script-to-storyboard-portfolio.vercel.app/).
 2. Paste the complete narration or select **Load sample**.
 3. Choose **Create storyboard** and wait for the scene plan.
 4. Review the narration, visual concepts, settings, illustration elements, and notes.
-5. Download the CSV or open the saved Drive output when the workflow confirms a successful upload.
+5. Download the generated CSV from the page. The workflow also saves an owner-side copy in Google Drive.
 
 ## Technology
 
@@ -64,7 +64,7 @@ The complete script is sent to the configured n8n webhook and processed by the c
 | Workflow | n8n webhook and connected AI/model nodes |
 | Planning references | Independent Google Docs guide and Google Sheets examples |
 | Output | CSV download and Google Drive file |
-| Hosting | Vercel (configured after the independent public project is approved) |
+| Hosting | Vercel, deployed from the `main` branch of this repository |
 
 ## Run locally
 
@@ -74,14 +74,14 @@ Serve this folder from a static web server:
 python -m http.server 4173
 ```
 
-Open `http://localhost:4173`. The browser sends requests to the portfolio n8n webhook configured near the top of `app.js`. For a different n8n instance, update `WEBHOOK_URL` and add the exact site origin to that workflow's CORS allowlist.
+Open `http://localhost:4173`. The browser sends requests to the portfolio n8n webhook configured near the top of `app.js`. To test against the hosted workflow locally, add `http://localhost:4173` to that workflow's CORS allowlist. For a different n8n instance, update `WEBHOOK_URL` and allow the exact site origin there.
 
 ## Requirements for a working deployment
 
-- The dedicated portfolio n8n workflow must be published and active.
+- The dedicated portfolio n8n workflow must remain published and active.
 - The webhook URL in `app.js` must match that workflow's production webhook.
 - The workflow must allow the deployed site origin through CORS.
-- Its Google Docs, Sheets, and Drive nodes need working credentials and access to the new portfolio resources.
+- Its Google Docs, Sheets, and Drive nodes need working credentials and access to the portfolio references and output folder.
 
 Do not commit exported workflow data containing account identifiers, credential references, private resource IDs, or authentication material. Configure those values in the n8n instance.
 
