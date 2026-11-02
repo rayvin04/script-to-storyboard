@@ -47,6 +47,9 @@ button:focus-visible, textarea:focus-visible, a:focus-visible, .table-wrap:focus
 .topbar-actions { display: flex; align-items: center; gap: 18px; }
 .service-status { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: 11px; font-weight: 600; }
 .service-status i { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 3px rgba(50, 142, 131, .13); }
+.github-link { display: inline-flex; align-items: center; gap: 7px; padding: 8px 9px; border-radius: 7px; color: var(--ink); font-size: 11px; font-weight: 600; line-height: 1; text-decoration: none; transition-property: color, background-color; transition-duration: .15s; transition-timing-function: ease; }
+.github-link svg { width: 18px; height: 18px; flex: 0 0 auto; fill: currentColor; }
+@media (hover: hover) { .github-link:hover { background: var(--surface-alt); color: var(--blue-deep); } }
 .theme-toggle { width: 35px; height: 35px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 50%; background: var(--surface); color: var(--ink); }
 .theme-toggle:hover { background: var(--surface-alt); border-color: var(--line-strong); }
 .theme-toggle svg { width: 17px; height: 17px; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
@@ -216,6 +219,8 @@ td:nth-child(7) { min-width: 170px; }
   .result-summary { align-items: flex-start; flex-direction: column; }
   .summary-links { justify-content: space-between; width: 100%; }
   .secondary-button { gap: 6px; padding-inline: 8px; font-size: 9px; }
+  .github-link { padding: 8px; }
+  .github-link span { display: none; }
   .footer { flex-direction: column; gap: 5px; }
 }
 @media (prefers-reduced-motion: reduce) {
